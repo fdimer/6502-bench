@@ -75,7 +75,7 @@ select, input[type=text] { font-family: var(--font-ui); font-size: 14px; backgro
 input.mono { font-size: 13px; }
 label.inline { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
 
-.grid { display: grid; grid-template-columns: minmax(340px, 400px) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.grid { display: grid; grid-template-columns: minmax(330px, 390px) minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
 @media (max-width: 1180px) { .grid { grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); } .col3 { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; } }
 @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } .col3 { display: flex; align-items: stretch; } }
 .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
@@ -221,6 +221,18 @@ table.timing .cyc th.dm { color: var(--z); font-style: italic; font-weight: 500;
 table.timing td.hx.wd { color: var(--warn); font-weight: 600; }
 table.mem td.b.rom { background: var(--panel2); }
 table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
+
+/* scrolling views */
+.vscroll { position: relative; overflow: auto; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); overscroll-behavior: contain; }
+.vscroll .vspace { position: relative; }
+.vscroll .vrows { position: absolute; left: 0; top: 0; }
+#disView { height: 418px; } #memView { height: 344px; }
+table.mem td { padding: 1px 2px; } table.mem td.b { min-width: 20px; } table.mem td.b.gap { padding-left: 6px; } table.mem td.asc { padding-left: 8px; letter-spacing: 0; } table.mem td.ma { padding-right: 6px; }
+#disView .vrows { right: 0; }
+.dis-row { height: 22px; box-sizing: border-box; }
+.dis-row.gaprow { cursor: default; }
+table.mem tr { height: 20px; }
+.counters .pcv b { color: var(--sel); font-weight: 600; }
 </style>
 
 <div class="wrap">
@@ -229,6 +241,7 @@ table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
     <div id="status" class="status">Ready</div>
     <div class="counters">
       <span>Cycles <b id="cntT">0</b></span>
+      <span class="pcv">PC <b id="cntPC">0000h</b></span>
       <span>Instructions <b id="cntI">0</b></span>
     </div>
   </header>
@@ -263,22 +276,24 @@ table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
         </dl>
         <p class="hint">Clicking φ0 pulses one clock, which is one bus cycle: the 6502 reads or writes memory on every cycle. /IRQ is level-sensitive and masked by the I flag; /NMI and /SO trigger on a falling edge. Holding RDY low stops the CPU on its next read cycle (writes still complete, as on the NMOS part). /RES low holds the CPU in reset; releasing it runs the 7-cycle reset sequence and loads PC from FFFCh.</p>
       </section>
+
+      <section class="panel">
+        <h2>I/O registers <span class="aside" id="ioInfo">last value written</span></h2>
+        <div class="latches" id="latches"></div>
+        <div class="iolog" id="iolog"></div>
+      </section>
     </div>
 
     <div class="col">
       <section class="panel">
-        <h2>Memory
-          <span class="aside" id="memInfo"></span></h2>
-        <div class="memhead">
-          <label class="inline" for="memFrom">From <input id="memFrom" type="text" class="mono" value="0000" maxlength="4"></label>
-          <button id="memPrev" aria-label="Previous 256 bytes">◂</button>
-          <button id="memNext" aria-label="Next 256 bytes">▸</button>
-          <button id="memPC">Show PC</button>
-          <button id="memSP">Show stack</button>
-          <button id="memZP">Zero page</button>
+        <h2>Registers <span class="aside" id="regNote"></span></h2>
+        <div class="regs" id="regs"></div>
+        <div class="flags" id="flags"><span class="lbl">P</span></div>
+        <div class="cpuinfo">
+          <span>/IRQ line <b id="irqState">high</b></span>
+          <span>NMI pending <b id="nmiState">no</b></span>
+          <span>State <b id="cpuState">running</b></span>
         </div>
-        <div class="memgrid-wrap"><table class="mem" id="mem"></table></div>
-        <p class="hint">Click a byte to edit it (ROM too). Blue marks the next instruction, amber marks bytes written by the last instruction, underline marks the top of the stack. ROM is tinted; I/O registers show the value a read would return.</p>
       </section>
 
       <section class="panel">
@@ -288,13 +303,6 @@ table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
         <p class="hint">Starred cycles (rd*, wr*) are dummy accesses the 6502 makes while it works out an address or modifies memory; real hardware sees them, so they matter for I/O registers.</p>
       </section>
 
-      <section class="panel">
-        <h2>Disassembly <span class="aside">click a line to set a breakpoint</span></h2>
-        <div class="dis" id="dis"></div>
-      </section>
-    </div>
-
-    <div class="col col3">
       <section class="panel">
         <h2>Program
           <span class="aside seg" role="tablist" aria-label="Input format">
@@ -354,22 +362,26 @@ table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
         <div class="msg" id="portList"></div>
         <p class="hint">The defaults follow a common hobby layout: 16 KB RAM at 0000h, a 6522 VIA at 6000h and ROM from 8000h to FFFFh, which holds the NMI, reset and IRQ vectors at FFFA–FFFFh. The 6502 has no separate I/O space, so peripherals sit in the memory map.</p>
       </section>
+    </div>
 
+    <div class="col col3">
       <section class="panel">
-        <h2>Registers <span class="aside" id="regNote"></span></h2>
-        <div class="regs" id="regs"></div>
-        <div class="flags" id="flags"><span class="lbl">P</span></div>
-        <div class="cpuinfo">
-          <span>/IRQ line <b id="irqState">high</b></span>
-          <span>NMI pending <b id="nmiState">no</b></span>
-          <span>State <b id="cpuState">running</b></span>
-        </div>
+        <h2>Disassembly <span class="aside">scroll to browse · click a line to set a breakpoint</span></h2>
+        <div class="vscroll" id="disView" tabindex="0" aria-label="Disassembly"><div class="vspace"><div class="vrows dis" id="dis"></div></div></div>
       </section>
 
       <section class="panel">
-        <h2>I/O registers <span class="aside" id="ioInfo">last value written</span></h2>
-        <div class="latches" id="latches"></div>
-        <div class="iolog" id="iolog"></div>
+        <h2>Memory
+          <span class="aside" id="memInfo"></span></h2>
+        <div class="memhead">
+          <label class="inline" for="memFrom">Go to <input id="memFrom" type="text" class="mono" value="0000" maxlength="4"></label>
+          <button id="memPC">Show PC</button>
+          <button id="memSP">Show stack</button>
+          <button id="memZP">Zero page</button>
+          <label class="inline"><input type="checkbox" id="memFollow" checked> Follow PC</label>
+        </div>
+        <div class="vscroll" id="memView" tabindex="0" aria-label="Memory"><div class="vspace"><table class="mem vrows" id="mem"></table></div></div>
+        <p class="hint">Scroll through all 64 KB. Click a byte to edit it (ROM too). Blue marks the instruction being executed, amber marks bytes written by the last instruction, underline marks the top of the stack. ROM is tinted; I/O registers show the value a read would return. With Follow PC ticked, each step brings the current instruction back into view; untick it to keep watching another area.</p>
       </section>
     </div>
   </div>
@@ -449,7 +461,7 @@ const bus = {
     lastData = v; return v;
   },
   write(a, v) {
-    lastData = v;
+    lastData = v; disDirty = true;
     const r = region(a);
     if (r === 'io') { ioOut.set(a - ioBase, v); ioLog.push({ dir: 'WR', a, v, t: tTotal }); trimLog(); }
     else if (r === 'ram') mem[a] = v;
@@ -841,37 +853,20 @@ function renderTiming() {
   $('tnow').innerHTML = curInstr ? `<b>${h4(curInstr.pc)}h  ${esc(curInstr.text)}</b> · ${where}` : where;
 }
 function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
-function renderDis() {
+function renderMem(focus) {
   const s = regsView();
-  const pc = s.pc;
-  const lines = 18;
-  let rows = [], a = disStart, found = false;
-  for (let i = 0; i < lines; i++) { const d = disasm(bus.peek, a); rows.push({ a, d }); if (a === pc) found = true; a = (a + d.len) & 0xFFFF; }
-  if (!found) {
-    disStart = pc; rows = []; a = pc;
-    for (let i = 0; i < lines; i++) { const d = disasm(bus.peek, a); rows.push({ a, d }); a = (a + d.len) & 0xFFFF; }
-  } else {
-    const idx = rows.findIndex(r => r.a === pc);
-    if (idx > lines - 5) { disStart = rows[idx - 3].a; return renderDis(); }
-  }
-  const exec = midInstruction() ? pre.pc : -1;
-  $('dis').innerHTML = rows.map(({ a, d }) => {
-    const bytes = []; for (let i = 0; i < d.len; i++) bytes.push(h2(bus.peek((a + i) & 0xFFFF)));
-    const r = region(a), unm = r === 'none';
-    const cls = ['dis-row', breakpoints.has(a) ? 'isbp' : '', a === exec ? 'exec' : (a === pc && exec < 0 ? 'pc' : '')].join(' ');
-    const note = unm ? '  (no memory)' : r === 'io' ? '  (I/O)' : d.bad ? '  (undocumented)' : '';
-    return `<div class="${cls}" data-a="${a}" tabindex="0" role="button" aria-label="Toggle breakpoint at ${h4(a)}h"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${unm || d.bad ? ' unm' : ''}">${esc(d.text)}${note}</span></div>`;
-  }).join('');
-}
-function renderMem() {
-  const s = regsView();
-  const tab = $('mem');
+  const view = $('memView');
+  view.firstElementChild.style.height = 4096 * MEM_ROW + 'px';
+  if (memPending !== null) { view.scrollTop = (memPending >> 4) * MEM_ROW; memPending = null; }
+  else if (focus && $('memFollow').checked) ensureVisible(view, s.pc >> 4, MEM_ROW);
   const pcSet = new Set();
   const d = disasm(bus.peek, s.pc); for (let i = 0; i < d.len; i++) pcSet.add((s.pc + i) & 0xFFFF);
   const sp = 0x100 | s.s;
+  const first = Math.max(0, Math.floor(view.scrollTop / MEM_ROW) - 1);
+  const last = Math.min(4096, first + Math.ceil(view.clientHeight / MEM_ROW) + 3);
   let html = '';
-  for (let r = 0; r < 16; r++) {
-    const base = (memFrom + r * 16) & 0xFFFF;
+  for (let r = first; r < last; r++) {
+    const base = r * 16;
     html += `<tr><td class="ma">${h4(base)}</td>`;
     let asc = '';
     for (let c = 0; c < 16; c++) {
@@ -884,8 +879,8 @@ function renderMem() {
     }
     html += `<td class="asc">${esc(asc)}</td></tr>`;
   }
-  tab.innerHTML = html;
-  if (document.activeElement !== $('memFrom')) $('memFrom').value = h4(memFrom);
+  const tab = $('mem'); tab.style.top = first * MEM_ROW + 'px'; tab.innerHTML = html;
+  if (document.activeElement !== $('memFrom')) $('memFrom').value = h4(Math.floor(view.scrollTop / MEM_ROW) * 16);
   const parts = ['RAM ' + (ramSize / 1024) + ' KB'];
   if (romStart >= 0) parts.push('ROM ' + h4(romStart) + '–FFFF');
   if (ioBase >= 0) parts.push('I/O ' + h4(ioBase) + '–' + h4(ioBase + 15));
@@ -904,9 +899,65 @@ function renderIO() {
   $('portList').textContent = pl ? 'I/O inputs: ' + pl + '  (click Set with an empty value to remove)' : '';
 }
 function render() {
-  renderPins(); renderRegs(); renderTiming(); renderDis(); renderMem(); renderIO();
+  const pcNow = regsView().pc, focus = pcNow !== lastFocusPc || tTotal !== lastFocusT;
+  lastFocusPc = pcNow; lastFocusT = tTotal;
+  renderPins(); renderRegs(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
+  $('cntPC').textContent = h4(pcNow) + 'h';
   $('cntT').textContent = tTotal.toLocaleString('en-AU');
   $('cntI').textContent = instrCount.toLocaleString('en-AU');
+}
+
+
+// ---------- scrolling memory and disassembly views ----------
+const MEM_ROW = 20, DIS_ROW = 22;
+const peekB = a => bus.peek(a & 0xFFFF);
+const MAPPED = a => region(a) !== 'none';
+let disLines = [], disDirty = true, disBuiltAt = 0, lastFocusPc = -1, lastFocusT = -1, memPending = null;
+// linear disassembly of all mapped memory, re-aligned so the PC always starts a line
+function buildDis(pc) {
+  const L = [];
+  let a = 0;
+  while (a < 0x10000) {
+    if (!MAPPED(a)) { const s = a; while (a < 0x10000 && !MAPPED(a)) a++; L.push({ a: s, gap: a - s }); continue; }
+    let len = disasm(peekB, a).len;
+    if (pc > a && pc < a + len) { L.push({ a, len: pc - a, data: true }); a = pc; continue; }
+    if (a + len > 0x10000) len = 0x10000 - a;
+    L.push({ a, len }); a += len;
+  }
+  disLines = L; disDirty = false; disBuiltAt = performance.now();
+}
+function lineIndex(addr) { let lo = 0, hi = disLines.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (disLines[mid].a <= addr) lo = mid; else hi = mid - 1; } return lo; }
+function ensureVisible(view, idx, rowH) {
+  const top = idx * rowH;
+  if (top < view.scrollTop || top + rowH > view.scrollTop + view.clientHeight) view.scrollTop = Math.max(0, top - Math.round(view.clientHeight / 3));
+}
+function memScrollTo(addr) { memPending = addr & 0xFFFF; }
+function renderDis(focus) {
+  const pc = regsView().pc;
+  const stale = disDirty && (!running || performance.now() - disBuiltAt > 300);
+  if (!disLines.length || stale || (MAPPED(pc) && disLines[lineIndex(pc)].a !== pc)) buildDis(pc);
+  const view = $('disView');
+  view.firstElementChild.style.height = disLines.length * DIS_ROW + 'px';
+  if (focus) ensureVisible(view, lineIndex(pc), DIS_ROW);
+  const first = Math.max(0, Math.floor(view.scrollTop / DIS_ROW) - 2);
+  const last = Math.min(disLines.length, first + Math.ceil(view.clientHeight / DIS_ROW) + 5);
+  const exec = midInstruction() && pre ? pre.pc : -1;
+  let html = '';
+  for (let i = first; i < last; i++) {
+    const ln = disLines[i], a = ln.a;
+    if (ln.gap) {
+      const here = pc >= a && pc < a + ln.gap;
+      html += `<div class="dis-row gaprow${here ? ' pc' : ''}"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by"></span><span class="mn unm">no memory up to ${h4(a + ln.gap - 1)}h${here ? ' (PC is here)' : ''}</span></div>`;
+      continue;
+    }
+    const bytes = []; for (let k = 0; k < ln.len; k++) bytes.push(h2(peekB(a + k)));
+    const d = ln.data ? null : disasm(peekB, a);
+    const text = ln.data ? '.byte ' + bytes.map(b => '$' + b).join(',') : d.text;
+    const bad = d && (d.bad || d.text === 'NOP*');
+    const cls = ['dis-row', breakpoints.has(a) ? 'isbp' : '', a === exec ? 'exec' : (a === pc && exec < 0 ? 'pc' : '')].join(' ');
+    html += `<div class="${cls}" data-a="${a}" tabindex="-1" role="button" aria-label="Toggle breakpoint at ${h4(a)}h"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${ln.data || bad ? ' unm' : ''}">${esc(text)}</span></div>`;
+  }
+  const rows = $('dis'); rows.style.top = first * DIS_ROW + 'px'; rows.innerHTML = html;
 }
 
 // ---------- loader ----------
@@ -1002,7 +1053,7 @@ function loadChunks(chunks, note, tail) {
     resetCPU(true);
     if (vecLo && vecHi && region(0xFFFC) !== 'none') pcNote = ` PC = ${h4(cpu.pc)}h from the reset vector.`;
     else { cpu.pc = chunks[0].addr; disStart = cpu.pc; pcNote = ` This program sets no reset vector at FFFCh, so PC is set to the load address ${h4(cpu.pc)}h.`; }
-    memFrom = chunks[0].addr & 0xFFF0;
+    memScrollTo(chunks[0].addr); disDirty = true;
     setStatus('Program loaded, CPU reset, PC = ' + h4(cpu.pc) + 'h');
   }
   ioOut.clear(); ioLog.length = 0;
@@ -1187,13 +1238,13 @@ function bind() {
   $('hexIn').addEventListener('input', () => { hexFromAsm = null; });
   $('modeAsm').onclick = () => setMode('asm');
   $('modeHex').onclick = () => setMode('hex');
-  $('ramSize').onchange = () => { ramSize = +$('ramSize').value; render(); };
-  $('romStart').onchange = () => { romStart = +$('romStart').value; render(); };
+  $('ramSize').onchange = () => { ramSize = +$('ramSize').value; disDirty = true; render(); };
+  $('romStart').onchange = () => { romStart = +$('romStart').value; disDirty = true; render(); };
   $('unmapped').onchange = () => { openBus = $('unmapped').value === 'open'; render(); };
   $('ioBase').addEventListener('change', () => {
     const t = $('ioBase').value.trim().replace(/^\$/, '');
     if (!t) ioBase = -1; else { const v = parseInt(t, 16); if (!isNaN(v)) ioBase = Math.min(v, 0xFFF0); }
-    $('ioBase').value = ioBase >= 0 ? h4(ioBase) : ''; ioOut.clear(); render();
+    $('ioBase').value = ioBase >= 0 ? h4(ioBase) : ''; ioOut.clear(); disDirty = true; render();
   });
   $('ioDefault').addEventListener('change', () => { const v = parseInt($('ioDefault').value, 16); if (!isNaN(v)) ioDefault = v & 0xFF; $('ioDefault').value = h2(ioDefault); render(); });
   $('btnPort').onclick = () => {
@@ -1202,17 +1253,20 @@ function bind() {
     if (isNaN(v)) ioIn.delete(p & 0x0F); else ioIn.set(p & 0x0F, v & 0xFF);
     render();
   };
+  let scrollRaf = 0;
+  const onScroll = fn => () => { if (scrollRaf) return; scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; fn(); }); };
+  $('disView').addEventListener('scroll', onScroll(() => renderDis(false)));
+  $('memView').addEventListener('scroll', onScroll(() => renderMem(false)));
+  window.addEventListener('resize', onScroll(() => { renderDis(false); renderMem(false); }));
   $('dis').addEventListener('click', e => {
     const row = e.target.closest('.dis-row'); if (!row) return;
-    const a = +row.dataset.a; breakpoints.has(a) ? breakpoints.delete(a) : breakpoints.add(a); renderDis();
+    if (row.dataset.a === undefined) return; const a = +row.dataset.a; breakpoints.has(a) ? breakpoints.delete(a) : breakpoints.add(a); renderDis(false);
   });
   $('dis').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.dis-row')) { e.preventDefault(); e.target.click(); } });
-  $('memFrom').addEventListener('change', () => { const v = parseInt($('memFrom').value.replace(/^\$/, ''), 16); if (!isNaN(v)) memFrom = v & 0xFFF0; renderMem(); });
-  $('memPrev').onclick = () => { memFrom = (memFrom - 256) & 0xFFFF; renderMem(); };
-  $('memNext').onclick = () => { memFrom = (memFrom + 256) & 0xFFFF; renderMem(); };
-  $('memPC').onclick = () => { memFrom = regsView().pc & 0xFFF0; renderMem(); };
-  $('memSP').onclick = () => { memFrom = 0x100; renderMem(); };
-  $('memZP').onclick = () => { memFrom = 0; renderMem(); };
+  $('memFrom').addEventListener('change', () => { const v = parseInt($('memFrom').value.replace(/^\$/, ''), 16); if (!isNaN(v)) memScrollTo(v); renderMem(false); });
+  $('memPC').onclick = () => { memScrollTo(regsView().pc); renderMem(false); };
+  $('memSP').onclick = () => { memScrollTo(0x100 | regsView().s); renderMem(false); };
+  $('memZP').onclick = () => { memScrollTo(0); renderMem(false); };
   $('mem').addEventListener('click', e => {
     const td = e.target.closest('td.b'); if (!td || td.classList.contains('un') || td.querySelector('input')) return;
     const a = +td.dataset.a;
@@ -1222,7 +1276,7 @@ function bind() {
     const commit = save => {
       if (done) return; done = true;
       const v = parseInt(inp.value, 16);
-      if (save && !isNaN(v)) { if (region(a) === 'io') ioIn.set(a - ioBase, v & 0xFF); else mem[a] = v & 0xFF; }
+      if (save && !isNaN(v)) { if (region(a) === 'io') ioIn.set(a - ioBase, v & 0xFF); else mem[a] = v & 0xFF; disDirty = true; }
       render();
     };
     inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') commit(true); else if (ev.key === 'Escape') commit(false); });
