@@ -2,6 +2,8 @@
 
 An NMOS 6502 emulator for debugging programs and designing hardware around the chip. It runs in a web browser and shows the state of all 40 pins on every clock cycle. It is a sister project of [Z80 Bench](https://github.com/fdimer/z80-bench), with the same layout.
 
+**Try it online:** <https://fdimer.github.io/6502-bench/app/>
+
 Open `6502-bench.html` in any web browser, from this folder on your computer (it loads the CPU core and assembler from `src/`). It needs no installation or internet connection; the web fonts fall back to system fonts offline.
 
 To get a single self-contained file instead, run `python build.py`, which writes `6502-bench-standalone.html`.
