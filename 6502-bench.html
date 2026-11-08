@@ -395,18 +395,21 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
           <select id="dbgType" aria-label="Kind of debug point">
             <option value="mem">Memory stop</option>
             <option value="pin">Pin stop</option>
+            <option value="abus">Address bus value</option>
+            <option value="dbus">Data bus value</option>
             <option value="at">Break at address</option>
             <option value="after">Break after address</option>
           </select>
           <span class="dbgf" id="dbgAddrF"><input id="dbgAddr" type="text" class="mono" maxlength="4" placeholder="addr" aria-label="Address in hex" spellcheck="false" autocomplete="off">h</span>
           <span class="dbgf" id="dbgMemF"><select id="dbgMemCond" aria-label="Memory condition"><option value="any">changes</option><option value="to">changes to</option></select><input id="dbgMemVal" type="text" class="mono" maxlength="2" placeholder="00" aria-label="Value in hex" spellcheck="false" autocomplete="off" hidden></span>
+          <span class="dbgf" id="dbgBusF" hidden><input id="dbgBusVal" type="text" class="mono" maxlength="2" placeholder="00" aria-label="Data bus value in hex" spellcheck="false" autocomplete="off">h</span>
           <span class="dbgf" id="dbgPinF" hidden><select id="dbgPin" aria-label="Pin"></select><select id="dbgEdge" aria-label="Pin condition"><option value="any">changes</option><option value="rise">goes high</option><option value="fall">goes low</option></select></span>
           <button id="dbgAdd" class="primary" type="button">Add</button>
         </div>
         <div class="msg" id="dbgMsg"></div>
         <ul class="dbglist" id="dbgList"></ul>
         <div class="dbgfoot"><button id="dbgClear" type="button" hidden>Clear all</button></div>
-        <p class="hint">Every breakpoint and stop appears here, including those set from the disassembly and registers; click one to jump to it. A memory stop halts after the instruction that changes the byte. A pin stop halts on the clock where the pin changes, so while one is set, full speed runs clock by clock and is slower.</p>
+        <p class="hint">Every breakpoint and stop appears here, including those set from the disassembly and registers; click one to jump to it. A memory stop halts after the instruction that changes the byte. A pin or bus stop halts on the clock where the pin changes or the bus takes the value, so while one is set, full speed runs clock by clock and is slower.</p>
       </section>
 
       <section class="panel" id="pTiming">
@@ -655,7 +658,7 @@ function beginInstruction() {
   curInstr = { pc, text: cpu.jammed && !cpu.lastEvent ? 'CPU jammed (press Reset)' : eventText(cpu.lastEvent, text) };
 }
 // one clock: returns 'mid' | 'done' | 'wait' | 'reset'
-function tick() { const r = tick0(); if (pinWatches.size) pinCheck(); return r; }
+function tick() { const r = tick0(); if (pinWatches.size || busWatches.size) pinCheck(); return r; }
 function tick0() {
   tTotal++;
   if (pins.res === 0) {
@@ -757,7 +760,7 @@ function frame(now) {
   let last = null, stall = null;
   while (performance.now() - t0 < 12) {
     for (let k = 0; k < 400; k++) {
-      if (pinWatches.size || pins.rdy === 0 || pins.res === 0 || midInstruction()) {
+      if (pinWatches.size || busWatches.size || pins.rdy === 0 || pins.res === 0 || midInstruction()) {
         const r = tick();
         if (pinHit) { watchStop(takePin()); return; }
         if (r === 'done') { const wn = stopCheck(); if (wn != null) { watchStop(wn); return; } if (checkBoundary()) return; }
@@ -1398,6 +1401,7 @@ function watchStop(n) {
   let msg;
   if (typeof n === 'number') { dbgHit = 'after:' + n; msg = 'Break after: PC left ' + h4(n) + 'h and is now at ' + h4(cpu.pc) + 'h'; }
   else if (typeof n === 'string') { hitReg = n; dbgHit = 'reg:' + n; msg = 'Stopped: ' + n + ' changed to ' + fmtReg(n, watches.get(n)); }
+  else if (n.bus) { dbgHit = 'bus:' + n.bus + ':' + n.v; const cy = curT.k ? CYCNAME[curT.k] + ' ' + curT.t : curT.kind ? CYCNAME[curT.kind] : ''; msg = 'Stopped: ' + (n.bus === 'a' ? 'address bus = ' + h4(n.v) : 'data bus = ' + h2(n.v)) + 'h' + (curInstr ? ' during ' + h4(curInstr.pc) + 'h ' + curInstr.text : '') + (cy ? ' (' + cy + ')' : ''); }
   else if (n.pin) { dbgHit = 'pin:' + n.pin; msg = 'Stopped: ' + pinLabel(n.pin) + ' went ' + pv(n.from) + '→' + pv(n.to) + (curInstr ? ' during ' + h4(curInstr.pc) + 'h ' + curInstr.text : ''); }
   else { dbgHit = 'mem:' + n.mem; msg = 'Stopped: memory ' + h4(n.mem) + 'h changed ' + h2(n.from) + 'h→' + h2(n.to) + 'h'; }
   if (running) stopRun(msg, true); else setStatus(msg, true);
@@ -1432,7 +1436,7 @@ function renderStops() {
 }
 
 // ---------- debug pane: memory and pin stops, and a list of every debug point ----------
-const memWatches = new Map(), pinWatches = new Map();
+const memWatches = new Map(), pinWatches = new Map(), busWatches = new Map();
 let memBefore = null, doneMem = null, pinHit = null, dbgHit = null, dbgSig = '';
 const peekMem = a => (typeof bus.peek === 'function' ? bus.peek(a & 0xFFFF) : bus.read(a & 0xFFFF));
 function memVals() { const o = new Map(); for (const a of memWatches.keys()) o.set(a, peekMem(a)); return o; }
@@ -1454,8 +1458,13 @@ function pinCheck() {
     const from = w.prev; w.prev = v;
     if (!pinHit && (w.edge === 'any' || (w.edge === 'rise' && v === 1) || (w.edge === 'fall' && v === 0))) pinHit = { pin: n, from, to: v };
   }
+  for (const w of busWatches.values()) {
+    const v = busVal(w.bus), was = w.prev; w.prev = v;
+    if (!pinHit && v === w.v && was !== w.v) pinHit = { bus: w.bus, v };
+  }
 }
-function pinSync() { for (const [n, w] of pinWatches) w.prev = pinValue(n); }
+function busVal(b) { const v = b === 'a' ? curT.a : curT.d; return v === null || v === undefined || v === 'z' ? null : v; }
+function pinSync() { for (const [n, w] of pinWatches) w.prev = pinValue(n); for (const w of busWatches.values()) w.prev = busVal(w.bus); }
 function takePin() { const h = pinHit; pinHit = null; return h; }
 function bpText() { dbgHit = 'at:' + cpu.pc; return 'Breakpoint at ' + h4(cpu.pc) + 'h'; }
 const DBG_PINS = PINS.filter(([, n, k]) => 'oib'.includes(k) && !/^(CLK|PHI\d)$/.test(n))
@@ -1463,7 +1472,7 @@ const DBG_PINS = PINS.filter(([, n, k]) => 'oib'.includes(k) && !/^(CLK|PHI\d)$/
 $('dbgPin').innerHTML = DBG_PINS.map(([num, n]) => `<option value="${n}">${esc(pinLabel(n))} · pin ${num}</option>`).join('');
 function dbgFields() {
   const t = $('dbgType').value;
-  $('dbgAddrF').hidden = t === 'pin'; $('dbgMemF').hidden = t !== 'mem'; $('dbgPinF').hidden = t !== 'pin';
+  $('dbgAddrF').hidden = t === 'pin' || t === 'dbus'; $('dbgMemF').hidden = t !== 'mem'; $('dbgPinF').hidden = t !== 'pin'; $('dbgBusF').hidden = t !== 'dbus';
   $('dbgMemVal').hidden = $('dbgMemCond').value !== 'to';
   $('dbgMsg').textContent = ''; $('dbgMsg').className = 'msg';
 }
@@ -1472,10 +1481,12 @@ function dbgAdd() {
   const err = s => { msg.className = 'msg err'; msg.textContent = s; };
   const hex = (s, n) => { s = s.trim().replace(/^(\$|0x)/i, '').replace(/h$/i, ''); return new RegExp(`^[0-9a-f]{1,${n}}$`, 'i').test(s) ? parseInt(s, 16) : null; };
   if (t === 'pin') { const n = $('dbgPin').value; pinWatches.set(n, { edge: $('dbgEdge').value, prev: pinValue(n) }); }
+  else if (t === 'dbus') { const v = hex($('dbgBusVal').value, 2); if (v === null) { err('Enter a byte value from 00 to FF.'); $('dbgBusVal').focus(); return; } busWatches.set('d:' + v, { bus: 'd', v, prev: busVal('d') }); }
   else {
     const a = hex($('dbgAddr').value, 4);
     if (a === null) { err('Enter an address from 0000 to FFFF.'); $('dbgAddr').focus(); return; }
-    if (t === 'at') { afterBps.delete(a); breakpoints.add(a); }
+    if (t === 'abus') busWatches.set('a:' + a, { bus: 'a', v: a, prev: busVal('a') });
+    else if (t === 'at') { afterBps.delete(a); breakpoints.add(a); }
     else if (t === 'after') { breakpoints.delete(a); afterBps.add(a); }
     else {
       let to = null;
@@ -1490,7 +1501,7 @@ function dbgRemove(k) {
   const i = k.indexOf(':'), t = k.slice(0, i), v = k.slice(i + 1);
   if (t === 'at') breakpoints.delete(+v); else if (t === 'after') afterBps.delete(+v);
   else if (t === 'reg') { watches.delete(v); if (hitReg === v) hitReg = null; }
-  else if (t === 'mem') memWatches.delete(+v); else if (t === 'pin') pinWatches.delete(v);
+  else if (t === 'mem') memWatches.delete(+v); else if (t === 'pin') pinWatches.delete(v); else if (t === 'bus') busWatches.delete(v);
   if (dbgHit === k) dbgHit = null;
   render();
 }
@@ -1512,6 +1523,7 @@ function renderDebug() {
   for (const [n] of REGDEF) if (watches.has(n)) items.push(['reg:' + n, 'register', n + ' becomes ' + fmtReg(n, watches.get(n))]);
   for (const a of sorted(memWatches.keys())) { const w = memWatches.get(a); items.push(['mem:' + a, 'memory', h4(a) + 'h ' + (w.to === null ? 'changes' : 'becomes ' + h2(w.to) + 'h') + (now ? ', now ' + h2(peekMem(a)) + 'h' : '')]); }
   for (const [n, w] of pinWatches) items.push(['pin:' + n, 'pin', pinLabel(n) + ' ' + { any: 'changes', rise: 'goes high', fall: 'goes low' }[w.edge] + (now ? ', now ' + pv(pinValue(n)) : '')]);
+  for (const w of [...busWatches.values()].sort((x, y) => (x.bus > y.bus) - (x.bus < y.bus) || x.v - y.v)) { const cur = busVal(w.bus); items.push(['bus:' + w.bus + ':' + w.v, w.bus === 'a' ? 'address bus' : 'data bus', 'becomes ' + (w.bus === 'a' ? h4(w.v) : h2(w.v)) + 'h' + (now ? ', now ' + (cur === null ? 'floating' : (w.bus === 'a' ? h4(cur) : h2(cur)) + 'h') : '')]); }
   $('dbgCount').textContent = items.length ? items.length + ' active' : '';
   const sig = JSON.stringify(items) + dbgHit;
   if (sig === dbgSig) return;
@@ -1522,9 +1534,9 @@ function renderDebug() {
 }
 $('dbgType').onchange = dbgFields; $('dbgMemCond').onchange = dbgFields;
 $('dbgAdd').onclick = dbgAdd;
-for (const id of ['dbgAddr', 'dbgMemVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
+for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
-$('dbgClear').onclick = () => { breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); hitReg = null; dbgHit = null; render(); };
+$('dbgClear').onclick = () => { breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
 dbgFields();
 
 // ---------- collapsible side panels ----------

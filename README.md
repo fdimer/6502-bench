@@ -31,6 +31,7 @@ To get a single self-contained file instead, run `python build.py`, which writes
 - **Debug pane**: lists every breakpoint and stop, with a × to remove each and a click to jump to it. From it you can also add:
   - *memory stops*: halt after the instruction that changes the byte at an address, or changes it to a given value
   - *pin stops*: halt on the clock where a pin changes, goes high or goes low (while one is set, full speed runs clock by clock, so it is slower)
+  - *bus stops*: halt on the clock where the address bus or data bus takes a given value (like pin stops, these slow full speed while set)
 - **I/O**: writes to the I/O block are shown as 8-LED latches with a log of every access. You can set the value each register returns when read.
 
 ## Files
