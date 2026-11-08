@@ -166,6 +166,9 @@ table.timing th.cur { color: var(--sel); font-weight: 600; }
 .dis-row .bp { width: 10px; height: 10px; border-radius: 50%; border: 1px solid transparent; }
 .dis-row:hover .bp { border-color: var(--warn); }
 .dis-row.isbp .bp { background: var(--warn); border-color: var(--warn); }
+.dis-row.isbpa .bp { background: transparent; border: 2.5px solid var(--warn); }
+.bpkey { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; margin: 0 3px 0 6px; background: var(--warn); }
+.bpkey.after { background: transparent; border: 2px solid var(--warn); }
 .dis-row .ad { color: var(--muted); }
 .dis-row .by { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
 .dis-row .mn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -281,6 +284,8 @@ table.mem tr { height: 20px; }
         <option value="5">Clock 5 Hz</option>
         <option value="50">Clock 50 Hz</option>
         <option value="1000">Clock 1 kHz</option>
+        <option value="5000">Clock 5 kHz</option>
+        <option value="10000">Clock 10 kHz</option>
         <option value="max" selected>Full speed</option>
       </select>
     </label>
@@ -330,7 +335,7 @@ table.mem tr { height: 20px; }
 
     <div class="col">
       <section class="panel">
-        <h2>Disassembly <span class="aside">scroll to browse · click a line to set a breakpoint</span></h2>
+        <h2>Disassembly <span class="aside">click a line to cycle:<span class="bpkey" aria-hidden="true"></span>break at<span class="bpkey after" aria-hidden="true"></span>break after · off</span></h2>
         <div class="vscroll" id="disView" tabindex="0" aria-label="Disassembly"><div class="vspace"><div class="vrows dis" id="dis"></div></div></div>
       </section>
 
@@ -623,7 +628,7 @@ function tick() {
   const T = timeline[ti];
   if (pins.rdy === 0 && T.rw === 1) { curT = Object.assign({}, T, { waitIns: true }); return 'wait'; }
   curT = T; ti++;
-  if (ti >= timeline.length) { instrCount++; doneBefore = watches.size && pre ? regVals(pre) : null; pre = null; if (pendingSO) { cpu.p |= 0x40; pendingSO = false; } return 'done'; }
+  if (ti >= timeline.length) { instrCount++; doneBefore = watches.size && pre ? regVals(pre) : null; donePc = pre ? pre.pc : -1; pre = null; if (pendingSO) { cpu.p |= 0x40; pendingSO = false; } return 'done'; }
   return 'mid';
 }
 function midInstruction() { return timeline && ti < timeline.length; }
@@ -652,7 +657,7 @@ function pulseClock() {
   clk = 0; renderPins();
   const r = tick();
   const wn = r === 'done' ? stopCheck() : null;
-  if (wn) watchStop(wn);
+  if (wn != null) watchStop(wn);
   else   if (r === 'done' && breakpoints.has(cpu.pc)) bpMsg();
   else if (r === 'reset' || r === 'wait') stalledMsg(r); else describeInputs();
   render();
@@ -664,7 +669,7 @@ function stepInstruction() {
   let r, guard = 0;
   do { r = tick(); guard++; } while (r === 'mid' && guard < 100);
   const wn = r === 'done' ? stopCheck() : null;
-  if (wn) watchStop(wn);
+  if (wn != null) watchStop(wn);
   else   if (r === 'done') { breakpoints.has(cpu.pc) ? bpMsg() : describeInputs(); }
   else stalledMsg(r);
   render();
@@ -695,7 +700,7 @@ function frame(now) {
     let stall = null;
     while (n-- > 0) {
       const r = tick();
-      if (r === 'done') { const wn = stopCheck(); if (wn) { watchStop(wn); return; } if (checkBoundary()) return; }
+      if (r === 'done') { const wn = stopCheck(); if (wn != null) { watchStop(wn); return; } if (checkBoundary()) return; }
       if (r === 'done' && cpu.jammed) { stopRun(); return; }
       if (r !== 'mid' && r !== 'done') stall = r;
     }
@@ -712,7 +717,7 @@ function frame(now) {
     for (let k = 0; k < 400; k++) {
       if (pins.rdy === 0 || pins.res === 0 || midInstruction()) {
         const r = tick();
-        if (r === 'done') { const wn = stopCheck(); if (wn) { watchStop(wn); return; } if (checkBoundary()) return; }
+        if (r === 'done') { const wn = stopCheck(); if (wn != null) { watchStop(wn); return; } if (checkBoundary()) return; }
         if (r === 'wait' || r === 'reset') { stall = r; break; }
         continue;
       }
@@ -721,7 +726,8 @@ function frame(now) {
       const cyc = cpu.step();
       tTotal += cyc.length; instrCount++; last = cyc; last.pc = pc; last.ev = cpu.lastEvent;
       if (checkBoundary()) { finishFast(last, pc); return; }
-      if (wb) { const wn = watchHit(wb); if (wn) { finishFast(last, pc); watchStop(wn); return; } }
+      if (wb) { const wn = watchHit(wb); if (wn != null) { finishFast(last, pc); watchStop(wn); return; } }
+      if (afterBps.size && afterBps.has(pc)) { finishFast(last, pc); watchStop(pc); return; }
       if (cpu.jammed) { finishFast(last, pc); stopRun(); return; }
     }
     if (stall) break;
@@ -752,7 +758,7 @@ function resetCPU(quiet) {
 
 // ---------- rendering ----------
 let prevRegs = {};
-const breakpoints = new Set();
+const breakpoints = new Set(), afterBps = new Set();
 let disStart = 0, memFrom = 0;
 function regsView() { return midInstruction() && pre ? pre : cpu; }
 function pinValue(name) {
@@ -991,8 +997,8 @@ function renderDis(focus) {
     const d = ln.data ? null : disasm(peekB, a);
     const text = ln.data ? '.byte ' + bytes.map(b => '$' + b).join(',') : d.text;
     const bad = d && (d.bad || d.text === 'NOP*');
-    const cls = ['dis-row', breakpoints.has(a) ? 'isbp' : '', a === exec ? 'exec' : (a === pc && exec < 0 ? 'pc' : '')].join(' ');
-    html += `<div class="${cls}" data-a="${a}" tabindex="-1" role="button" aria-label="Toggle breakpoint at ${h4(a)}h"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${ln.data || bad ? ' unm' : ''}">${esc(text)}</span></div>`;
+    const cls = ['dis-row', breakpoints.has(a) ? 'isbp' : afterBps.has(a) ? 'isbpa' : '', a === exec ? 'exec' : (a === pc && exec < 0 ? 'pc' : '')].join(' ');
+    html += `<div class="${cls}" data-a="${a}" tabindex="-1" role="button" aria-label="${h4(a)}h: ${breakpoints.has(a) ? 'breaks before this instruction' : afterBps.has(a) ? 'breaks after this instruction' : 'no breakpoint'}. Click to change." title="${breakpoints.has(a) ? 'Break at: stops before this instruction runs. Click for break after.' : afterBps.has(a) ? 'Break after: stops once this instruction has run. Click to clear.' : 'Click to break at this instruction'}"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${ln.data || bad ? ' unm' : ''}">${esc(text)}</span></div>`;
   }
   const rows = $('dis'); rows.style.top = first * DIS_ROW + 'px'; rows.innerHTML = html;
 }
@@ -1297,7 +1303,7 @@ function bind() {
   window.addEventListener('resize', onScroll(() => { renderDis(false); renderMem(false); }));
   $('dis').addEventListener('click', e => {
     const row = e.target.closest('.dis-row'); if (!row) return;
-    if (row.dataset.a === undefined) return; const a = +row.dataset.a; breakpoints.has(a) ? breakpoints.delete(a) : breakpoints.add(a); renderDis(false);
+    if (row.dataset.a === undefined) return; const a = +row.dataset.a; if (breakpoints.has(a)) { breakpoints.delete(a); afterBps.add(a); } else if (afterBps.has(a)) afterBps.delete(a); else breakpoints.add(a); renderDis(false);
   });
   $('dis').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.dis-row')) { e.preventDefault(); e.target.click(); } });
   $('memFrom').addEventListener('change', () => { const v = parseInt($('memFrom').value.replace(/^\$/, ''), 16); if (!isNaN(v)) memScrollTo(v); renderMem(false); });
@@ -1334,16 +1340,18 @@ function bind() {
 
 // ---------- register stops: halt when a register changes to a chosen value ----------
 const watches = new Map();
-let doneBefore = null, hitReg = null, stopPop = null;
+let doneBefore = null, donePc = -1, hitReg = null, stopPop = null;
 function regVals(s) { const o = {}; for (const [n, g] of REGDEF) if (watches.has(n)) o[n] = g(s); return o; }
 function watchHit(before) {
   if (!before) return null;
   for (const [n, g] of REGDEF) if (watches.has(n) && g(cpu) === watches.get(n) && before[n] !== watches.get(n)) return n;
   return null;
 }
-function stopCheck() { const b = doneBefore; doneBefore = null; return watchHit(b); }
+function stopCheck() { const b = doneBefore, a = donePc; doneBefore = null; donePc = -1; return watchHit(b) || (afterBps.has(a) ? a : null); }
 const fmtReg = (n, v) => (regInputs[n].w === 4 ? h4(v) : h2(v)) + 'h';
 function watchStop(n) {
+  // n is a register name (register stop) or an address (break after)
+  if (typeof n === 'number') { const msg = 'Break after the instruction at ' + h4(n) + 'h'; if (running) stopRun(msg, true); else setStatus(msg, true); return; }
   hitReg = n;
   const msg = 'Stopped: ' + n + ' changed to ' + fmtReg(n, watches.get(n));
   if (running) stopRun(msg, true); else setStatus(msg, true);

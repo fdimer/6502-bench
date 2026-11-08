@@ -25,7 +25,8 @@ To get a single self-contained file instead, run `python build.py`, which writes
   - **Load at** sets where code goes in memory, for example the start of ROM. In Assembly it applies until the first `.org`; Intel HEX keeps its own addresses.
   - After loading, the CPU is reset through the reset vector at FFFCh if the program sets one; otherwise PC is set to the load address.
 - **Memory map**: RAM size from 0000h, a write-protected ROM region at the top of memory (8000h, C000h, E000h or F000h to FFFFh), and a 16-byte memory-mapped I/O block. Unmapped reads return FFh or the last value on the data bus. The defaults (16 KB RAM, I/O at 6000h, ROM from 8000h) follow a common hobby layout.
-- **Stepping**: one cycle, one instruction, or run at 5 Hz, 50 Hz, 1 kHz or full speed. Breakpoints are set by clicking the disassembly.
+- **Stepping**: one cycle, one instruction, or run at 5 Hz, 50 Hz, 1 kHz, 5 kHz, 10 kHz or full speed.
+- **Breakpoints**: click a line in the disassembly to cycle between *break at* (filled dot: stops before the instruction runs), *break after* (ring: stops once it has run, wherever it went next) and off.
 - **Register stops**: click **stop** beside any register and give a hex value; the run halts at the end of the instruction that changes the register to that value, in every run mode.
 - **I/O**: writes to the I/O block are shown as 8-LED latches with a log of every access. You can set the value each register returns when read.
 
