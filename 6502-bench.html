@@ -307,10 +307,10 @@ table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
           <label class="inline"><input type="checkbox" id="clearFirst" checked> Clear memory first</label>
           <label class="inline"><input type="checkbox" id="resetAfter" checked> Reset CPU after loading</label>
         </div>
-        <div class="row"><button id="btnLoad" class="primary">Assemble and load</button><button id="btnImport">Import file…</button><button id="btnToHex">Copy bytes to Hex tab</button>
+        <div class="row"><button id="btnLoad" class="primary">Assemble and load</button><button id="btnImport">Import file…</button><button id="btnToHex">Copy bytes to Hex tab</button><button id="btnRestoreAsm" hidden title="Put back the assembly source that was there before the last hex load">Restore previous source</button>
           <input type="file" id="fileIn" accept=".asm,.s,.a65,.65s,.inc,.txt,.hex,.ihx,.ihex,.bin,.rom,.prg" hidden></div>
         <div class="msg" id="loadMsg"></div>
-        <p class="hint" id="hintAsm">Standard 6502 syntax, one instruction per line. Labels start in the first column or end with <span class="mono">:</span>; comments start with <span class="mono">;</span>. Directives (dot optional): <span class="mono">.org</span> or <span class="mono">* =</span>, <span class="mono">=</span> or <span class="mono">EQU</span>, <span class="mono">.byte</span>, <span class="mono">.word</span>, <span class="mono">.res</span>, <span class="mono">.end</span>. Numbers: <span class="mono">$1F</span>, <span class="mono">%1010</span>, <span class="mono">42</span>, <span class="mono">'A'</span>; <span class="mono">*</span> is the current address; <span class="mono">&lt;label</span> and <span class="mono">&gt;label</span> give its low and high byte. Zero-page addressing is used automatically when the address is known to be below 0100h. Code starts at the <b>Load at</b> address; an <span class="mono">.org</span> in the source overrides it. Import a file with the button or by dropping it on the editor.</p>
+        <p class="hint" id="hintAsm">Standard 6502 syntax, one instruction per line. Labels start in the first column or end with <span class="mono">:</span>; comments start with <span class="mono">;</span>. Directives (dot optional): <span class="mono">.org</span> or <span class="mono">* =</span>, <span class="mono">=</span> or <span class="mono">EQU</span>, <span class="mono">.byte</span>, <span class="mono">.word</span>, <span class="mono">.res</span>, <span class="mono">.end</span>. Numbers: <span class="mono">$1F</span>, <span class="mono">%1010</span>, <span class="mono">42</span>, <span class="mono">'A'</span>; <span class="mono">*</span> is the current address; <span class="mono">&lt;label</span> and <span class="mono">&gt;label</span> give its low and high byte. Zero-page addressing is used automatically when the address is known to be below 0100h; write it with four digits (<span class="mono">$0012</span>) to force absolute. Code starts at the <b>Load at</b> address; an <span class="mono">.org</span> in the source overrides it. Import a file with the button or by dropping it on the editor.</p>
         <p class="hint" id="hintHex" hidden>Hex bytes separated by spaces or newlines. Text after <span class="mono">;</span> is ignored. Write <span class="mono">FFFA:</span> to continue loading at another address. Intel HEX files (lines starting with <span class="mono">:</span>) are also accepted and keep their own addresses. Raw binary ROM images (<span class="mono">.bin</span>, <span class="mono">.rom</span>) import here as hex. Import a file with the button or by dropping it on the editor.</p>
       </section>
 
@@ -1010,7 +1010,8 @@ function loadChunks(chunks, note, tail) {
   msg.textContent = (note || '') + `Loaded ${total} byte${total === 1 ? '' : 's'} at ${ranges.join(', ')}.` + (outside ? ` ${outside} byte(s) fall outside RAM and ROM and won't be visible to the CPU; check the memory map in the System panel.` : '') + pcNote + (tail || '');
   render();
 }
-function loadProgram() {
+let importedName = null;
+function loadProgram(fromUser) {
   if (mode === 'asm') {
     const r = assembleSource(); if (!r) return;
     loadChunks(r.chunks, 'Assembled without errors. ', r.chunks[0].addr !== r.base ? ` (The source's .org overrides Load at ${h4(r.base)}h.)` : '');
@@ -1023,7 +1024,8 @@ function loadProgram() {
   if (!chunks.length) { msg.className = 'msg err'; msg.textContent = 'No bytes found to load.'; return; }
   try { localStorage.setItem(LS + 'hex', $('hexIn').value); } catch (e) {}
   const intel = $('hexIn').value.split(/\r?\n/).some(l => l.trim().startsWith(':'));
-  loadChunks(chunks, '', intel && chunks[0].addr !== start ? ' (Intel HEX records carry their own addresses, so Load at is not used.)' : '');
+  const dis = fromUser ? showDisassembly(chunks, importedName) : '';
+  loadChunks(chunks, '', (intel && chunks[0].addr !== start ? ' (Intel HEX records carry their own addresses, so Load at is not used.)' : '') + dis);
 }
 function toHex() {
   const r = assembleSource(); if (!r) return;
@@ -1039,10 +1041,83 @@ function toHex() {
     next = (item.addr + item.bytes.length) & 0xFFFF;
   }
   $('hexIn').value = out.join('\n') + '\n';
+  hexFromAsm = $('hexIn').value; importedName = null;
   $('loadAddr').value = h4(r.chunks[0].addr);
   setMode('hex');
   const msg = $('loadMsg'); msg.className = 'msg ok';
   msg.textContent = 'Assembled bytes copied here. Press Load into memory to use them.';
+}
+
+const DIS = {
+  app: '6502 Bench',
+  num: t => t,
+  org: a => `  .org $${h4(a)}`,
+  db: '.byte', byte: v => '$' + h2(v),
+  jump: /^(JMP|JSR|B(?:PL|MI|VC|VS|CC|CS|NE|EQ)) \$(?<t>[0-9A-F]{4})$/, target: /\$[0-9A-F]{4}$/
+};
+const LS_ASM = LS + 'asm';
+
+// ---------- disassemble loaded code into the Assembly tab ----------
+let prevAsm = null, hexFromAsm = null;
+function disassembleChunks(chunks, name) {
+  const bytesAt = new Map();
+  for (const c of chunks) c.bytes.forEach((v, i) => bytesAt.set((c.addr + i) & 0xFFFF, v));
+  const addrs = [...bytesAt.keys()].sort((a, b) => a - b);
+  const ranges = [];
+  for (const a of addrs) { const r = ranges[ranges.length - 1]; if (r && r.end === a) r.end++; else ranges.push({ start: a, end: a + 1 }); }
+  const rd = a => bytesAt.get(a & 0xFFFF) ?? 0;
+  const items = [];
+  for (const r of ranges) {
+    let a = r.start;
+    while (a < r.end) {
+      const d = disasm(rd, a);
+      let text = null, len = 1;
+      if (a + d.len <= r.end && !d.bad && d.text !== 'NOP*') {
+        const want = []; for (let i = 0; i < d.len; i++) want.push(rd(a + i));
+        const t = DIS.num(d.text);
+        const chk = assemble(DIS.org(a) + '\n  ' + t);
+        if (!chk.errors.length && chk.chunks[0] && chk.chunks[0].bytes.join() === want.join()) { text = t; len = d.len; }
+      }
+      const bytes = []; for (let i = 0; i < len; i++) bytes.push(rd(a + i));
+      items.push({ addr: a, bytes, text, range: r });
+      a += len;
+    }
+  }
+  const starts = new Set(items.filter(i => i.text).map(i => i.addr));
+  const build = useLabels => {
+    const labels = new Set();
+    if (useLabels) for (const it of items) { const m = it.text && it.text.match(DIS.jump); if (m && starts.has(parseInt(m.groups.t, 16))) labels.add(parseInt(m.groups.t, 16)); }
+    const out = [`; Disassembly of ${name || 'the loaded code'}, generated by ${DIS.app}.`, '; Addresses and bytes are in the comments; labels mark jump and call targets.', ''];
+    const line = (code, addr, bytes) => ('        ' + code).padEnd(36) + '; ' + h4(addr) + '  ' + bytes.map(h2).join(' ');
+    let cur = null, db = [];
+    const flush = () => { while (db.length) { const part = db.splice(0, 8); out.push(line(DIS.db + ' ' + part.map(p => DIS.byte(p.v)).join(','), part[0].a, part.map(p => p.v))); } };
+    for (const it of items) {
+      if (it.range !== cur) { flush(); if (cur) out.push(''); out.push('        ' + DIS.org(it.addr).trim()); cur = it.range; }
+      if (!it.text) { if (labels.has(it.addr)) { flush(); out.push('L' + h4(it.addr) + ':'); } db.push({ a: it.addr, v: it.bytes[0] }); continue; }
+      flush();
+      if (labels.has(it.addr)) out.push('L' + h4(it.addr) + ':');
+      let code = it.text;
+      const m = code.match(DIS.jump);
+      if (m && labels.has(parseInt(m.groups.t, 16))) code = code.replace(DIS.target, 'L' + m.groups.t);
+      out.push(line(code, it.addr, it.bytes));
+    }
+    flush();
+    return out.join('\n') + '\n';
+  };
+  // check the whole listing reassembles to the same bytes; fall back to no labels if not
+  const same = src => { const r = assemble(src); if (r.errors.length) return false; const m = new Map(); for (const c of r.chunks) c.bytes.forEach((v, i) => m.set((c.addr + i) & 0xFFFF, v)); return m.size === bytesAt.size && [...bytesAt].every(([a, v]) => m.get(a) === v); };
+  let src = build(true);
+  if (!same(src)) src = build(false);
+  return src;
+}
+function showDisassembly(chunks, name) {
+  if ($('hexIn').value === hexFromAsm) return '';
+  const src = disassembleChunks(chunks, name);
+  prevAsm = $('asmIn').value;
+  $('asmIn').value = src;
+  try { localStorage.setItem(LS_ASM, src); } catch (e) {}
+  $('btnRestoreAsm').hidden = false;
+  return ' The Assembly tab now shows a disassembly of this code.';
 }
 
 // ---------- file import ----------
@@ -1080,6 +1155,7 @@ function importFile(file) {
       note = `Imported ${file.name} (${lines} line${lines === 1 ? '' : 's'}) into the ${target === 'hex' ? 'Hex' : 'Assembly'} tab.`;
     }
     $(target === 'hex' ? 'hexIn' : 'asmIn').value = text;
+    if (target === 'hex') { importedName = file.name; hexFromAsm = null; }
     setMode(target);
     try { localStorage.setItem(LS + (target === 'hex' ? 'hex' : 'asm'), text); } catch (e) {}
     msg.className = 'msg ok';
@@ -1096,7 +1172,8 @@ function bind() {
   $('btnStep').onclick = stepInstruction;
   $('btnRun').onclick = () => running ? stopRun() : startRun();
   $('speed').onchange = () => { runRate = $('speed').value; acc = 0; };
-  $('btnLoad').onclick = loadProgram;
+  $('btnLoad').onclick = () => loadProgram(true);
+  $('btnRestoreAsm').onclick = () => { if (prevAsm === null) return; $('asmIn').value = prevAsm; prevAsm = null; $('btnRestoreAsm').hidden = true; try { localStorage.setItem(LS_ASM, $('asmIn').value); } catch (e) {} setMode('asm'); };
   $('btnToHex').onclick = toHex;
   $('btnImport').onclick = () => $('fileIn').click();
   $('fileIn').onchange = () => { importFile($('fileIn').files[0]); $('fileIn').value = ''; };
@@ -1106,7 +1183,8 @@ function bind() {
     ta.addEventListener('dragleave', () => ta.classList.remove('drop'));
     ta.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); ta.classList.remove('drop'); importFile(e.dataTransfer.files[0]); });
   }
-  $('loadAddr').addEventListener('keydown', e => { if (e.key === 'Enter') loadProgram(); });
+  $('loadAddr').addEventListener('keydown', e => { if (e.key === 'Enter') loadProgram(true); });
+  $('hexIn').addEventListener('input', () => { hexFromAsm = null; });
   $('modeAsm').onclick = () => setMode('asm');
   $('modeHex').onclick = () => setMode('hex');
   $('ramSize').onchange = () => { ramSize = +$('ramSize').value; render(); };

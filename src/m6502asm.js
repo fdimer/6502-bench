@@ -1,6 +1,7 @@
 // ---- 6502 assembler (two-pass) ----
 // Syntax: LDA #$10 / LDA $10 / LDA $1234,X / LDA ($10),Y / LDA ($10,X) / JMP ($1234) / ASL A
 // Numbers: $1F 0x1F 1Fh %1010 42 'A'; * = current address; <expr low byte, >expr high byte.
+// Zero page is used when the address is known to be below $100, unless written with four digits ($0012).
 // Labels: "name:" anywhere, or a bare name in column 1. Directives (dot optional):
 // ORG / *=, EQU / =, BYTE DB DFB TEXT ASCII, WORD DW, DS RES, END.
 const ASM_OPS = (() => {
@@ -187,7 +188,8 @@ function assemble(source, base = 0) {
           val = r.v;
           const zpMode = sh.fam === 'x' ? 'zpx' : sh.fam === 'y' ? 'zpy' : 'zp';
           const absMode = sh.fam === 'x' ? 'abx' : sh.fam === 'y' ? 'aby' : 'abs';
-          let useZp = has(zpMode) && r.known && val >= 0 && val <= 0xFF;
+          const forceAbs = /^\$0[0-9a-f]{3}$/i.test(sh.e.trim()); // $0012 means absolute, $12 means zero page
+          let useZp = has(zpMode) && r.known && val >= 0 && val <= 0xFF && !forceAbs;
           if (pass === 1) longForm.set(ln, !useZp); else if (longForm.get(ln)) useZp = false;
           if (!has(absMode)) useZp = true;
           mode = useZp ? zpMode : absMode;
