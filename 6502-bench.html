@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: pinout and program on the left, disassembly and system next, memory, then a collapsible column with registers and bus timing. */
+/* Layout: pinout and program on the left, disassembly next, memory, then a collapsible column with registers, bus timing and system. */
 :root {
   --bg: #e7eaee;
   --panel: #f8f9fb;
@@ -317,8 +317,45 @@ table.mem tr { height: 20px; }
         <div class="vscroll" id="disView" tabindex="0" aria-label="Disassembly"><div class="vspace"><div class="vrows dis" id="dis"></div></div></div>
       </section>
 
+    </div>
+
+    <div class="col">
       <section class="panel">
-        <h2>System <span class="aside">memory map</span></h2>
+        <h2>Memory
+          <span class="aside" id="memInfo"></span></h2>
+        <div class="memhead">
+          <label class="inline" for="memFrom">Go to <input id="memFrom" type="text" class="mono" value="0000" maxlength="4"></label>
+          <button id="memPC">Show PC</button>
+          <button id="memSP">Show stack</button>
+          <button id="memZP">Zero page</button>
+          <label class="inline"><input type="checkbox" id="memFollow" checked> Follow PC</label>
+        </div>
+        <div class="vscroll" id="memView" tabindex="0" aria-label="Memory"><div class="vspace"><table class="mem vrows" id="mem"></table></div></div>
+        <p class="hint">Scroll through all 64 KB. Click a byte to edit it (ROM too). Blue marks the instruction being executed, amber marks bytes written by the last instruction, underline marks the top of the stack. ROM is tinted; I/O registers show the value a read would return. With Follow PC ticked, each step brings the current instruction back into view; untick it to keep watching another area.</p>
+      </section>
+    </div>
+
+    <div class="side">
+      <section class="panel" id="pRegs">
+        <h2>Registers <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside" id="regNote"></span></h2>
+        <div class="regs" id="regs"></div>
+        <div class="flags" id="flags"><span class="lbl">P</span></div>
+        <div class="cpuinfo">
+          <span>/IRQ line <b id="irqState">high</b></span>
+          <span>NMI pending <b id="nmiState">no</b></span>
+          <span>State <b id="cpuState">running</b></span>
+        </div>
+      </section>
+
+      <section class="panel" id="pTiming">
+        <h2>Bus timing <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside">current instruction · one column per cycle</span></h2>
+        <div class="tnow" id="tnow">–</div>
+        <div class="timing-wrap"><table class="timing" id="timing"></table></div>
+        <p class="hint">Starred cycles (rd*, wr*) are dummy accesses the 6502 makes while it works out an address or modifies memory; real hardware sees them, so they matter for I/O registers.</p>
+      </section>
+
+      <section class="panel" id="pSystem">
+        <h2>System <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside">memory map</span></h2>
         <div class="fieldgrid">
           <label for="ramSize">RAM from 0000h</label>
           <select id="ramSize">
@@ -356,42 +393,6 @@ table.mem tr { height: 20px; }
         </div>
         <div class="msg" id="portList"></div>
         <p class="hint">The defaults follow a common hobby layout: 16 KB RAM at 0000h, a 6522 VIA at 6000h and ROM from 8000h to FFFFh, which holds the NMI, reset and IRQ vectors at FFFA–FFFFh. The 6502 has no separate I/O space, so peripherals sit in the memory map.</p>
-      </section>
-    </div>
-
-    <div class="col">
-      <section class="panel">
-        <h2>Memory
-          <span class="aside" id="memInfo"></span></h2>
-        <div class="memhead">
-          <label class="inline" for="memFrom">Go to <input id="memFrom" type="text" class="mono" value="0000" maxlength="4"></label>
-          <button id="memPC">Show PC</button>
-          <button id="memSP">Show stack</button>
-          <button id="memZP">Zero page</button>
-          <label class="inline"><input type="checkbox" id="memFollow" checked> Follow PC</label>
-        </div>
-        <div class="vscroll" id="memView" tabindex="0" aria-label="Memory"><div class="vspace"><table class="mem vrows" id="mem"></table></div></div>
-        <p class="hint">Scroll through all 64 KB. Click a byte to edit it (ROM too). Blue marks the instruction being executed, amber marks bytes written by the last instruction, underline marks the top of the stack. ROM is tinted; I/O registers show the value a read would return. With Follow PC ticked, each step brings the current instruction back into view; untick it to keep watching another area.</p>
-      </section>
-    </div>
-
-    <div class="side">
-      <section class="panel" id="pRegs">
-        <h2>Registers <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside" id="regNote"></span></h2>
-        <div class="regs" id="regs"></div>
-        <div class="flags" id="flags"><span class="lbl">P</span></div>
-        <div class="cpuinfo">
-          <span>/IRQ line <b id="irqState">high</b></span>
-          <span>NMI pending <b id="nmiState">no</b></span>
-          <span>State <b id="cpuState">running</b></span>
-        </div>
-      </section>
-
-      <section class="panel" id="pTiming">
-        <h2>Bus timing <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside">current instruction · one column per cycle</span></h2>
-        <div class="tnow" id="tnow">–</div>
-        <div class="timing-wrap"><table class="timing" id="timing"></table></div>
-        <p class="hint">Starred cycles (rd*, wr*) are dummy accesses the 6502 makes while it works out an address or modifies memory; real hardware sees them, so they matter for I/O registers.</p>
       </section>
     </div>
   </div>
