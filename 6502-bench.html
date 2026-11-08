@@ -241,6 +241,23 @@ table.mem td { padding: 1px 2px; } table.mem td.b { min-width: 20px; } table.mem
 .dis-row.gaprow { cursor: default; }
 table.mem tr { height: 20px; }
 .counters .pcv b { color: var(--sel); font-weight: 600; }
+/* register stops */
+.reg { position: relative; }
+.reg .rl { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
+.reg .rl label { flex: 1 1 auto; min-width: 0; }
+.reg .rl { align-items: flex-end; }
+.stopbtn { flex: none; padding: 0 5px; font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; line-height: 16px; letter-spacing: 0; border-radius: 3px; color: var(--muted); background: transparent; border: 1px solid transparent; }
+.reg:not(:hover) .stopbtn:not(.on):not(:focus-visible) { opacity: 0.4; }
+.stopbtn:hover { border-color: var(--line); color: var(--ink); }
+.stopbtn.on { color: var(--warn); border-color: var(--warn); font-weight: 600; }
+.reg.hit input { outline: 2px solid var(--warn); outline-offset: 1px; }
+.stoppop { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 4px; width: max-content; max-width: 280px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); padding: 10px 12px; font-size: 12.5px; color: var(--ink); }
+.stoppop.right { left: auto; right: 0; }
+.stoppop label { display: flex; align-items: center; gap: 6px; }
+.stoppop input { width: 64px; font-size: 13px; padding: 4px 6px; }
+.stoppop .row { margin-top: 8px; gap: 8px; }
+.stoppop button { padding: 4px 12px; font-size: 13px; }
+.stoppop .msg { margin-top: 6px; min-height: 0; }
 </style>
 
 <div class="wrap">
@@ -345,6 +362,7 @@ table.mem tr { height: 20px; }
           <span>NMI pending <b id="nmiState">no</b></span>
           <span>State <b id="cpuState">running</b></span>
         </div>
+        <p class="hint">Click <b>stop</b> beside a register to halt when it changes to a value you choose, in any run mode.</p>
       </section>
 
       <section class="panel" id="pTiming">
@@ -605,7 +623,7 @@ function tick() {
   const T = timeline[ti];
   if (pins.rdy === 0 && T.rw === 1) { curT = Object.assign({}, T, { waitIns: true }); return 'wait'; }
   curT = T; ti++;
-  if (ti >= timeline.length) { instrCount++; pre = null; if (pendingSO) { cpu.p |= 0x40; pendingSO = false; } return 'done'; }
+  if (ti >= timeline.length) { instrCount++; doneBefore = watches.size && pre ? regVals(pre) : null; pre = null; if (pendingSO) { cpu.p |= 0x40; pendingSO = false; } return 'done'; }
   return 'mid';
 }
 function midInstruction() { return timeline && ti < timeline.length; }
@@ -633,7 +651,9 @@ function pulseClock() {
   if (running) stopRun();
   clk = 0; renderPins();
   const r = tick();
-  if (r === 'done' && breakpoints.has(cpu.pc)) bpMsg();
+  const wn = r === 'done' ? stopCheck() : null;
+  if (wn) watchStop(wn);
+  else   if (r === 'done' && breakpoints.has(cpu.pc)) bpMsg();
   else if (r === 'reset' || r === 'wait') stalledMsg(r); else describeInputs();
   render();
   clearTimeout(clkTimer);
@@ -643,7 +663,9 @@ function stepInstruction() {
   if (running) stopRun();
   let r, guard = 0;
   do { r = tick(); guard++; } while (r === 'mid' && guard < 100);
-  if (r === 'done') { breakpoints.has(cpu.pc) ? bpMsg() : describeInputs(); }
+  const wn = r === 'done' ? stopCheck() : null;
+  if (wn) watchStop(wn);
+  else   if (r === 'done') { breakpoints.has(cpu.pc) ? bpMsg() : describeInputs(); }
   else stalledMsg(r);
   render();
 }
@@ -673,7 +695,7 @@ function frame(now) {
     let stall = null;
     while (n-- > 0) {
       const r = tick();
-      if (r === 'done' && checkBoundary()) return;
+      if (r === 'done') { const wn = stopCheck(); if (wn) { watchStop(wn); return; } if (checkBoundary()) return; }
       if (r === 'done' && cpu.jammed) { stopRun(); return; }
       if (r !== 'mid' && r !== 'done') stall = r;
     }
@@ -690,14 +712,16 @@ function frame(now) {
     for (let k = 0; k < 400; k++) {
       if (pins.rdy === 0 || pins.res === 0 || midInstruction()) {
         const r = tick();
-        if (r === 'done' && checkBoundary()) return;
+        if (r === 'done') { const wn = stopCheck(); if (wn) { watchStop(wn); return; } if (checkBoundary()) return; }
         if (r === 'wait' || r === 'reset') { stall = r; break; }
         continue;
       }
       const pc = cpu.pc;
+      const wb = watches.size ? regVals(cpu) : null;
       const cyc = cpu.step();
       tTotal += cyc.length; instrCount++; last = cyc; last.pc = pc; last.ev = cpu.lastEvent;
       if (checkBoundary()) { finishFast(last, pc); return; }
+      if (wb) { const wn = watchHit(wb); if (wn) { finishFast(last, pc); watchStop(wn); return; } }
       if (cpu.jammed) { finishFast(last, pc); stopRun(); return; }
     }
     if (stall) break;
@@ -796,8 +820,9 @@ function buildRegs() {
     if (idx === 4) { const s = document.createElement('div'); s.className = 'regs-sep'; box.appendChild(s); }
     const d = document.createElement('div'); d.className = 'reg';
     const id = 'reg_' + idx;
-    const label = name === 'S' ? 'S (stack at 01xx)' : name === 'P' ? 'P (status)' : name;
-    d.innerHTML = `<label for="${id}">${label}</label><input id="${id}" type="text" maxlength="${w}" spellcheck="false" autocomplete="off">`;
+    const label = name;
+    const tip = { A: 'Accumulator', X: 'Index register X', Y: 'Index register Y', P: 'Processor status (flags, shown below)', S: 'Stack pointer: the stack lives at 0100h–01FFh', PC: 'Program counter' }[name];
+    d.innerHTML = `<div class="rl"><label for="${id}" title="${tip}">${label}</label><button class="stopbtn" type="button">stop</button></div><input id="${id}" type="text" maxlength="${w}" spellcheck="false" autocomplete="off">`;
     box.appendChild(d);
     const inp = d.querySelector('input');
     inp.addEventListener('change', () => {
@@ -808,7 +833,8 @@ function buildRegs() {
       render();
     });
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
-    regInputs[name] = { inp, w };
+    regInputs[name] = { inp, w, btn: d.querySelector('.stopbtn'), box: d };
+    regInputs[name].btn.addEventListener('click', e => { e.stopPropagation(); stopPop && stopPop.parentNode === d ? closeStop() : openStop(regInputs[name].btn, name, w); });
   });
   const fl = $('flags');
   ['N', 'V', '–', 'B', 'D', 'I', 'Z', 'C'].forEach((n, i) => {
@@ -834,7 +860,7 @@ function renderRegs() {
   $('cpuState').textContent = inReset ? 'reset' : (curT.waitIns && pins.rdy === 0) ? 'stopped by RDY' : cpu.jammed ? 'jammed' : 'running';
   $('regNote').textContent = midInstruction() ? 'values before the current instruction' : '';
 }
-function snapshotPrevRegs() { const s = regsView(); prevRegs = {}; for (const [name, get] of REGDEF) prevRegs[name] = get(s); }
+function snapshotPrevRegs() { const s = regsView(); prevRegs = {}; hitReg = null; for (const [name, get] of REGDEF) prevRegs[name] = get(s); }
 function renderTiming() {
   const tl = timeline || lastTimeline;
   const tab = $('timing');
@@ -912,7 +938,7 @@ function renderIO() {
 function render() {
   const pcNow = regsView().pc, focus = pcNow !== lastFocusPc || tTotal !== lastFocusT;
   lastFocusPc = pcNow; lastFocusT = tTotal;
-  renderPins(); renderRegs(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
+  renderPins(); renderRegs(); renderStops(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
   $('cntPC').textContent = h4(pcNow) + 'h';
   $('cntT').textContent = tTotal.toLocaleString('en-AU');
   $('cntI').textContent = instrCount.toLocaleString('en-AU');
@@ -1304,6 +1330,51 @@ function bind() {
   for (const id of ['btnClock', 'btnStep', 'btnRun']) $(id).addEventListener('pointerdown', snapshotPrevRegs, true);
   document.addEventListener('keydown', e => { if (!e.target.closest('input, textarea, select') && 'csr'.includes(e.key.toLowerCase())) snapshotPrevRegs(); }, true);
   $('chip').addEventListener('pointerdown', e => { if (e.target.closest('[data-pin="PHI0"]')) snapshotPrevRegs(); }, true);
+}
+
+// ---------- register stops: halt when a register changes to a chosen value ----------
+const watches = new Map();
+let doneBefore = null, hitReg = null, stopPop = null;
+function regVals(s) { const o = {}; for (const [n, g] of REGDEF) if (watches.has(n)) o[n] = g(s); return o; }
+function watchHit(before) {
+  if (!before) return null;
+  for (const [n, g] of REGDEF) if (watches.has(n) && g(cpu) === watches.get(n) && before[n] !== watches.get(n)) return n;
+  return null;
+}
+function stopCheck() { const b = doneBefore; doneBefore = null; return watchHit(b); }
+const fmtReg = (n, v) => (regInputs[n].w === 4 ? h4(v) : h2(v)) + 'h';
+function watchStop(n) {
+  hitReg = n;
+  const msg = 'Stopped: ' + n + ' changed to ' + fmtReg(n, watches.get(n));
+  if (running) stopRun(msg, true); else setStatus(msg, true);
+}
+function closeStop() { if (stopPop) { stopPop.remove(); stopPop = null; } }
+function openStop(btn, name, w) {
+  closeStop();
+  const pop = document.createElement('div'); pop.className = 'stoppop';
+  const cur = watches.has(name) ? (w === 4 ? h4 : h2)(watches.get(name)) : '';
+  pop.innerHTML = `<label>Stop when ${name} changes to <input type="text" class="mono" maxlength="${w}" value="${cur}" placeholder="${w === 4 ? '0000' : '00'}" aria-label="Stop value for ${name}" spellcheck="false" autocomplete="off">h</label><div class="row"><button class="primary" type="button" data-act="set">Set</button><button type="button" data-act="clear">Clear</button></div><div class="msg"></div>`;
+  btn.closest('.reg').appendChild(pop); stopPop = pop;
+  if (pop.getBoundingClientRect().right > innerWidth - 8) pop.classList.add('right');
+  const inp = pop.querySelector('input'); inp.focus(); inp.select();
+  const set = () => {
+    const s = inp.value.trim().replace(/^(\$|0x)/i, '').replace(/h$/i, '');
+    const max = w === 4 ? 0xFFFF : 0xFF;
+    if (!/^[0-9a-f]{1,4}$/i.test(s) || parseInt(s, 16) > max) { const m = pop.querySelector('.msg'); m.className = 'msg err'; m.textContent = `Enter a hex value from 0 to ${w === 4 ? 'FFFF' : 'FF'}.`; inp.focus(); return; }
+    watches.set(name, parseInt(s, 16)); closeStop(); btn.focus(); render();
+  };
+  pop.addEventListener('click', e => { e.stopPropagation(); const a = e.target.dataset.act; if (a === 'set') set(); else if (a === 'clear') { watches.delete(name); if (hitReg === name) hitReg = null; closeStop(); btn.focus(); render(); } });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); set(); } else if (e.key === 'Escape') { e.preventDefault(); closeStop(); btn.focus(); } });
+}
+document.addEventListener('click', e => { if (stopPop && !stopPop.contains(e.target)) closeStop(); });
+function renderStops() {
+  for (const [n] of REGDEF) {
+    const r = regInputs[n], on = watches.has(n);
+    r.btn.textContent = on ? fmtReg(n, watches.get(n)).slice(0, -1) : 'stop';
+    r.btn.classList.toggle('on', on);
+    r.btn.title = on ? `Halts when ${n} changes to ${fmtReg(n, watches.get(n))}. Click to change or clear.` : `Halt when ${n} changes to a value you choose`;
+    r.box.classList.toggle('hit', hitReg === n);
+  }
 }
 
 // ---------- collapsible side panels ----------
