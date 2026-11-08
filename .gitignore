@@ -1,0 +1,5 @@
+6502-bench-standalone.html
+*.bin
+node_modules/
+.DS_Store
+Thumbs.db

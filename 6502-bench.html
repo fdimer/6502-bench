@@ -1,0 +1,1178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>6502 Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a bench — chip pinout on the left like a datasheet page, memory and bus timing in the middle, program, memory map and registers on the right. */
+:root {
+  --bg: #e7eaee;
+  --panel: #f8f9fb;
+  --panel2: #eef1f4;
+  --ink: #17202a;
+  --muted: #5b6876;
+  --line: #ccd3db;
+  --chip: #262a31;
+  --chip-ink: #d6dbe1;
+  --chip-num: #8b939d;
+  --hi: #e08f00;
+  --hi-ink: #3a2500;
+  --lo: #37475a;
+  --lo-ink: #e6ebf0;
+  --z: #a3acb6;
+  --sel: #2471a8;
+  --sel-soft: #d7e7f3;
+  --warn: #b5440f;
+  --warn-soft: #f6e1d6;
+  --ok: #2c7a4b;
+  --btn: #17202a;
+  --btn-ink: #f8f9fb;
+  --font-ui: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121519; --panel: #1a1e24; --panel2: #20252c; --ink: #e3e7ec; --muted: #949fab; --line: #313840;
+    --chip: #0b0d10; --chip-ink: #d6dbe1; --chip-num: #6f7883;
+    --hi: #f2a516; --hi-ink: #2a1a00; --lo: #4d5f74; --lo-ink: #eef2f6; --z: #59636e;
+    --sel: #5aa6dd; --sel-soft: #1d3446; --warn: #f08a5d; --warn-soft: #3a2219; --ok: #5cc28a;
+    --btn: #e3e7ec; --btn-ink: #121519; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121519; --panel: #1a1e24; --panel2: #20252c; --ink: #e3e7ec; --muted: #949fab; --line: #313840;
+  --chip: #0b0d10; --chip-ink: #d6dbe1; --chip-num: #6f7883;
+  --hi: #f2a516; --hi-ink: #2a1a00; --lo: #4d5f74; --lo-ink: #eef2f6; --z: #59636e;
+  --sel: #5aa6dd; --sel-soft: #1d3446; --warn: #f08a5d; --warn-soft: #3a2219; --ok: #5cc28a;
+  --btn: #e3e7ec; --btn-ink: #121519; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.4; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px 28px; max-width: 1560px; margin: 0 auto; }
+.mono, input.mono, textarea { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 12px; }
+header.top h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
+header.top h1 span { color: var(--muted); font-weight: 500; }
+.status { font-family: var(--font-mono); font-size: 12.5px; padding: 4px 10px; border-radius: 3px; background: var(--panel2); border: 1px solid var(--line); }
+.status.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.status.run { border-color: var(--ok); color: var(--ok); }
+.counters { margin-left: auto; display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); }
+.counters b { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+button { font-family: var(--font-ui); font-size: 14px; font-weight: 600; letter-spacing: 0.02em; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 4px; padding: 7px 13px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .pin:focus-visible, .dis-row:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+button kbd { font-family: var(--font-mono); font-size: 11px; opacity: 0.6; margin-left: 6px; font-weight: 400; }
+select, input[type=text] { font-family: var(--font-ui); font-size: 14px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+input.mono { font-size: 13px; }
+label.inline { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+
+.grid { display: grid; grid-template-columns: minmax(340px, 400px) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 1180px) { .grid { grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); } .col3 { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; } }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } .col3 { display: flex; align-items: stretch; } }
+.col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px 14px; min-width: 0; }
+.panel h2 { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.panel h2 .aside { margin-left: auto; letter-spacing: 0.02em; text-transform: none; font-weight: 500; font-size: 12px; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+
+/* chip */
+.chipwrap { overflow-x: auto; }
+svg.chip { display: block; width: 100%; max-width: 380px; margin: 0 auto; height: auto; }
+svg.chip text { font-family: var(--font-mono); }
+.body-rect { fill: var(--chip); }
+.pin .stub { stroke: none; }
+.pin.v1 .stub { fill: var(--hi); }
+.pin.v0 .stub { fill: var(--lo); }
+.pin.vz .stub { fill: transparent; stroke: var(--z); stroke-dasharray: 2 2; stroke-width: 1.2; }
+.pin.vp .stub { fill: #c23b2b; } .pin.vg .stub { fill: var(--muted); }
+.pin .sv { font-size: 9px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.pin.v1 .sv { fill: var(--hi-ink); } .pin.v0 .sv { fill: var(--lo-ink); } .pin.vz .sv { fill: var(--muted); } .pin.vp .sv, .pin.vg .sv { fill: #fff; }
+.pin .nm { font-size: 11.5px; fill: var(--ink); dominant-baseline: central; }
+.pin .num { font-size: 9px; fill: var(--chip-num); dominant-baseline: central; }
+.pin .ov { text-decoration: overline; }
+.pin.input { cursor: pointer; }
+.pin.input .ring { fill: none; stroke: var(--sel); stroke-width: 1.4; rx: 3; }
+.pin.input:hover .ring { stroke-width: 2.4; }
+.pin.input .nm { fill: var(--sel); font-weight: 600; }
+.pin.changed .stub { filter: drop-shadow(0 0 3px var(--hi)); }
+.chiptitle { fill: var(--chip-ink); font-family: var(--font-ui) !important; font-weight: 700; letter-spacing: 0.1em; }
+.chipsub { fill: var(--chip-num); font-size: 9.5px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 8px; justify-content: center; }
+.legend i { display: inline-block; width: 16px; height: 9px; border-radius: 2px; vertical-align: -1px; margin-right: 5px; }
+.legend .lh { background: var(--hi); } .legend .ll { background: var(--lo); } .legend .lz { border: 1.2px dashed var(--z); }
+.legend .li { border: 1.6px solid var(--sel); }
+.busread { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin-top: 12px; font-size: 13px; padding: 10px 12px; background: var(--panel2); border-radius: 4px; }
+.busread dt { color: var(--muted); }
+.busread dd { margin: 0; font-family: var(--font-mono); }
+
+/* registers */
+.regs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.reg { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.reg label { font-size: 11.5px; color: var(--muted); letter-spacing: 0.04em; }
+.reg input { width: 100%; font-family: var(--font-mono); font-size: 15px; padding: 4px 6px; background: var(--panel2); border: 1px solid transparent; border-radius: 3px; color: var(--ink); }
+.reg input:hover { border-color: var(--line); }
+.reg input.chg { color: var(--warn); font-weight: 600; }
+.reg.wide input { font-size: 15px; }
+.regs-sep { grid-column: 1 / -1; height: 1px; background: var(--line); margin: 2px 0; }
+.flags { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.flags span.lbl { font-size: 11.5px; color: var(--muted); margin-right: 4px; }
+.flag { width: 30px; padding: 4px 0; text-align: center; font-family: var(--font-mono); font-size: 12px; border-radius: 3px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); cursor: pointer; }
+.flag.on { background: var(--hi); border-color: var(--hi); color: var(--hi-ink); font-weight: 600; }
+.cpuinfo { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.cpuinfo b { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+.cpuinfo select { padding: 2px 4px; font-size: 12.5px; }
+
+/* timing */
+.timing-wrap { overflow-x: auto; }
+table.timing { border-collapse: collapse; font-size: 11.5px; }
+table.timing th, table.timing td { padding: 0; text-align: center; }
+table.timing th.rl { text-align: right; padding-right: 8px; color: var(--muted); font-weight: 500; white-space: nowrap; position: sticky; left: 0; background: var(--panel); }
+table.timing .cyc th { font-size: 10.5px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; border-left: 1px solid var(--line); padding: 0 4px 2px; white-space: nowrap; }
+table.timing .tlab th { font-family: var(--font-mono); font-weight: 400; color: var(--muted); padding-bottom: 3px; min-width: 30px; }
+table.timing td.w { height: 18px; position: relative; }
+table.timing td.w::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: var(--ink); }
+table.timing td.w.hi::after { top: 3px; } table.timing td.w.lo::after { bottom: 3px; background: var(--lo); }
+table.timing td.w.zz::after { top: 8px; background: var(--z); }
+table.timing td.w.edge { box-shadow: inset 2px 0 0 -0px var(--ink); }
+table.timing td.w.edge.lo, table.timing td.w.edge.hi { background-image: linear-gradient(var(--ink), var(--ink)); background-size: 2px 12px; background-position: left 3px; background-repeat: no-repeat; box-shadow: none; }
+table.timing td.hx { font-family: var(--font-mono); font-size: 10.5px; height: 18px; color: var(--ink); border-left: 1px solid var(--line); padding: 0 2px; }
+table.timing td.hx.zz { color: var(--z); }
+table.timing .cur { background-color: var(--sel-soft); }
+table.timing th.cur { color: var(--sel); font-weight: 600; }
+.tnow { font-size: 13px; margin-bottom: 8px; }
+.tnow b { font-family: var(--font-mono); font-weight: 600; }
+
+/* disassembly */
+.dis { font-family: var(--font-mono); font-size: 13px; }
+.dis-row { display: grid; grid-template-columns: 18px 46px 92px minmax(0, 1fr); align-items: center; gap: 4px; padding: 2px 6px; border-radius: 3px; cursor: pointer; }
+.dis-row:hover { background: var(--panel2); }
+.dis-row .bp { width: 10px; height: 10px; border-radius: 50%; border: 1px solid transparent; }
+.dis-row:hover .bp { border-color: var(--warn); }
+.dis-row.isbp .bp { background: var(--warn); border-color: var(--warn); }
+.dis-row .ad { color: var(--muted); }
+.dis-row .by { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
+.dis-row .mn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dis-row.pc { background: var(--sel-soft); }
+.dis-row.pc .ad { color: var(--sel); font-weight: 600; }
+.dis-row.exec { background: var(--warn-soft); }
+.dis-row .unm { color: var(--z); }
+
+/* memory */
+.memhead { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.memhead input { width: 70px; }
+.memhead button { padding: 5px 9px; }
+.memgrid-wrap { overflow-x: auto; }
+table.mem { border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
+table.mem td { padding: 1px 3px; text-align: center; white-space: nowrap; }
+table.mem td.ma { color: var(--muted); padding-right: 8px; text-align: left; }
+table.mem td.b { cursor: pointer; border-radius: 2px; min-width: 22px; }
+table.mem td.b:hover { outline: 1px solid var(--line); }
+table.mem td.b.pc { background: var(--sel-soft); color: var(--sel); font-weight: 600; }
+table.mem td.b.sp { box-shadow: inset 0 -2px 0 var(--hi); }
+table.mem td.b.wr { background: var(--hi); color: var(--hi-ink); }
+table.mem td.b.un { color: var(--z); cursor: default; }
+table.mem td.b.gap { padding-left: 8px; }
+table.mem td.asc { color: var(--muted); padding-left: 10px; letter-spacing: 0.04em; }
+table.mem input { width: 24px; font-family: var(--font-mono); font-size: 12px; padding: 0; text-align: center; border: 1px solid var(--sel); background: var(--panel); color: var(--ink); }
+
+/* loader */
+textarea { width: 100%; min-height: 210px; resize: vertical; font-size: 12.5px; line-height: 1.5; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 10px; }
+.msg { font-size: 12.5px; margin-top: 8px; font-family: var(--font-mono); min-height: 1.4em; }
+.msg.err { color: var(--warn); } .msg.ok { color: var(--ok); }
+.fieldgrid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
+.fieldgrid label { color: var(--muted); font-size: 13px; }
+.fieldgrid select, .fieldgrid input { min-width: 0; width: 100%; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 4px 12px; font-size: 12.5px; background: var(--panel); color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--btn); color: var(--btn-ink); }
+.seg button + button { border-left: 1px solid var(--line); }
+textarea { tab-size: 8; }
+textarea.drop { border-color: var(--sel); box-shadow: 0 0 0 2px var(--sel-soft); }
+/* io */
+.latches { display: flex; flex-direction: column; gap: 6px; }
+.latch { display: grid; grid-template-columns: 70px auto 1fr; gap: 10px; align-items: center; font-family: var(--font-mono); font-size: 12.5px; }
+.leds { display: flex; gap: 3px; }
+.led { width: 11px; height: 11px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line); }
+.led.on { background: var(--hi); border-color: var(--hi); box-shadow: 0 0 5px var(--hi); }
+.iolog { font-family: var(--font-mono); font-size: 12px; color: var(--muted); max-height: 140px; overflow-y: auto; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.iolog div b { color: var(--ink); font-weight: 500; }
+.empty { color: var(--muted); font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* 6502 additions */
+.pin.vn .stub { fill: transparent; stroke: var(--line); stroke-width: 1; }
+.flag:disabled { cursor: default; opacity: 0.55; }
+table.timing td.ck { height: 18px; padding: 0; }
+table.timing td.ck svg { display: block; width: 100%; height: 18px; }
+table.timing td.ck path { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
+table.timing .cyc th { border-left: 1px solid var(--line); }
+table.timing .cyc th.dm { color: var(--z); font-style: italic; font-weight: 500; }
+table.timing td.hx.wd { color: var(--warn); font-weight: 600; }
+table.mem td.b.rom { background: var(--panel2); }
+table.mem td.b.io { color: var(--sel); text-decoration: underline dotted; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>6502 Bench <span>· CPU and bus debugger</span></h1>
+    <div id="status" class="status">Ready</div>
+    <div class="counters">
+      <span>Cycles <b id="cntT">0</b></span>
+      <span>Instructions <b id="cntI">0</b></span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button id="btnReset" title="Reset instantly: PC is loaded from the reset vector at FFFCh">Reset CPU</button>
+    <button id="btnClock" class="primary" title="Pulse φ0 once: advances one bus cycle">Clock 1 cycle<kbd>C</kbd></button>
+    <button id="btnStep" class="primary" title="Run until the current instruction finishes">Step instruction<kbd>S</kbd></button>
+    <button id="btnRun">Run<kbd>R</kbd></button>
+    <label class="inline" for="speed">Speed
+      <select id="speed">
+        <option value="5">Clock 5 Hz</option>
+        <option value="50">Clock 50 Hz</option>
+        <option value="1000">Clock 1 kHz</option>
+        <option value="max" selected>Full speed</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Pinout <span class="aside">NMOS 6502 · 40-pin DIP · top view</span></h2>
+        <div class="chipwrap"><svg class="chip" id="chip" viewBox="0 0 380 540" role="group" aria-label="6502 pinout"></svg></div>
+        <div class="legend">
+          <span><i class="lh"></i>High (1)</span><span><i class="ll"></i>Low (0)</span><span><i class="lz"></i>Floating (Z)</span><span><i class="li"></i>Input: click to toggle</span>
+        </div>
+        <dl class="busread">
+          <dt>Bus cycle</dt><dd id="brCycle">–</dd>
+          <dt>Address bus</dt><dd id="brAddr">–</dd>
+          <dt>Data bus</dt><dd id="brData">–</dd>
+        </dl>
+        <p class="hint">Clicking φ0 pulses one clock, which is one bus cycle: the 6502 reads or writes memory on every cycle. /IRQ is level-sensitive and masked by the I flag; /NMI and /SO trigger on a falling edge. Holding RDY low stops the CPU on its next read cycle (writes still complete, as on the NMOS part). /RES low holds the CPU in reset; releasing it runs the 7-cycle reset sequence and loads PC from FFFCh.</p>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>Memory
+          <span class="aside" id="memInfo"></span></h2>
+        <div class="memhead">
+          <label class="inline" for="memFrom">From <input id="memFrom" type="text" class="mono" value="0000" maxlength="4"></label>
+          <button id="memPrev" aria-label="Previous 256 bytes">◂</button>
+          <button id="memNext" aria-label="Next 256 bytes">▸</button>
+          <button id="memPC">Show PC</button>
+          <button id="memSP">Show stack</button>
+          <button id="memZP">Zero page</button>
+        </div>
+        <div class="memgrid-wrap"><table class="mem" id="mem"></table></div>
+        <p class="hint">Click a byte to edit it (ROM too). Blue marks the next instruction, amber marks bytes written by the last instruction, underline marks the top of the stack. ROM is tinted; I/O registers show the value a read would return.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Bus timing <span class="aside">current instruction · one column per cycle</span></h2>
+        <div class="tnow" id="tnow">–</div>
+        <div class="timing-wrap"><table class="timing" id="timing"></table></div>
+        <p class="hint">Starred cycles (rd*, wr*) are dummy accesses the 6502 makes while it works out an address or modifies memory; real hardware sees them, so they matter for I/O registers.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Disassembly <span class="aside">click a line to set a breakpoint</span></h2>
+        <div class="dis" id="dis"></div>
+      </section>
+    </div>
+
+    <div class="col col3">
+      <section class="panel">
+        <h2>Program
+          <span class="aside seg" role="tablist" aria-label="Input format">
+            <button id="modeAsm" role="tab" aria-selected="true">Assembly</button><button id="modeHex" role="tab" aria-selected="false">Hex</button>
+          </span></h2>
+        <textarea id="asmIn" spellcheck="false" aria-label="6502 assembly source"></textarea>
+        <textarea id="hexIn" spellcheck="false" aria-label="Hexadecimal machine code" hidden></textarea>
+        <div class="row">
+          <label class="inline" for="loadAddr" id="loadAddrWrap" title="Where the code goes in memory. Set this to the start of ROM in your system's memory map.">Load at <input id="loadAddr" type="text" class="mono" value="8000" size="5" maxlength="4">h</label>
+          <label class="inline"><input type="checkbox" id="clearFirst" checked> Clear memory first</label>
+          <label class="inline"><input type="checkbox" id="resetAfter" checked> Reset CPU after loading</label>
+        </div>
+        <div class="row"><button id="btnLoad" class="primary">Assemble and load</button><button id="btnImport">Import file…</button><button id="btnToHex">Copy bytes to Hex tab</button>
+          <input type="file" id="fileIn" accept=".asm,.s,.a65,.65s,.inc,.txt,.hex,.ihx,.ihex,.bin,.rom,.prg" hidden></div>
+        <div class="msg" id="loadMsg"></div>
+        <p class="hint" id="hintAsm">Standard 6502 syntax, one instruction per line. Labels start in the first column or end with <span class="mono">:</span>; comments start with <span class="mono">;</span>. Directives (dot optional): <span class="mono">.org</span> or <span class="mono">* =</span>, <span class="mono">=</span> or <span class="mono">EQU</span>, <span class="mono">.byte</span>, <span class="mono">.word</span>, <span class="mono">.res</span>, <span class="mono">.end</span>. Numbers: <span class="mono">$1F</span>, <span class="mono">%1010</span>, <span class="mono">42</span>, <span class="mono">'A'</span>; <span class="mono">*</span> is the current address; <span class="mono">&lt;label</span> and <span class="mono">&gt;label</span> give its low and high byte. Zero-page addressing is used automatically when the address is known to be below 0100h. Code starts at the <b>Load at</b> address; an <span class="mono">.org</span> in the source overrides it. Import a file with the button or by dropping it on the editor.</p>
+        <p class="hint" id="hintHex" hidden>Hex bytes separated by spaces or newlines. Text after <span class="mono">;</span> is ignored. Write <span class="mono">FFFA:</span> to continue loading at another address. Intel HEX files (lines starting with <span class="mono">:</span>) are also accepted and keep their own addresses. Raw binary ROM images (<span class="mono">.bin</span>, <span class="mono">.rom</span>) import here as hex. Import a file with the button or by dropping it on the editor.</p>
+      </section>
+
+      <section class="panel">
+        <h2>System <span class="aside">memory map</span></h2>
+        <div class="fieldgrid">
+          <label for="ramSize">RAM from 0000h</label>
+          <select id="ramSize">
+            <option value="1024">1 KB (0000–03FF)</option>
+            <option value="2048">2 KB (0000–07FF)</option>
+            <option value="4096">4 KB (0000–0FFF)</option>
+            <option value="8192">8 KB (0000–1FFF)</option>
+            <option value="16384" selected>16 KB (0000–3FFF)</option>
+            <option value="32768">32 KB (0000–7FFF)</option>
+            <option value="49152">48 KB (0000–BFFF)</option>
+            <option value="65536">64 KB (0000–FFFF)</option>
+          </select>
+          <label for="romStart">ROM (write-protected)</label>
+          <select id="romStart">
+            <option value="-1">None</option>
+            <option value="32768" selected>32 KB (8000–FFFF)</option>
+            <option value="49152">16 KB (C000–FFFF)</option>
+            <option value="57344">8 KB (E000–FFFF)</option>
+            <option value="61440">4 KB (F000–FFFF)</option>
+          </select>
+          <label for="ioBase">I/O block at (16 bytes)</label>
+          <input id="ioBase" type="text" class="mono" value="6000" size="5" maxlength="4" title="Start address of 16 memory-mapped I/O registers. Leave empty for none.">
+          <label for="unmapped">Unmapped reads return</label>
+          <select id="unmapped">
+            <option value="ff">FFh</option>
+            <option value="open">Last value on the data bus</option>
+          </select>
+          <label for="ioDefault">I/O reads return</label>
+          <input id="ioDefault" type="text" class="mono" value="FF" size="3" maxlength="2" title="Byte returned when the CPU reads an I/O register with no value set below">
+        </div>
+        <div class="row">
+          <label class="inline" for="portNo">Register <input id="portNo" type="text" class="mono" value="2" size="2" maxlength="1"></label>
+          <label class="inline" for="portVal">returns <input id="portVal" type="text" class="mono" value="5A" size="3" maxlength="2"></label>
+          <button id="btnPort">Set I/O input</button>
+        </div>
+        <div class="msg" id="portList"></div>
+        <p class="hint">The defaults follow a common hobby layout: 16 KB RAM at 0000h, a 6522 VIA at 6000h and ROM from 8000h to FFFFh, which holds the NMI, reset and IRQ vectors at FFFA–FFFFh. The 6502 has no separate I/O space, so peripherals sit in the memory map.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Registers <span class="aside" id="regNote"></span></h2>
+        <div class="regs" id="regs"></div>
+        <div class="flags" id="flags"><span class="lbl">P</span></div>
+        <div class="cpuinfo">
+          <span>/IRQ line <b id="irqState">high</b></span>
+          <span>NMI pending <b id="nmiState">no</b></span>
+          <span>State <b id="cpuState">running</b></span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>I/O registers <span class="aside" id="ioInfo">last value written</span></h2>
+        <div class="latches" id="latches"></div>
+        <div class="iolog" id="iolog"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="src/m6502core.js"></script>
+<script src="src/m6502asm.js"></script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const SAMPLE_ASM = `; Sample program: counts on the I/O block at 6000h
+; and keeps a copy of the count in zero page.
+; Code starts at the Load at address (or use .org).
+IO      = $6000         ; first I/O register
+count   = $10           ; zero-page variable
+
+reset   ldx #$FF
+        txs             ; stack at 01FFh
+        lda #0
+loop    sta IO
+        clc
+        adc #1
+        sta count
+        jsr copy
+        jmp loop
+
+copy    tay             ; subroutine
+        rts
+
+nmi
+irq     rti
+
+        .org $FFFA      ; vectors
+        .word nmi, reset, irq
+`;
+const SAMPLE = `; Sample program: counts on the I/O block at 6000h
+; and keeps a copy of the count at 0010h.
+A2 FF      ; 8000  reset: LDX #$FF
+9A         ; 8002  TXS
+A9 00      ; 8003  LDA #$00
+8D 00 60   ; 8005  loop: STA $6000
+18         ; 8008  CLC
+69 01      ; 8009  ADC #$01
+85 10      ; 800B  STA $10
+20 13 80   ; 800D  JSR $8013
+4C 05 80   ; 8010  JMP $8005
+A8         ; 8013  copy: TAY
+60         ; 8014  RTS
+40         ; 8015  nmi/irq: RTI
+FFFA:
+15 80      ; FFFA  NMI vector -> 8015
+00 80      ; FFFC  reset vector -> 8000
+15 80      ; FFFE  IRQ vector -> 8015
+`;
+const LS = 'm6502bench.';
+
+// ---------- system: memory map ----------
+const mem = new Uint8Array(65536);
+let ramSize = 16384, romStart = 0x8000, ioBase = 0x6000, openBus = false, lastData = 0xFF, romWrites = 0;
+const ioIn = new Map();
+let ioDefault = 0xFF;
+const ioOut = new Map();
+const ioLog = [];
+let lastWrites = new Set();
+function region(a) {
+  if (ioBase >= 0 && a >= ioBase && a < ioBase + 16) return 'io';
+  if (romStart >= 0 && a >= romStart) return 'rom';
+  if (a < ramSize) return 'ram';
+  return 'none';
+}
+const bus = {
+  read(a) {
+    const r = region(a); let v;
+    if (r === 'io') { const reg = a - ioBase; v = ioIn.has(reg) ? ioIn.get(reg) : ioDefault; ioLog.push({ dir: 'RD', a, v, t: tTotal }); trimLog(); }
+    else if (r === 'ram' || r === 'rom') v = mem[a];
+    else v = openBus ? lastData : 0xFF;
+    lastData = v; return v;
+  },
+  write(a, v) {
+    lastData = v;
+    const r = region(a);
+    if (r === 'io') { ioOut.set(a - ioBase, v); ioLog.push({ dir: 'WR', a, v, t: tTotal }); trimLog(); }
+    else if (r === 'ram') mem[a] = v;
+    else if (r === 'rom') romWrites++;
+  },
+  peek(a) {
+    const r = region(a);
+    if (r === 'io') { const reg = a - ioBase; return ioIn.has(reg) ? ioIn.get(reg) : ioDefault; }
+    return r === 'ram' || r === 'rom' ? mem[a] : 0xFF;
+  }
+};
+function trimLog() { if (ioLog.length > 60) ioLog.splice(0, ioLog.length - 60); }
+const cpu = new M6502(bus);
+
+// ---------- pins ----------
+const pins = { rdy: 1, irq: 1, nmi: 1, so: 1, res: 1 };
+let clk = 1;
+const PINS = [
+  [1,'VSS1','g'],[2,'RDY','i'],[3,'PHI1','o'],[4,'IRQ','i'],[5,'NC5','n'],[6,'NMI','i'],[7,'SYNC','o'],[8,'VCC','p'],[9,'A0','o'],[10,'A1','o'],
+  [11,'A2','o'],[12,'A3','o'],[13,'A4','o'],[14,'A5','o'],[15,'A6','o'],[16,'A7','o'],[17,'A8','o'],[18,'A9','o'],[19,'A10','o'],[20,'A11','o'],
+  [21,'VSS2','g'],[22,'A12','o'],[23,'A13','o'],[24,'A14','o'],[25,'A15','o'],[26,'D7','b'],[27,'D6','b'],[28,'D5','b'],[29,'D4','b'],[30,'D3','b'],
+  [31,'D2','b'],[32,'D1','b'],[33,'D0','b'],[34,'RW','o'],[35,'NC35','n'],[36,'NC36','n'],[37,'PHI0','i'],[38,'SO','i'],[39,'PHI2','o'],[40,'RES','i']
+];
+const PIN_LABEL = { VSS1: 'VSS', VSS2: 'VSS', NC5: 'NC', NC35: 'NC', NC36: 'NC', PHI0: 'φ0', PHI1: 'φ1', PHI2: 'φ2' };
+const ACTIVE_LOW = new Set(['IRQ', 'NMI', 'SO', 'RES']);
+const PIN_TITLE = {
+  PHI0: 'φ0 clock input. Click to pulse one clock (one bus cycle).',
+  RDY: 'Ready, active high. While low, the CPU stops on its next read cycle (writes still complete). Click to toggle.',
+  IRQ: 'Interrupt request, active low, level-sensitive; ignored while the I flag is set. Click to toggle.',
+  NMI: 'Non-maskable interrupt, active low, triggers on the falling edge. Click to toggle.',
+  SO: 'Set overflow, active low: a falling edge sets the V flag. Click to toggle.',
+  RES: 'Reset, active low. Holds the CPU in reset; releasing it runs the 7-cycle reset sequence. Click to toggle.',
+  RW: 'Read/write: high for a read, low for a write.',
+  SYNC: 'High during an opcode fetch cycle.',
+  PHI1: 'φ1 clock output (inverse of φ2).', PHI2: 'φ2 clock output: memory is accessed while φ2 is high.'
+};
+const pinEls = {};
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svg(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function buildChip() {
+  const s = $('chip');
+  const top = 26, pitch = 24, bx = 128, bw = 124, bh = 20 * pitch + 12;
+  svg('rect', { class: 'body-rect', x: bx, y: top - 6, width: bw, height: bh, rx: 5 }, s);
+  svg('path', { d: `M ${bx + bw / 2 - 12} ${top - 6} a 12 12 0 0 0 24 0`, fill: 'var(--bg)' }, s);
+  const t1 = svg('text', { class: 'chiptitle', x: bx + bw / 2, y: top + 228, 'text-anchor': 'middle', 'font-size': 26 }, s); t1.textContent = '6502';
+  const t2 = svg('text', { class: 'chipsub', x: bx + bw / 2, y: top + 248, 'text-anchor': 'middle' }, s); t2.textContent = 'MPU';
+  for (const [n, name, kind] of PINS) {
+    const left = n <= 20;
+    const idx = left ? n - 1 : 40 - n;
+    const y = top + idx * pitch + 6;
+    const g = svg('g', { class: 'pin' + (kind === 'i' ? ' input' : ''), 'data-pin': name }, s);
+    const sx = left ? bx - 30 : bx + bw + 4;
+    if (kind === 'i') {
+      svg('rect', { x: left ? sx - 70 : sx - 4, y: y - 11, width: 104, height: 22, fill: 'transparent' }, g);
+      svg('rect', { class: 'ring', x: sx - 3, y: y - 9, width: 32, height: 18, rx: 3 }, g);
+    }
+    svg('rect', { class: 'stub', x: sx, y: y - 6, width: 26, height: 12, rx: 2 }, g);
+    const sv = svg('text', { class: 'sv', x: sx + 13, y: y + 0.5 }, g);
+    const num = svg('text', { class: 'num', x: left ? bx + 7 : bx + bw - 7, y, 'text-anchor': left ? 'start' : 'end' }, g); num.textContent = n;
+    const nm = svg('text', { class: 'nm', x: left ? sx - 8 : sx + 34, y, 'text-anchor': left ? 'end' : 'start' }, g);
+    if (name === 'RW') { const a = svg('tspan', {}, nm); a.textContent = 'R/'; const b = svg('tspan', { class: 'ov' }, nm); b.textContent = 'W'; }
+    else if (ACTIVE_LOW.has(name)) { const ov = svg('tspan', { class: 'ov' }, nm); ov.textContent = name; }
+    else nm.textContent = PIN_LABEL[name] || name;
+    const title = svg('title', {}, g);
+    title.textContent = PIN_TITLE[name] || ((PIN_LABEL[name] || name) + (kind === 'b' ? ' (data bus, bidirectional)' : kind === 'o' ? ' (output)' : kind === 'n' ? ' (not connected)' : ''));
+    if (kind === 'i') {
+      g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+      g.addEventListener('click', () => pinClick(name));
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pinClick(name); } });
+    }
+    pinEls[name] = { g, sv, prev: null };
+  }
+}
+function pinClick(name) {
+  if (name === 'PHI0') { pulseClock(); return; }
+  const k = name.toLowerCase();
+  const was = pins[k];
+  pins[k] = was ? 0 : 1;
+  if (k === 'nmi' && was === 1) cpu.nmiPending = true;
+  if (k === 'irq') cpu.irqLine = pins.irq === 0;
+  if (k === 'so' && was === 1) { if (!midInstruction()) cpu.p |= 0x40; else pendingSO = true; }
+  if (k === 'res' && pins.res === 1) setStatus('Reset released: the 7-cycle reset sequence runs from the next clock');
+  else if (k === 'res') setStatus('/RES is low: the CPU is held in reset from the next clock', true);
+  else describeInputs();
+  render();
+}
+let pendingSO = false;
+
+// ---------- cycle engine ----------
+let timeline = null, ti = 0, pre = null, lastTimeline = null, curT = null;
+let tTotal = 0, instrCount = 0, inReset = false;
+let curInstr = null;
+const CYCNAME = { F: 'Opcode fetch (SYNC high)', R: 'Memory read', W: 'Memory write', r: 'Dummy read (value discarded)', w: 'Dummy write (read-modify-write)', f: 'Opcode fetch, discarded (interrupt or reset)' };
+const CYCSHORT = { F: 'FETCH', R: 'READ', W: 'WRITE', r: 'rd*', w: 'wr*', f: 'fetch*' };
+function kindOf(c) { return c.sync ? (c.dummy ? 'f' : 'F') : c.k === 'W' ? (c.dummy ? 'w' : 'W') : (c.dummy ? 'r' : 'R'); }
+function expand(cycles) {
+  return cycles.map((c, i) => ({ t: String(i + 1), kind: kindOf(c), a: c.a, d: c.d, rw: c.k === 'W' ? 0 : 1, sync: c.sync ? 1 : 0 }));
+}
+const RESET_T = { t: '–', kind: null, a: 'z', d: null, rw: 1, sync: 0, reset: true };
+curT = { t: '–', kind: null, a: null, d: null, rw: 1, sync: 0 };
+
+function eventText(ev, text) {
+  if (ev === 'RESET') return 'Reset sequence (vector FFFCh)';
+  if (ev === 'NMI') return 'NMI response (vector FFFAh)';
+  if (ev === 'IRQ') return 'IRQ response (vector FFFEh)';
+  if (ev === 'JAM') return text + ': undocumented opcode, CPU jammed';
+  return text;
+}
+function beginInstruction() {
+  pre = cpu.snapshot();
+  const pc = cpu.pc;
+  const text = disasm(bus.peek, pc).text;
+  romWrites = 0;
+  const cyc = cpu.step();
+  timeline = expand(cyc); ti = 0; lastTimeline = timeline;
+  lastWrites = new Set(cyc.filter(c => c.k === 'W').map(c => c.a));
+  curInstr = { pc, text: cpu.jammed && !cpu.lastEvent ? 'CPU jammed (press Reset)' : eventText(cpu.lastEvent, text) };
+}
+// one clock: returns 'mid' | 'done' | 'wait' | 'reset'
+function tick() {
+  tTotal++;
+  if (pins.res === 0) {
+    cpu.resetPending = true;
+    timeline = null; pre = null; curT = RESET_T; inReset = true;
+    lastTimeline = null; curInstr = null;
+    return 'reset';
+  }
+  inReset = false;
+  if (!timeline || ti >= timeline.length) beginInstruction();
+  const T = timeline[ti];
+  if (pins.rdy === 0 && T.rw === 1) { curT = Object.assign({}, T, { waitIns: true }); return 'wait'; }
+  curT = T; ti++;
+  if (ti >= timeline.length) { instrCount++; pre = null; if (pendingSO) { cpu.p |= 0x40; pendingSO = false; } return 'done'; }
+  return 'mid';
+}
+function midInstruction() { return timeline && ti < timeline.length; }
+
+// ---------- controls ----------
+let running = false, runRate = 'max', lastFrame = 0, acc = 0;
+function setStatus(text, warn, run) {
+  const el = $('status'); el.textContent = text;
+  el.className = 'status' + (warn ? ' warn' : run ? ' run' : '');
+}
+function describeInputs() {
+  if (pins.res === 0) return setStatus('Held in reset (/RES low)', true);
+  if (curT.waitIns && pins.rdy === 0) return setStatus('Stopped by RDY low on a read cycle', true);
+  if (cpu.jammed) return setStatus('CPU jammed on an undocumented opcode at ' + h4(cpu.pc) + 'h: press Reset CPU or pulse /RES', true);
+  if (running) return setStatus('Running', false, true);
+  setStatus('Ready');
+}
+function stalledMsg(r) {
+  if (r === 'reset') setStatus('Held in reset (/RES low)', true);
+  else if (r === 'wait') setStatus('Stopped by RDY low on a read cycle', true);
+}
+function bpMsg() { setStatus('Breakpoint at ' + h4(cpu.pc) + 'h', true); }
+let clkTimer = null;
+function pulseClock() {
+  if (running) stopRun();
+  clk = 0; renderPins();
+  const r = tick();
+  if (r === 'done' && breakpoints.has(cpu.pc)) bpMsg();
+  else if (r === 'reset' || r === 'wait') stalledMsg(r); else describeInputs();
+  render();
+  clearTimeout(clkTimer);
+  clkTimer = setTimeout(() => { clk = 1; renderPins(); }, 140);
+}
+function stepInstruction() {
+  if (running) stopRun();
+  let r, guard = 0;
+  do { r = tick(); guard++; } while (r === 'mid' && guard < 100);
+  if (r === 'done') { breakpoints.has(cpu.pc) ? bpMsg() : describeInputs(); }
+  else stalledMsg(r);
+  render();
+}
+function startRun() {
+  running = true; $('btnRun').innerHTML = 'Pause<kbd>R</kbd>'; skipBp = true;
+  lastFrame = performance.now(); acc = 0;
+  setStatus('Running', false, true);
+  requestAnimationFrame(frame);
+}
+function stopRun(msg, warn) {
+  running = false; $('btnRun').innerHTML = 'Run<kbd>R</kbd>';
+  if (msg) setStatus(msg, warn); else describeInputs();
+  render();
+}
+let skipBp = false;
+function checkBoundary() {
+  if (!skipBp && breakpoints.has(cpu.pc)) { stopRun('Breakpoint at ' + h4(cpu.pc) + 'h', true); return true; }
+  skipBp = false;
+  return false;
+}
+function frame(now) {
+  if (!running) return;
+  const dt = Math.min(100, now - lastFrame); lastFrame = now;
+  if (runRate !== 'max') {
+    acc += dt * (+runRate) / 1000;
+    let n = Math.floor(acc); acc -= n;
+    let stall = null;
+    while (n-- > 0) {
+      const r = tick();
+      if (r === 'done' && checkBoundary()) return;
+      if (r === 'done' && cpu.jammed) { stopRun(); return; }
+      if (r !== 'mid' && r !== 'done') stall = r;
+    }
+    if (stall) stalledMsg(stall); else setStatus('Running at ' + $('speed').selectedOptions[0].textContent.replace('Clock ', ''), false, true);
+    clk = clk ? 0 : 1;
+    render();
+    requestAnimationFrame(frame);
+    return;
+  }
+  // full speed
+  const t0 = performance.now();
+  let last = null, stall = null;
+  while (performance.now() - t0 < 12) {
+    for (let k = 0; k < 400; k++) {
+      if (pins.rdy === 0 || pins.res === 0 || midInstruction()) {
+        const r = tick();
+        if (r === 'done' && checkBoundary()) return;
+        if (r === 'wait' || r === 'reset') { stall = r; break; }
+        continue;
+      }
+      const pc = cpu.pc;
+      const cyc = cpu.step();
+      tTotal += cyc.length; instrCount++; last = cyc; last.pc = pc; last.ev = cpu.lastEvent;
+      if (checkBoundary()) { finishFast(last, pc); return; }
+      if (cpu.jammed) { finishFast(last, pc); stopRun(); return; }
+    }
+    if (stall) break;
+  }
+  if (last) finishFast(last, last.pc);
+  if (stall) stalledMsg(stall); else setStatus('Running at full speed', false, true);
+  render();
+  requestAnimationFrame(frame);
+}
+function finishFast(cyc, pc) {
+  if (!cyc) return;
+  timeline = null; pre = null;
+  lastTimeline = expand(cyc);
+  curT = lastTimeline[lastTimeline.length - 1];
+  lastWrites = new Set(cyc.filter(c => c.k === 'W').map(c => c.a));
+  curInstr = { pc, text: eventText(cyc.ev, disasm(bus.peek, pc).text) };
+}
+function resetCPU(quiet) {
+  if (running) stopRun();
+  cpu.reset(); cpu.irqLine = pins.irq === 0;
+  timeline = null; pre = null; lastTimeline = null; curInstr = null; lastWrites = new Set();
+  curT = { t: '–', kind: null, a: null, d: null, rw: 1, sync: 0 };
+  tTotal = 0; instrCount = 0;
+  disStart = cpu.pc;
+  if (!quiet) setStatus('CPU reset: PC = ' + h4(cpu.pc) + 'h from the reset vector at FFFCh');
+  render();
+}
+
+// ---------- rendering ----------
+let prevRegs = {};
+const breakpoints = new Set();
+let disStart = 0, memFrom = 0;
+function regsView() { return midInstruction() && pre ? pre : cpu; }
+function pinValue(name) {
+  const T = curT;
+  switch (name) {
+    case 'VCC': return 'p';
+    case 'VSS1': case 'VSS2': return 'g';
+    case 'NC5': case 'NC35': case 'NC36': return 'n';
+    case 'PHI0': case 'PHI2': return clk;
+    case 'PHI1': return clk ? 0 : 1;
+    case 'RW': return T.rw;
+    case 'SYNC': return T.sync;
+  }
+  if (/^A\d+$/.test(name)) { if (T.a === null || T.a === 'z') return 'z'; return (T.a >> +name.slice(1)) & 1; }
+  if (/^D\d$/.test(name)) { if (T.d === null || T.d === undefined) return 'z'; return (T.d >> +name.slice(1)) & 1; }
+  return pins[name.toLowerCase()];
+}
+function regionNote(a) {
+  const r = region(a);
+  if (r === 'io') return '  (I/O register ' + (a - ioBase).toString(16).toUpperCase() + ')';
+  if (r === 'rom') return a >= 0xFFFA ? '  (ROM, vectors)' : '  (ROM)';
+  if (r === 'none') return '  (unmapped)';
+  if (a < 0x100) return '  (zero page)';
+  if (a < 0x200) return '  (stack)';
+  return '';
+}
+function renderPins() {
+  for (const [, name] of PINS) {
+    const v = pinValue(name), el = pinEls[name];
+    const cls = v === 'z' ? 'vz' : v === 'p' ? 'vp' : v === 'g' ? 'vg' : v === 'n' ? 'vn' : v ? 'v1' : 'v0';
+    const changed = el.prev !== null && el.prev !== v && !['p', 'g', 'n'].includes(v);
+    el.g.classList.remove('v1', 'v0', 'vz', 'vp', 'vg', 'vn', 'changed');
+    el.g.classList.add(cls);
+    if (changed && !running) el.g.classList.add('changed');
+    el.sv.textContent = v === 'z' ? 'Z' : v === 'p' ? '+' : v === 'g' ? '⏚' : v === 'n' ? '' : v;
+    el.prev = v;
+  }
+  const T = curT;
+  let cy;
+  if (T.reset) cy = 'Held in reset';
+  else if (!T.kind) cy = '–';
+  else cy = CYCNAME[T.kind] + ' · cycle ' + T.t + (T.waitIns ? ', held by RDY' : '');
+  $('brCycle').textContent = cy;
+  $('brAddr').textContent = T.a === 'z' ? 'not driven during reset' : T.a === null ? '–' : h4(T.a) + 'h' + regionNote(T.a);
+  let dtxt = '–';
+  if (T.d !== null && T.d !== undefined) {
+    const r = region(T.a);
+    const src = T.rw === 0 ? 'driven by CPU' : r === 'io' ? 'from I/O device' : r === 'rom' ? 'from ROM' : r === 'ram' ? 'from RAM' : (openBus ? 'nothing drives it (open bus)' : 'nothing drives it (pulled up)');
+    dtxt = h2(T.d) + 'h  ' + T.d.toString(2).padStart(8, '0') + 'b  ' + src;
+  }
+  $('brData').textContent = dtxt;
+}
+const REGDEF = [
+  ['A', s => s.a, 2], ['X', s => s.x, 2], ['Y', s => s.y, 2], ['P', s => s.p, 2],
+  ['S', s => s.s, 2], ['PC', s => s.pc, 4]
+];
+const REGSET = {
+  A: v => { cpu.a = v; }, X: v => { cpu.x = v; }, Y: v => { cpu.y = v; }, P: v => { cpu.p = v | 0x20; },
+  S: v => { cpu.s = v; }, PC: v => { cpu.pc = v; disStart = v; cpu.jammed = false; }
+};
+const regInputs = {};
+function buildRegs() {
+  const box = $('regs');
+  REGDEF.forEach(([name, , w], idx) => {
+    if (idx === 4) { const s = document.createElement('div'); s.className = 'regs-sep'; box.appendChild(s); }
+    const d = document.createElement('div'); d.className = 'reg';
+    const id = 'reg_' + idx;
+    const label = name === 'S' ? 'S (stack at 01xx)' : name === 'P' ? 'P (status)' : name;
+    d.innerHTML = `<label for="${id}">${label}</label><input id="${id}" type="text" maxlength="${w}" spellcheck="false" autocomplete="off">`;
+    box.appendChild(d);
+    const inp = d.querySelector('input');
+    inp.addEventListener('change', () => {
+      const v = parseInt(inp.value, 16);
+      if (isNaN(v)) { render(); return; }
+      if (midInstruction()) { timeline = null; pre = null; }
+      REGSET[name](v & (w === 4 ? 0xFFFF : 0xFF));
+      render();
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); });
+    regInputs[name] = { inp, w };
+  });
+  const fl = $('flags');
+  ['N', 'V', '–', 'B', 'D', 'I', 'Z', 'C'].forEach((n, i) => {
+    const bit = 7 - i;
+    const b = document.createElement('button'); b.className = 'flag'; b.textContent = n; b.id = 'flag_' + bit;
+    b.title = ['Negative', 'Overflow', 'Unused: always reads 1', 'Break: only exists in copies of P pushed by BRK or PHP', 'Decimal mode', 'IRQ disable', 'Zero', 'Carry'][i] + (bit === 5 ? '' : ' — click to toggle');
+    if (bit === 5) b.disabled = true;
+    b.addEventListener('click', () => { if (bit === 5) return; if (midInstruction()) { timeline = null; pre = null; } cpu.p ^= 1 << bit; render(); });
+    fl.appendChild(b);
+  });
+}
+function renderRegs() {
+  const s = regsView();
+  for (const [name, get, w] of REGDEF) {
+    const { inp } = regInputs[name];
+    const v = get(s);
+    if (document.activeElement !== inp) inp.value = w === 4 ? h4(v) : h2(v);
+    inp.classList.toggle('chg', prevRegs[name] !== undefined && prevRegs[name] !== v && !running);
+  }
+  for (let b = 0; b < 8; b++) $('flag_' + b).classList.toggle('on', !!(s.p & (1 << b)));
+  $('irqState').textContent = pins.irq ? 'high' : 'low' + (s.p & 0x04 ? ' (masked by I)' : '');
+  $('nmiState').textContent = cpu.nmiPending ? 'yes' : 'no';
+  $('cpuState').textContent = inReset ? 'reset' : (curT.waitIns && pins.rdy === 0) ? 'stopped by RDY' : cpu.jammed ? 'jammed' : 'running';
+  $('regNote').textContent = midInstruction() ? 'values before the current instruction' : '';
+}
+function snapshotPrevRegs() { const s = regsView(); prevRegs = {}; for (const [name, get] of REGDEF) prevRegs[name] = get(s); }
+function renderTiming() {
+  const tl = timeline || lastTimeline;
+  const tab = $('timing');
+  if (!tl || !tl.length) {
+    tab.innerHTML = '';
+    $('tnow').innerHTML = inReset ? 'Held in reset.' : 'No instruction has run yet. Press <b>Clock</b> or <b>Step instruction</b>.';
+    return;
+  }
+  const curIdx = timeline ? ti - 1 : tl.length - 1;
+  const cur = i => i === curIdx ? ' cur' : '';
+  let html = '<tr class="cyc"><th class="rl"></th>' + tl.map((T, i) => `<th class="${/[a-z]/.test(T.kind) ? 'dm' : ''}${cur(i)}" title="${CYCNAME[T.kind]}">${CYCSHORT[T.kind]}</th>`).join('') + '</tr>';
+  html += '<tr class="tlab"><th class="rl"></th>' + tl.map((T, i) => `<th class="${cur(i).trim()}">${T.t}</th>`).join('') + '</tr>';
+  html += '<tr><th class="rl">φ2</th>' + tl.map((T, i) => `<td class="ck${cur(i)}"><svg viewBox="0 0 30 18" preserveAspectRatio="none" aria-hidden="true"><path d="M0 15H15V3H30"/></svg></td>`).join('') + '</tr>';
+  for (const [lab, key] of [['SYNC', 'sync'], ['R/<span style="text-decoration:overline">W</span>', 'rw']]) {
+    html += `<tr><th class="rl">${lab}</th>`;
+    tl.forEach((T, i) => {
+      const v = T[key], pv = i ? tl[i - 1][key] : v;
+      html += `<td class="w ${v ? 'hi' : 'lo'}${i && pv !== v ? ' edge' : ''}${cur(i)}"></td>`;
+    });
+    html += '</tr>';
+  }
+  html += '<tr><th class="rl">A</th>' + tl.map((T, i) => `<td class="hx${cur(i)}">${h4(T.a)}</td>`).join('') + '</tr>';
+  html += '<tr><th class="rl">D</th>' + tl.map((T, i) => `<td class="hx${T.rw ? '' : ' wd'}${cur(i)}">${h2(T.d)}</td>`).join('') + '</tr>';
+  tab.innerHTML = html;
+  const total = tl.length;
+  const where = timeline ? `cycle ${ti} of ${total}` : `${total} cycles`;
+  $('tnow').innerHTML = curInstr ? `<b>${h4(curInstr.pc)}h  ${esc(curInstr.text)}</b> · ${where}` : where;
+}
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function renderDis() {
+  const s = regsView();
+  const pc = s.pc;
+  const lines = 18;
+  let rows = [], a = disStart, found = false;
+  for (let i = 0; i < lines; i++) { const d = disasm(bus.peek, a); rows.push({ a, d }); if (a === pc) found = true; a = (a + d.len) & 0xFFFF; }
+  if (!found) {
+    disStart = pc; rows = []; a = pc;
+    for (let i = 0; i < lines; i++) { const d = disasm(bus.peek, a); rows.push({ a, d }); a = (a + d.len) & 0xFFFF; }
+  } else {
+    const idx = rows.findIndex(r => r.a === pc);
+    if (idx > lines - 5) { disStart = rows[idx - 3].a; return renderDis(); }
+  }
+  const exec = midInstruction() ? pre.pc : -1;
+  $('dis').innerHTML = rows.map(({ a, d }) => {
+    const bytes = []; for (let i = 0; i < d.len; i++) bytes.push(h2(bus.peek((a + i) & 0xFFFF)));
+    const r = region(a), unm = r === 'none';
+    const cls = ['dis-row', breakpoints.has(a) ? 'isbp' : '', a === exec ? 'exec' : (a === pc && exec < 0 ? 'pc' : '')].join(' ');
+    const note = unm ? '  (no memory)' : r === 'io' ? '  (I/O)' : d.bad ? '  (undocumented)' : '';
+    return `<div class="${cls}" data-a="${a}" tabindex="0" role="button" aria-label="Toggle breakpoint at ${h4(a)}h"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${unm || d.bad ? ' unm' : ''}">${esc(d.text)}${note}</span></div>`;
+  }).join('');
+}
+function renderMem() {
+  const s = regsView();
+  const tab = $('mem');
+  const pcSet = new Set();
+  const d = disasm(bus.peek, s.pc); for (let i = 0; i < d.len; i++) pcSet.add((s.pc + i) & 0xFFFF);
+  const sp = 0x100 | s.s;
+  let html = '';
+  for (let r = 0; r < 16; r++) {
+    const base = (memFrom + r * 16) & 0xFFFF;
+    html += `<tr><td class="ma">${h4(base)}</td>`;
+    let asc = '';
+    for (let c = 0; c < 16; c++) {
+      const a = (base + c) & 0xFFFF;
+      const rg = region(a), mapped = rg !== 'none';
+      const v = bus.peek(a);
+      const cls = ['b', c === 8 ? 'gap' : '', !mapped ? 'un' : '', rg === 'rom' ? 'rom' : '', rg === 'io' ? 'io' : '', pcSet.has(a) ? 'pc' : '', lastWrites.has(a) ? 'wr' : '', a === sp ? 'sp' : ''].join(' ');
+      html += `<td class="${cls}" data-a="${a}">${mapped ? h2(v) : '··'}</td>`;
+      asc += mapped ? (v >= 32 && v < 127 ? String.fromCharCode(v) : '.') : ' ';
+    }
+    html += `<td class="asc">${esc(asc)}</td></tr>`;
+  }
+  tab.innerHTML = html;
+  if (document.activeElement !== $('memFrom')) $('memFrom').value = h4(memFrom);
+  const parts = ['RAM ' + (ramSize / 1024) + ' KB'];
+  if (romStart >= 0) parts.push('ROM ' + h4(romStart) + '–FFFF');
+  if (ioBase >= 0) parts.push('I/O ' + h4(ioBase) + '–' + h4(ioBase + 15));
+  $('memInfo').textContent = parts.join(' · ') + (romWrites ? ` · last instruction tried to write ROM (ignored)` : '');
+}
+function renderIO() {
+  const lat = $('latches');
+  $('ioInfo').textContent = ioBase >= 0 ? `${h4(ioBase)}–${h4(ioBase + 15)} · last value written` : 'no I/O block mapped';
+  if (!ioOut.size) lat.innerHTML = '<div class="empty">No writes to the I/O block yet.</div>';
+  else lat.innerHTML = [...ioOut.entries()].sort((a, b) => a[0] - b[0]).map(([r, v]) => {
+    let leds = ''; for (let b = 7; b >= 0; b--) leds += `<span class="led${(v >> b) & 1 ? ' on' : ''}" title="bit ${b}"></span>`;
+    return `<div class="latch"><span>${ioBase >= 0 ? h4(ioBase + r) + 'h' : '+' + r}</span><span class="leds">${leds}</span><span>${h2(v)}h  ${v.toString(2).padStart(8, '0')}b</span></div>`;
+  }).join('');
+  $('iolog').innerHTML = ioLog.slice(-14).reverse().map(e => `<div>${e.dir} <b>${h4(e.a)}h</b> ${e.dir === 'WR' ? '←' : '→'} <b>${h2(e.v)}h</b>  <span>(register ${(e.a - ioBase).toString(16).toUpperCase()}, cycle ${e.t})</span></div>`).join('');
+  const pl = [...ioIn.entries()].sort((a, b) => a[0] - b[0]).map(([r, v]) => `${r.toString(16).toUpperCase()}→${h2(v)}h`).join('  ');
+  $('portList').textContent = pl ? 'I/O inputs: ' + pl + '  (click Set with an empty value to remove)' : '';
+}
+function render() {
+  renderPins(); renderRegs(); renderTiming(); renderDis(); renderMem(); renderIO();
+  $('cntT').textContent = tTotal.toLocaleString('en-AU');
+  $('cntI').textContent = instrCount.toLocaleString('en-AU');
+}
+
+// ---------- loader ----------
+function parseHex(text, start) {
+  const chunks = []; let addr = start, errors = [];
+  const lines = text.split(/\r?\n/);
+  if (lines.some(l => l.trim().startsWith(':'))) {
+    let base = 0;
+    lines.forEach((l, ln) => {
+      l = l.trim(); if (!l) return;
+      if (!l.startsWith(':')) { errors.push(`line ${ln + 1}: not an Intel HEX record`); return; }
+      const b = l.slice(1).match(/../g).map(x => parseInt(x, 16));
+      if (b.some(isNaN)) { errors.push(`line ${ln + 1}: bad hex`); return; }
+      const n = b[0], off = (b[1] << 8) | b[2], type = b[3];
+      if (b.reduce((s, v) => s + v, 0) & 0xFF) errors.push(`line ${ln + 1}: checksum mismatch`);
+      if (type === 0) chunks.push({ addr: (base + off) & 0xFFFF, bytes: b.slice(4, 4 + n) });
+      else if (type === 2) base = ((b[4] << 8) | b[5]) << 4;
+    });
+    return { chunks, errors };
+  }
+  let cur = { addr, bytes: [] }; chunks.push(cur);
+  lines.forEach((l, ln) => {
+    l = l.replace(/;.*$/, '').replace(/\/\/.*$/, '');
+    for (let tok of l.split(/[\s,]+/)) {
+      if (!tok) continue;
+      if (/^\$?[0-9a-f]{1,4}:$/i.test(tok)) { addr = parseInt(tok.replace('$', ''), 16); cur = { addr, bytes: [] }; chunks.push(cur); continue; }
+      tok = tok.replace(/^0x/i, '').replace(/^\$/, '').replace(/h$/i, '');
+      if (!/^[0-9a-f]+$/i.test(tok)) { errors.push(`line ${ln + 1}: "${tok}" is not hex`); continue; }
+      if (tok.length % 2) tok = '0' + tok;
+      for (let i = 0; i < tok.length; i += 2) cur.bytes.push(parseInt(tok.slice(i, i + 2), 16));
+    }
+  });
+  return { chunks: chunks.filter(c => c.bytes.length), errors };
+}
+let mode = 'asm';
+function setMode(m) {
+  mode = m;
+  const asm = m === 'asm';
+  $('modeAsm').setAttribute('aria-selected', asm); $('modeHex').setAttribute('aria-selected', !asm);
+  $('asmIn').hidden = !asm; $('hexIn').hidden = asm;
+  $('hintAsm').hidden = !asm; $('hintHex').hidden = asm;
+  $('btnToHex').hidden = !asm;
+  $('btnLoad').textContent = asm ? 'Assemble and load' : 'Load into memory';
+  $('loadMsg').textContent = ''; $('loadMsg').className = 'msg';
+  try { localStorage.setItem(LS + 'mode', m); } catch (e) {}
+}
+function selectLine(ta, line) {
+  const lines = ta.value.split('\n');
+  let s = 0; for (let i = 0; i < line - 1 && i < lines.length; i++) s += lines[i].length + 1;
+  ta.focus(); ta.setSelectionRange(s, s + (lines[line - 1] || '').length);
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 18; ta.scrollTop = Math.max(0, (line - 4) * lh);
+}
+function readLoadAddr() {
+  const raw = $('loadAddr').value.replace(/^\s*\$/, '');
+  const v = parseInt(raw, 16);
+  if (isNaN(v) || !/^\s*[0-9a-f]{1,4}\s*$/i.test(raw)) {
+    const msg = $('loadMsg'); msg.className = 'msg err'; msg.textContent = 'Load at must be a hex address from 0000 to FFFF, e.g. 8000.';
+    $('loadAddr').focus(); return null;
+  }
+  $('loadAddr').value = h4(v);
+  try { localStorage.setItem(LS + 'loadAddr', h4(v)); } catch (e) {}
+  return v;
+}
+function assembleSource() {
+  const base = readLoadAddr(); if (base === null) return null;
+  const r = assemble($('asmIn').value, base);
+  r.base = base;
+  try { localStorage.setItem(LS + 'asm', $('asmIn').value); } catch (e) {}
+  if (r.errors.length) {
+    const msg = $('loadMsg'); msg.className = 'msg err';
+    msg.textContent = 'Not assembled. ' + r.errors.slice(0, 4).map(e => `Line ${e.line}: ${e.msg}`).join('. ') + (r.errors.length > 4 ? ` (+${r.errors.length - 4} more)` : '') + '.';
+    selectLine($('asmIn'), r.errors[0].line);
+    return null;
+  }
+  if (!r.chunks.length) { const msg = $('loadMsg'); msg.className = 'msg err'; msg.textContent = 'Nothing to load: the source has no instructions or data.'; return null; }
+  return r;
+}
+function loadChunks(chunks, note, tail) {
+  const msg = $('loadMsg');
+  if ($('clearFirst').checked) mem.fill(0);
+  let total = 0, outside = 0, vecLo = false, vecHi = false; const ranges = [];
+  for (const c of chunks) {
+    c.bytes.forEach((v, i) => {
+      const a = (c.addr + i) & 0xFFFF; const r = region(a);
+      if (r === 'none' || r === 'io') outside++;
+      if (a === 0xFFFC) vecLo = true; if (a === 0xFFFD) vecHi = true;
+      mem[a] = v;
+    });
+    total += c.bytes.length; ranges.push(h4(c.addr) + '–' + h4((c.addr + c.bytes.length - 1) & 0xFFFF));
+  }
+  let pcNote = '';
+  if ($('resetAfter').checked) {
+    resetCPU(true);
+    if (vecLo && vecHi && region(0xFFFC) !== 'none') pcNote = ` PC = ${h4(cpu.pc)}h from the reset vector.`;
+    else { cpu.pc = chunks[0].addr; disStart = cpu.pc; pcNote = ` This program sets no reset vector at FFFCh, so PC is set to the load address ${h4(cpu.pc)}h.`; }
+    memFrom = chunks[0].addr & 0xFFF0;
+    setStatus('Program loaded, CPU reset, PC = ' + h4(cpu.pc) + 'h');
+  }
+  ioOut.clear(); ioLog.length = 0;
+  msg.className = outside ? 'msg err' : 'msg ok';
+  msg.textContent = (note || '') + `Loaded ${total} byte${total === 1 ? '' : 's'} at ${ranges.join(', ')}.` + (outside ? ` ${outside} byte(s) fall outside RAM and ROM and won't be visible to the CPU; check the memory map in the System panel.` : '') + pcNote + (tail || '');
+  render();
+}
+function loadProgram() {
+  if (mode === 'asm') {
+    const r = assembleSource(); if (!r) return;
+    loadChunks(r.chunks, 'Assembled without errors. ', r.chunks[0].addr !== r.base ? ` (The source's .org overrides Load at ${h4(r.base)}h.)` : '');
+    return;
+  }
+  const start = readLoadAddr(); if (start === null) return;
+  const msg = $('loadMsg');
+  const { chunks, errors } = parseHex($('hexIn').value, start & 0xFFFF);
+  if (errors.length) { msg.className = 'msg err'; msg.textContent = 'Not loaded. ' + errors.slice(0, 3).join('; ') + (errors.length > 3 ? ` (+${errors.length - 3} more)` : ''); return; }
+  if (!chunks.length) { msg.className = 'msg err'; msg.textContent = 'No bytes found to load.'; return; }
+  try { localStorage.setItem(LS + 'hex', $('hexIn').value); } catch (e) {}
+  const intel = $('hexIn').value.split(/\r?\n/).some(l => l.trim().startsWith(':'));
+  loadChunks(chunks, '', intel && chunks[0].addr !== start ? ' (Intel HEX records carry their own addresses, so Load at is not used.)' : '');
+}
+function toHex() {
+  const r = assembleSource(); if (!r) return;
+  const out = []; let next = null;
+  for (const item of r.listing) {
+    if (item.addr === null || !item.bytes.length) continue;
+    if (next !== null && item.addr !== next) out.push(h4(item.addr) + ':');
+    for (let i = 0; i < item.bytes.length; i += 16) {
+      const part = item.bytes.slice(i, i + 16).map(h2).join(' ');
+      const src = i === 0 ? item.text.replace(/\s*;.*$/, '').replace(/\s+/g, ' ') : '…';
+      out.push(part.padEnd(10) + ' ; ' + h4((item.addr + i) & 0xFFFF) + '  ' + src);
+    }
+    next = (item.addr + item.bytes.length) & 0xFFFF;
+  }
+  $('hexIn').value = out.join('\n') + '\n';
+  $('loadAddr').value = h4(r.chunks[0].addr);
+  setMode('hex');
+  const msg = $('loadMsg'); msg.className = 'msg ok';
+  msg.textContent = 'Assembled bytes copied here. Press Load into memory to use them.';
+}
+
+// ---------- file import ----------
+const BIN_EXT = /\.(bin|rom|prg)$/i, HEX_EXT = /\.(hex|ihx|ihex)$/i;
+function looksLikeHex(text) {
+  const lines = text.split(/\r?\n/).map(l => l.replace(/;.*$/, '').trim()).filter(Boolean);
+  if (!lines.length) return false;
+  if (lines.every(l => l.startsWith(':'))) return true;
+  return lines.every(l => /^(\$?[0-9a-f]{1,4}:\s*)?((0x|\$)?[0-9a-f]{1,2}h?[\s,]*)+$/i.test(l));
+}
+function binToHex(bytes, name) {
+  const out = [`; ${name}: ${bytes.length} bytes, loaded at the Load at address`];
+  for (let i = 0; i < bytes.length; i += 16) out.push(Array.from(bytes.slice(i, i + 16), h2).join(' ') + '   ; +' + h4(i));
+  return out.join('\n') + '\n';
+}
+function importFile(file) {
+  if (!file) return;
+  const msg = $('loadMsg');
+  if (file.size > 1024 * 1024) { msg.className = 'msg err'; msg.textContent = `${file.name} is ${Math.round(file.size / 1024)} KB, too large for a 64 KB address space.`; return; }
+  const reader = new FileReader();
+  reader.onerror = () => { msg.className = 'msg err'; msg.textContent = `Couldn't read ${file.name}.`; };
+  reader.onload = () => {
+    const bytes = new Uint8Array(reader.result);
+    const binary = BIN_EXT.test(file.name) || bytes.subarray(0, 4096).some(b => b === 0 || (b < 9));
+    let text, target, note;
+    if (binary) {
+      if (bytes.length > 65536) { msg.className = 'msg err'; msg.textContent = `${file.name} is ${bytes.length} bytes; a 6502 can address at most 65,536.`; return; }
+      text = binToHex(bytes, file.name); target = 'hex';
+      note = `Imported ${file.name} (${bytes.length} bytes of binary) into the Hex tab.`;
+      if (bytes.length === 32768 || bytes.length === 16384 || bytes.length === 8192) note += ` For a full ${bytes.length / 1024} KB ROM image, set Load at to ${h4(0x10000 - bytes.length)} so it ends at FFFFh.`;
+    } else {
+      text = new TextDecoder().decode(bytes);
+      target = HEX_EXT.test(file.name) || looksLikeHex(text) ? 'hex' : 'asm';
+      const lines = text.split(/\r?\n/).length;
+      note = `Imported ${file.name} (${lines} line${lines === 1 ? '' : 's'}) into the ${target === 'hex' ? 'Hex' : 'Assembly'} tab.`;
+    }
+    $(target === 'hex' ? 'hexIn' : 'asmIn').value = text;
+    setMode(target);
+    try { localStorage.setItem(LS + (target === 'hex' ? 'hex' : 'asm'), text); } catch (e) {}
+    msg.className = 'msg ok';
+    msg.textContent = note + ` Check Load at (now ${h4(parseInt($('loadAddr').value, 16) || 0)}h), then press ${target === 'hex' ? 'Load into memory' : 'Assemble and load'}.`;
+    $('loadAddr').focus(); $('loadAddr').select();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ---------- events ----------
+function bind() {
+  $('btnReset').onclick = () => resetCPU();
+  $('btnClock').onclick = pulseClock;
+  $('btnStep').onclick = stepInstruction;
+  $('btnRun').onclick = () => running ? stopRun() : startRun();
+  $('speed').onchange = () => { runRate = $('speed').value; acc = 0; };
+  $('btnLoad').onclick = loadProgram;
+  $('btnToHex').onclick = toHex;
+  $('btnImport').onclick = () => $('fileIn').click();
+  $('fileIn').onchange = () => { importFile($('fileIn').files[0]); $('fileIn').value = ''; };
+  for (const id of ['asmIn', 'hexIn']) {
+    const ta = $(id);
+    ta.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); ta.classList.add('drop'); } });
+    ta.addEventListener('dragleave', () => ta.classList.remove('drop'));
+    ta.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); ta.classList.remove('drop'); importFile(e.dataTransfer.files[0]); });
+  }
+  $('loadAddr').addEventListener('keydown', e => { if (e.key === 'Enter') loadProgram(); });
+  $('modeAsm').onclick = () => setMode('asm');
+  $('modeHex').onclick = () => setMode('hex');
+  $('ramSize').onchange = () => { ramSize = +$('ramSize').value; render(); };
+  $('romStart').onchange = () => { romStart = +$('romStart').value; render(); };
+  $('unmapped').onchange = () => { openBus = $('unmapped').value === 'open'; render(); };
+  $('ioBase').addEventListener('change', () => {
+    const t = $('ioBase').value.trim().replace(/^\$/, '');
+    if (!t) ioBase = -1; else { const v = parseInt(t, 16); if (!isNaN(v)) ioBase = Math.min(v, 0xFFF0); }
+    $('ioBase').value = ioBase >= 0 ? h4(ioBase) : ''; ioOut.clear(); render();
+  });
+  $('ioDefault').addEventListener('change', () => { const v = parseInt($('ioDefault').value, 16); if (!isNaN(v)) ioDefault = v & 0xFF; $('ioDefault').value = h2(ioDefault); render(); });
+  $('btnPort').onclick = () => {
+    const p = parseInt($('portNo').value, 16), v = parseInt($('portVal').value, 16);
+    if (isNaN(p)) return;
+    if (isNaN(v)) ioIn.delete(p & 0x0F); else ioIn.set(p & 0x0F, v & 0xFF);
+    render();
+  };
+  $('dis').addEventListener('click', e => {
+    const row = e.target.closest('.dis-row'); if (!row) return;
+    const a = +row.dataset.a; breakpoints.has(a) ? breakpoints.delete(a) : breakpoints.add(a); renderDis();
+  });
+  $('dis').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.dis-row')) { e.preventDefault(); e.target.click(); } });
+  $('memFrom').addEventListener('change', () => { const v = parseInt($('memFrom').value.replace(/^\$/, ''), 16); if (!isNaN(v)) memFrom = v & 0xFFF0; renderMem(); });
+  $('memPrev').onclick = () => { memFrom = (memFrom - 256) & 0xFFFF; renderMem(); };
+  $('memNext').onclick = () => { memFrom = (memFrom + 256) & 0xFFFF; renderMem(); };
+  $('memPC').onclick = () => { memFrom = regsView().pc & 0xFFF0; renderMem(); };
+  $('memSP').onclick = () => { memFrom = 0x100; renderMem(); };
+  $('memZP').onclick = () => { memFrom = 0; renderMem(); };
+  $('mem').addEventListener('click', e => {
+    const td = e.target.closest('td.b'); if (!td || td.classList.contains('un') || td.querySelector('input')) return;
+    const a = +td.dataset.a;
+    const inp = document.createElement('input'); inp.value = h2(bus.peek(a)); inp.maxLength = 2; inp.setAttribute('aria-label', 'Byte at ' + h4(a) + 'h');
+    td.textContent = ''; td.appendChild(inp); inp.focus(); inp.select();
+    let done = false;
+    const commit = save => {
+      if (done) return; done = true;
+      const v = parseInt(inp.value, 16);
+      if (save && !isNaN(v)) { if (region(a) === 'io') ioIn.set(a - ioBase, v & 0xFF); else mem[a] = v & 0xFF; }
+      render();
+    };
+    inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') commit(true); else if (ev.key === 'Escape') commit(false); });
+    inp.addEventListener('blur', () => commit(true));
+  });
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'c') { e.preventDefault(); pulseClock(); }
+    else if (k === 's') { e.preventDefault(); stepInstruction(); }
+    else if (k === 'r') { e.preventDefault(); running ? stopRun() : startRun(); }
+  });
+  // snapshot register values at the start of each user action so changes highlight
+  for (const id of ['btnClock', 'btnStep', 'btnRun']) $(id).addEventListener('pointerdown', snapshotPrevRegs, true);
+  document.addEventListener('keydown', e => { if (!e.target.closest('input, textarea, select') && 'csr'.includes(e.key.toLowerCase())) snapshotPrevRegs(); }, true);
+  $('chip').addEventListener('pointerdown', e => { if (e.target.closest('[data-pin="PHI0"]')) snapshotPrevRegs(); }, true);
+}
+
+// ---------- init ----------
+buildChip(); buildRegs(); bind();
+let savedHex = null, savedAsm = null, savedMode = null;
+try { savedHex = localStorage.getItem(LS + 'hex'); savedAsm = localStorage.getItem(LS + 'asm'); savedMode = localStorage.getItem(LS + 'mode'); const la = localStorage.getItem(LS + 'loadAddr'); if (la && /^[0-9A-F]{4}$/.test(la)) $('loadAddr').value = la; } catch (e) {}
+$('hexIn').value = savedHex || SAMPLE;
+$('asmIn').value = savedAsm || SAMPLE_ASM;
+ioIn.set(0x2, 0x5A);
+setMode(savedMode === 'hex' ? 'hex' : 'asm');
+loadProgram();
+if ($('loadMsg').classList.contains('ok')) $('loadMsg').textContent += ' Press Step instruction to begin.';
+})();
+</script>
+</html>
