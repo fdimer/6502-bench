@@ -26,7 +26,7 @@ To get a single self-contained file instead, run `python build.py`, which writes
   - After loading, the CPU is reset through the reset vector at FFFCh if the program sets one; otherwise PC is set to the load address.
 - **Memory map**: RAM size from 0000h, a write-protected ROM region at the top of memory (8000h, C000h, E000h or F000h to FFFFh), and a 16-byte memory-mapped I/O block. Unmapped reads return FFh or the last value on the data bus. The defaults (16 KB RAM, I/O at 6000h, ROM from 8000h) follow a common hobby layout.
 - **Stepping**: one cycle, one instruction, or run at 5 Hz, 50 Hz, 1 kHz, 5 kHz, 10 kHz or full speed.
-- **Breakpoints**: click a line in the disassembly to cycle between *break at* (filled dot: stops before the instruction runs), *break after* (ring: stops once it has run, wherever it went next) and off.
+- **Breakpoints**: click a line in the disassembly to cycle between *break at* (filled dot: stops before the instruction runs), *break after* (ring: stops when the PC leaves that address, so a branch to itself keeps running until it falls through) and off.
 - **Register stops**: click **stop** beside any register and give a hex value; the run halts at the end of the instruction that changes the register to that value, in every run mode.
 - **Debug pane**: lists every breakpoint and stop, with a × to remove each and a click to jump to it. From it you can also add:
   - *memory stops*: halt after the instruction that changes the byte at an address, or changes it to a given value

@@ -771,7 +771,7 @@ function frame(now) {
       if (checkBoundary()) { finishFast(last, pc); return; }
       if (wb) { const wn = watchHit(wb); if (wn != null) { finishFast(last, pc); watchStop(wn); return; } }
       if (mb) { const mh = memHit(mb); if (mh) { finishFast(last, pc); watchStop(mh); return; } }
-      if (afterBps.size && afterBps.has(pc)) { finishFast(last, pc); watchStop(pc); return; }
+      if (afterBps.size && afterBps.has(pc) && cpu.pc !== pc) { finishFast(last, pc); watchStop(pc); return; }
       if (cpu.jammed) { finishFast(last, pc); stopRun(); return; }
     }
     if (stall) break;
@@ -1042,7 +1042,7 @@ function renderDis(focus) {
     const text = ln.data ? '.byte ' + bytes.map(b => '$' + b).join(',') : d.text;
     const bad = d && (d.bad || d.text === 'NOP*');
     const cls = ['dis-row', breakpoints.has(a) ? 'isbp' : afterBps.has(a) ? 'isbpa' : '', a === exec ? 'exec' : (a === pc && exec < 0 ? 'pc' : '')].join(' ');
-    html += `<div class="${cls}" data-a="${a}" tabindex="-1" role="button" aria-label="${h4(a)}h: ${breakpoints.has(a) ? 'breaks before this instruction' : afterBps.has(a) ? 'breaks after this instruction' : 'no breakpoint'}. Click to change." title="${breakpoints.has(a) ? 'Break at: stops before this instruction runs. Click for break after.' : afterBps.has(a) ? 'Break after: stops once this instruction has run. Click to clear.' : 'Click to break at this instruction'}"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${ln.data || bad ? ' unm' : ''}">${esc(text)}</span></div>`;
+    html += `<div class="${cls}" data-a="${a}" tabindex="-1" role="button" aria-label="${h4(a)}h: ${breakpoints.has(a) ? 'breaks before this instruction' : afterBps.has(a) ? 'breaks when the PC leaves this address' : 'no breakpoint'}. Click to change." title="${breakpoints.has(a) ? 'Break at: stops before this instruction runs. Click for break after.' : afterBps.has(a) ? 'Break after: stops when the PC leaves this address. An instruction that repeats in place (a branch to itself) runs to completion first. Click to clear.' : 'Click to break at this instruction'}"><span class="bp"></span><span class="ad">${h4(a)}</span><span class="by">${bytes.join(' ')}</span><span class="mn${ln.data || bad ? ' unm' : ''}">${esc(text)}</span></div>`;
   }
   const rows = $('dis'); rows.style.top = first * DIS_ROW + 'px'; rows.innerHTML = html;
 }
@@ -1391,12 +1391,12 @@ function watchHit(before) {
   for (const [n, g] of REGDEF) if (watches.has(n) && g(cpu) === watches.get(n) && before[n] !== watches.get(n)) return n;
   return null;
 }
-function stopCheck() { const b = doneBefore, a = donePc, m = doneMem; doneBefore = null; donePc = -1; doneMem = null; return watchHit(b) || memHit(m) || (afterBps.has(a) ? a : null); }
+function stopCheck() { const b = doneBefore, a = donePc, m = doneMem; doneBefore = null; donePc = -1; doneMem = null; return watchHit(b) || memHit(m) || (afterBps.has(a) && cpu.pc !== a ? a : null); }
 const fmtReg = (n, v) => (regInputs[n].w === 4 ? h4(v) : h2(v)) + 'h';
 function watchStop(n) {
   // n: register name (register stop), address (break after), {mem} (memory stop) or {pin} (pin stop)
   let msg;
-  if (typeof n === 'number') { dbgHit = 'after:' + n; msg = 'Break after the instruction at ' + h4(n) + 'h'; }
+  if (typeof n === 'number') { dbgHit = 'after:' + n; msg = 'Break after: PC left ' + h4(n) + 'h and is now at ' + h4(cpu.pc) + 'h'; }
   else if (typeof n === 'string') { hitReg = n; dbgHit = 'reg:' + n; msg = 'Stopped: ' + n + ' changed to ' + fmtReg(n, watches.get(n)); }
   else if (n.pin) { dbgHit = 'pin:' + n.pin; msg = 'Stopped: ' + pinLabel(n.pin) + ' went ' + pv(n.from) + '→' + pv(n.to) + (curInstr ? ' during ' + h4(curInstr.pc) + 'h ' + curInstr.text : ''); }
   else { dbgHit = 'mem:' + n.mem; msg = 'Stopped: memory ' + h4(n.mem) + 'h changed ' + h2(n.from) + 'h→' + h2(n.to) + 'h'; }
