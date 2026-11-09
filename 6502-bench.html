@@ -55,6 +55,8 @@
 [hidden] { display: none !important; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.4; }
 .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px 28px; max-width: 1920px; margin: 0 auto; }
+#btnMaster { color: var(--warn); }
+#btnMaster.armed { background: var(--warn); border-color: var(--warn); color: #fff; }
 .mono, input.mono, textarea { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 12px; }
 header.top h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; margin: 0; }
@@ -295,6 +297,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 
   <div class="toolbar">
     <button id="btnReset" title="Reset instantly: PC is loaded from the reset vector at FFFCh">Reset CPU</button>
+    <button id="btnMaster" type="button" title="Clears ROM, RAM, every breakpoint and stop, and returns all input pins to their normal level, then resets the CPU. Your source in the editor is kept.">Master reset</button>
     <button id="btnClock" class="primary" title="Pulse φ0 once: advances one bus cycle">Clock 1 cycle<kbd>C</kbd></button>
     <button id="btnStep" class="primary" title="Run until the current instruction finishes">Step instruction<kbd>S</kbd></button>
     <button id="btnRun">Run<kbd>R</kbd></button>
@@ -1537,6 +1540,24 @@ $('dbgAdd').onclick = dbgAdd;
 for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
 $('dbgClear').onclick = () => { breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
+// ---------- master reset: memory, ROM, every debug point and the input pins ----------
+function masterReset() {
+  if (running) stopRun();
+  $('dbgClear').onclick();
+  for (const k of Object.keys(pins)) pins[k] = 1;
+  cpu.nmiPending = false;
+  mem.fill(0);
+  resetCPU(true);
+  if (typeof disDirty !== 'undefined') disDirty = true;
+  setStatus('Master reset: ROM and RAM (all 64K) cleared; all breakpoints and stops removed; input pins released');
+  render();
+}
+let masterArm = null;
+function masterDisarm() { clearTimeout(masterArm); masterArm = null; const b = $('btnMaster'); b.textContent = 'Master reset'; b.classList.remove('armed'); }
+$('btnMaster').onclick = () => {
+  if (!masterArm) { const b = $('btnMaster'); b.textContent = 'Click again to clear everything'; b.classList.add('armed'); masterArm = setTimeout(masterDisarm, 3000); return; }
+  masterDisarm(); masterReset();
+};
 dbgFields();
 
 // ---------- collapsible side panels ----------
