@@ -37,6 +37,12 @@ const PET_KEYPOS = {}; PET_KEYS.forEach((row, r) => row.forEach((k, c) => { if (
 // ROM sockets: name, start address, size
 const PET_SOCKETS = [['UD3', 0x9000, 0x1000], ['UD4', 0xA000, 0x1000], ['UD5', 0xB000, 0x1000], ['UD6', 0xC000, 0x1000], ['UD7', 0xD000, 0x1000], ['UD8', 0xE000, 0x0800], ['UD9', 0xF000, 0x1000]];
 
+// BASIC keywords: tokens 80h-CBh (BASIC 2), and the disk commands BASIC 4 adds from CCh
+const PET_TOKENS = ['END', 'FOR', 'NEXT', 'DATA', 'INPUT#', 'INPUT', 'DIM', 'READ', 'LET', 'GOTO', 'RUN', 'IF', 'RESTORE', 'GOSUB', 'RETURN', 'REM', 'STOP', 'ON', 'WAIT', 'LOAD', 'SAVE', 'VERIFY', 'DEF', 'POKE',
+  'PRINT#', 'PRINT', 'CONT', 'LIST', 'CLR', 'CMD', 'SYS', 'OPEN', 'CLOSE', 'GET', 'NEW', 'TAB(', 'TO', 'FN', 'SPC(', 'THEN', 'NOT', 'STEP', '+', '-', '*', '/', '^', 'AND', 'OR', '>', '=', '<',
+  'SGN', 'INT', 'ABS', 'USR', 'FRE', 'POS', 'SQR', 'RND', 'LOG', 'EXP', 'COS', 'SIN', 'TAN', 'ATN', 'PEEK', 'LEN', 'STR$', 'VAL', 'ASC', 'CHR$', 'LEFT$', 'RIGHT$', 'MID$', 'GO',
+  'CONCAT', 'DOPEN', 'DCLOSE', 'RECORD', 'HEADER', 'COLLECT', 'BACKUP', 'COPY', 'APPEND', 'DSAVE', 'DLOAD', 'CATALOG', 'RENAME', 'SCRATCH', 'DIRECTORY'];
+
 class PETMachine {
   constructor() {
     this.ram = new Uint8Array(0x8000); this.ramSize = 0x8000;
@@ -141,6 +147,51 @@ class PETMachine {
   }
   step() { this.syncIrq(); return this.afterStep(this.cpu.step()); }
   run(cycles) { let t = 0; while (t < cycles) t += this.step(); return t; }
+  // ---- BASIC program as text ----
+  peekW(a) { return this.ram[a] | this.ram[a + 1] << 8; }
+  basicListing() {
+    const out = []; let a = this.peekW(0x28), guard = 0; const end = this.peekW(0x2A);      // TXTTAB, VARTAB
+    if (a < 0x0400 || end < a || end > this.ramSize) return out;
+    while (guard++ < 5000) {
+      const next = this.peekW(a); if (!next || next <= a || next > end) break;
+      let s = this.peekW(a + 2) + ' ', quote = false;
+      for (let p = a + 4; p < next - 1; p++) {
+        const c = this.ram[p]; if (!c) break;
+        if (c === 0x22) quote = !quote;
+        if (c >= 0x80 && !quote) s += PET_TOKENS[c - 0x80] || '{' + c.toString(16).toUpperCase() + '}';
+        else if (c === 0xFF) s += 'π';
+        else s += c >= 32 && c < 96 ? String.fromCharCode(c) : '{' + c.toString(16).toUpperCase().padStart(2, '0') + '}';
+      }
+      out.push(s); a = next;
+    }
+    return out;
+  }
+  // the BASIC program as a .prg file (load address 0401h), or null if there is none
+  savePrg() {
+    const start = this.peekW(0x28), end = this.peekW(0x2A); if (start !== 0x0401 || end <= start + 2 || end > this.ramSize) return null;
+    const out = new Uint8Array(end - start + 2); out[0] = 0x01; out[1] = 0x04; out.set(this.ram.subarray(start, end), 2); return out;
+  }
+  report() {
+    const h2 = v => v.toString(16).toUpperCase().padStart(2, '0'), h4 = v => v.toString(16).toUpperCase().padStart(4, '0'), out = [], c = this.cpu;
+    out.push(`Commodore PET (Dynamic PET board 320351) listing: ${this.ramSize / 1024}K RAM`);
+    out.push(`CPU  PC ${h4(c.pc)}  A ${h2(c.a)}  X ${h2(c.x)}  Y ${h2(c.y)}  SP 01${h2(c.s)}  P ${h2(c.p)}`, '');
+    out.push('BASIC pointers');
+    for (const [a, n, w] of [[0x28, 'TXTTAB', 'start of the BASIC program'], [0x2A, 'VARTAB', 'start of variables (end of program)'], [0x2C, 'ARYTAB', 'start of arrays'], [0x2E, 'STREND', 'end of arrays (start of free memory)'], [0x30, 'FRETOP', 'bottom of string space'], [0x34, 'MEMSIZ', 'top of BASIC memory']])
+      out.push(`  ${h4(a)}  ${n.padEnd(7)} ${h4(this.peekW(a))}   ${w}`);
+    const reg = (n, p) => `  ${n}  port A ${h2(p.pa())} (direction ${h2(p.ddra)})  port B ${h2(p.pb())} (direction ${h2(p.ddrb)})`;
+    out.push('', 'Interface chips', reg('PIA 1 (E810h)', this.pia1) + `  CRA ${h2(this.pia1.cra)}  CRB ${h2(this.pia1.crb)}`, reg('PIA 2 (E820h)', this.pia2) + `  CRA ${h2(this.pia2.cra)}  CRB ${h2(this.pia2.crb)}`,
+      reg('VIA   (E840h)', this.via) + `  ACR ${h2(this.via.acr)}  PCR ${h2(this.via.pcr)}  IFR ${h2(this.via.ifr)}  IER ${h2(this.via.ier)}  T1 ${h4(this.via.t1 & 0xFFFF)}  T2 ${h4(this.via.t2 & 0xFFFF)}`);
+    out.push('', 'BASIC program'); const prog = this.basicListing(); out.push(...(prog.length ? prog.map(l => '  ' + l) : ['  (none)']));
+    out.push('', 'Screen', ...this.screenText().map(l => '  |' + l));
+    out.push('', 'RAM (rows of zeros left out)');
+    for (let a = 0; a < this.ramSize; a += 16) {
+      let hx = '', as = '', zero = true; for (let i = 0; i < 16; i++) { const v = this.ram[a + i]; if (v) zero = false; hx += h2(v) + ' '; as += v >= 32 && v < 127 ? String.fromCharCode(v) : '.'; }
+      if (!zero) out.push(`  ${h4(a)}  ${hx} ${as}`);
+    }
+    out.push('', 'Screen RAM 8000h-83E7h (screen codes)');
+    for (let a = 0; a < 1000; a += 40) { let hx = ''; for (let i = 0; i < 40; i++) hx += h2(this.vram[a + i]); out.push(`  ${h4(0x8000 + a)}  ${hx}`); }
+    return out.join('\n') + '\n';
+  }
   // ---- programs ----
   // a .prg file: two bytes of load address, then the bytes. A BASIC program (load address 0401h) also needs
   // BASIC's end-of-program pointers set, as LOAD would have done.
@@ -152,4 +203,4 @@ class PETMachine {
     return { ok: true, addr, end, basic: addr === 0x0401 };
   }
 }
-if (typeof module !== 'undefined') module.exports = { PETMachine, PET, PET_KEYS, PET_SOCKETS };
+if (typeof module !== 'undefined') module.exports = { PETMachine, PET, PET_KEYS, PET_SOCKETS, PET_TOKENS };

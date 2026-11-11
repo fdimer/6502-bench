@@ -1,3 +1,21 @@
+# 6502 Bench: PET branch (Commodore PET 2001-N / CBM 3000 series)
+
+This branch turns 6502 Bench into a Commodore PET with the "Dynamic PET" main board (assembly 320351): the 6502 with its pinout, bus timing, disassembly and debug points, wired to the PET's interface chips.
+
+- **Machine**: 8K, 16K or 32K of RAM, the 1K screen at 8000h, ROM sockets UD3 to UD9, two 6520 PIAs (E810h, E820h) and a 6522 VIA (E840h). BASIC 2 or BASIC 4, graphic keyboard.
+- **Video**: functional. The 40 x 25 picture is drawn from the screen RAM through the character ROM once per frame; the VIDEO ON signal is timed from the line counter and drives the 60 Hz interrupt through PIA 1 CB1.
+- **Keyboard**: the graphic keyboard matrix, from the PC keyboard by character or the on-screen keyboard.
+- **Programs**: load a `.prg` file straight into memory, save the BASIC program as a `.prg`.
+- **Sound**: the VIA's shift register on CB2, as used by PET sound add-ons.
+- **Debugging**: memory bitmap of RAM, screen, ROMs and the character ROM, tinted by BASIC's use of memory; a PET hardware panel (both PIAs, the VIA, video and interrupt state); a log of every access to the interface chips; a text listing with the BASIC program.
+- **Not yet**: cassette, IEEE-488 devices (disk drives), the business keyboard, circuit-level video.
+
+**ROMs are not included.** Load your own with the Load ROMs button (all files at once): `basic-2-c000`, `basic-2-d000`, `edit-2-n`, `kernal-2` and `characters-2` for BASIC 2; `basic-4-b000`, `basic-4-c000`, `basic-4-d000`, `edit-4-n` and `kernal-4` for BASIC 4. Open `6502-bench.html` from this folder. The chips are `src/m6821.js` and `src/m6522.js`, the machine is `src/pet.js`; `node tests/pet-test.js` checks them with a small synthetic ROM.
+
+The rest of this file describes the 6502 Bench base.
+
+---
+
 # 6502 Bench
 
 An NMOS 6502 emulator for debugging programs and designing hardware around the chip. It runs in a web browser and shows the state of all 40 pins on every clock cycle. It is a sister project of [Z80 Bench](https://github.com/fdimer/z80-bench), with the same layout.

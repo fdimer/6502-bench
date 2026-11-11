@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>6502 Bench</title>
+<title>PET Bench</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -289,11 +289,39 @@ table.mem tr { height: 20px; }
 .dbgfoot { display: flex; justify-content: flex-end; margin-top: 8px; }
 .dbgfoot button { padding: 4px 10px; font-size: 12.5px; }
 table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
+.mmbands { background: var(--panel2); border-radius: 6px; padding: 8px; max-height: 640px; overflow-y: auto; }
+.mmband + .mmband { margin-top: 10px; }
+.mmband .cap { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.mmband canvas { display: block; max-width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; cursor: crosshair; }
+.mm-read { margin-top: 8px; font-size: 12.5px; min-height: 18px; color: var(--muted); font-family: var(--font-mono); }
+.mm-read b { color: var(--ink); }
+.mm-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.mm-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mm-legend i { width: 12px; height: 12px; border-radius: 2px; border: 1px solid var(--line); display: inline-block; }
+/* PET screen, keyboard and machine panel */
+.toprows { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
+.ptscreen { display: block; width: 100%; max-width: 860px; margin: 0 auto; aspect-ratio: 352 / 264; background: #06160c; border-radius: 6px; image-rendering: pixelated; outline: none; border: 2px solid #33443a; cursor: text; }
+.ptscreen:focus { border-color: var(--sel); }
+#pScreen .row, #pScreen .msg, #pScreen .hint, .ptromlist { max-width: 860px; margin-left: auto; margin-right: auto; }
+.ptromlist { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.ptkeys { font-size: 12px; color: var(--muted); }
+.ptkb { max-width: 860px; margin: 12px auto 0; display: grid; gap: 5px; }
+.ptkb .krow { display: flex; gap: 5px; }
+.ptkb .gap { flex: 0 0 14px; }
+.ptkb button { flex: 1 1 0; min-width: 0; padding: 4px 1px 6px; font-size: 13px; font-weight: 700; line-height: 1.1; background: #2b2b2e; color: #f3f3f3; border-color: #2b2b2e; border-radius: 4px; touch-action: manipulation; overflow: hidden; }
+.ptkb button small { display: block; font-size: 9.5px; font-weight: 500; opacity: 0.75; margin-bottom: 1px; }
+.ptkb button.down { background: var(--sel); border-color: var(--sel); color: #fff; }
+.ptkb button.latched { background: #8a5a00; border-color: #8a5a00; color: #fff; }
+.ptstate { display: grid; gap: 8px; font-size: 12.5px; }
+.ptstate .blk { background: var(--panel2); border-radius: 6px; padding: 7px 9px; }
+.ptstate .hd { font-weight: 600; margin-bottom: 3px; }
+.ptstate .kv { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.55; color: var(--muted); overflow-wrap: anywhere; }
+.ptstate .kv b { color: var(--ink); font-weight: 600; }
 </style>
 
 <div class="wrap">
   <header class="top">
-    <h1>6502 Bench <span>· CPU and bus debugger</span></h1>
+    <h1>Commodore PET 2001-N <span>on 6502 Bench · Dynamic PET board 320351</span></h1>
     <div id="status" class="status">Ready</div>
     <div class="counters">
       <span>Cycles <b id="cntT">0</b></span>
@@ -315,11 +343,35 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <option value="1000">Clock 1 kHz</option>
         <option value="5000">Clock 5 kHz</option>
         <option value="10000">Clock 10 kHz</option>
-        <option value="max" selected>Full speed</option>
+        <option value="real" selected>Real time (1 MHz)</option>
+        <option value="max">Full speed</option>
       </select>
     </label>
   </div>
 
+  <div class="toprows">
+      <section class="panel" id="pScreen">
+        <h2>Screen <span class="aside" id="ptScrInfo"></span></h2>
+        <canvas id="ptScreen" class="ptscreen" width="352" height="232" tabindex="0" aria-label="PET screen: click it and type to use the keyboard"></canvas>
+        <div class="row">
+          <button id="ptLoadRom" class="primary" type="button">Load ROMs…</button><input type="file" id="ptRomFile" multiple hidden>
+          <button id="ptRestart" type="button">Power on / restart</button>
+          <label class="inline" for="ptBasic">BASIC <select id="ptBasic"><option value="2">BASIC 2</option><option value="4">BASIC 4</option></select></label>
+          <label class="inline" for="ptRam">RAM <select id="ptRam"><option value="8">8K</option><option value="16">16K</option><option value="32" selected>32K</option></select></label>
+          <label class="inline" for="ptSound" title="The speaker many PET owners wired to the user port's CB2 line, driven by the VIA's shift register."><input type="checkbox" id="ptSound" checked> Sound (CB2)</label>
+          <span class="ptkeys mono" id="ptKeysDown"></span>
+        </div>
+        <div class="row">
+          <button id="ptPrgIn" type="button">Load program (.prg)…</button><input type="file" id="ptPrgFile" hidden>
+          <button id="ptPrgOut" type="button">Save BASIC program (.prg)</button>
+          <button id="ptListing" type="button">Listing (.txt)</button>
+        </div>
+        <div class="msg" id="ptMsg"></div>
+        <div class="ptromlist mono" id="ptRomList"></div>
+        <div class="ptkb" id="ptKb" aria-label="Keyboard"></div>
+        <p class="hint">Click the picture and type. Letters, digits and symbols go to the PET key with that character, whatever your keyboard layout; hold Shift with a letter for its graphics character. Enter is RETURN, Backspace is DEL, Esc is STOP, Home is HOME (Shift+Home clears the screen), Insert is INST, Tab is RVS, the arrow keys move the cursor, ^ is the up-arrow key and _ the left-arrow key. On the keyboard above, SHIFT stays down for the next key. Load ROMs takes all the ROM files at once and works out where each belongs from its name or checksum: BASIC 2 needs basic-2-c000, basic-2-d000, edit-2-n, kernal-2 and the character ROM; BASIC 4 needs basic-4-b000, basic-4-c000, basic-4-d000, edit-4-n and kernal-4. Load program puts a .prg file straight into memory: wait for READY, load it, then type RUN. The ROMs are not included; your browser keeps them once loaded.</p>
+      </section>
+  </div>
   <div class="grid">
     <div class="col">
       <section class="panel">
@@ -344,9 +396,9 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <textarea id="asmIn" spellcheck="false" aria-label="6502 assembly source"></textarea>
         <textarea id="hexIn" spellcheck="false" aria-label="Hexadecimal machine code" hidden></textarea>
         <div class="row">
-          <label class="inline" for="loadAddr" id="loadAddrWrap" title="Where the code goes in memory. Set this to the start of ROM in your system's memory map.">Load at <input id="loadAddr" type="text" class="mono" value="8000" size="5" maxlength="4">h</label>
-          <label class="inline"><input type="checkbox" id="clearFirst" checked> Clear memory first</label>
-          <label class="inline"><input type="checkbox" id="resetAfter" checked> Reset CPU after loading</label>
+          <label class="inline" for="loadAddr" id="loadAddrWrap" title="Where the code goes in memory. Set this to the start of ROM in your system's memory map.">Load at <input id="loadAddr" type="text" class="mono" value="033A" size="5" maxlength="4">h</label>
+          <label class="inline"><input type="checkbox" id="clearFirst"> Clear RAM first</label>
+          <label class="inline"><input type="checkbox" id="resetAfter"> Reset CPU after loading</label>
         </div>
         <div class="row"><button id="btnLoad" class="primary">Assemble and load</button><button id="btnImport">Import file…</button><button id="btnToHex">Copy bytes to Hex tab</button><button id="btnRestoreAsm" hidden title="Put back the assembly source that was there before the last hex load">Restore previous source</button>
           <input type="file" id="fileIn" hidden></div>
@@ -390,11 +442,12 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <div class="msg" id="memDumpMsg"></div>
       </section>
 
-      <section class="panel" id="pBitmap">
-        <h2>Memory bitmap <span class="aside" id="bmpInfo"></span></h2>
-        <div class="bmpbands" id="bmpBands"></div>
-        <div class="bmp-read" id="bmpRead">Point at the bitmap to read a byte; click to show it in Memory.</div>
-        <p class="hint">Every bit of memory is one pixel. Each byte is a row of 8 pixels (bit 7 on the left) and each strip is one 256-byte page, read top to bottom; each band holds 8K. Empty memory is blank, machine code looks like noise, and tables and text show regular patterns, so you can see at a glance where a program and its data sit and watch memory change as it runs. The red mark is the program counter and the blue mark the stack pointer.</p>
+      <section class="panel" id="pMemMap">
+        <h2>Memory bitmap <span class="aside" id="mmInfo"></span></h2>
+        <div class="mmbands" id="mmBands"></div>
+        <div class="mm-legend" id="mmLegend"></div>
+        <div class="mm-read" id="mmRead">Point at the bitmap to read a byte; click to show it in Memory.</div>
+        <p class="hint">Every bit of memory is one pixel. Each byte is a row of 8 pixels (bit 7 on the left) and each strip is one 256-byte page, read top to bottom. The background colour shows what each part of RAM is used for, read from BASIC's own pointers, so you can watch a program, its variables and its strings grow. The character ROM is shown too: every character is 8 bytes, so its shapes are visible. The red mark is the program counter and the blue mark the stack pointer.</p>
       </section>
     </div>
 
@@ -441,7 +494,12 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <p class="hint">Starred cycles (rd*, wr*) are dummy accesses the 6502 makes while it works out an address or modifies memory; real hardware sees them, so they matter for I/O registers.</p>
       </section>
 
-      <section class="panel" id="pSystem">
+      <section class="panel" id="pMach">
+        <h2>PET hardware<button class="fold" type="button" aria-expanded="true" title="Collapse">»</button> <span class="aside">PIAs · VIA · video</span></h2>
+        <div class="ptstate" id="ptState"></div>
+        <p class="hint">PIA 1 (E810h) scans the keyboard: port A bits 0–3 pick a row, port B reads its eight keys. Its CB1 input is the VIDEO ON signal from the video counters; the falling edge at the end of each picture is the 60 Hz interrupt that runs the keyboard scan and the clock. PIA 2 (E820h) is the IEEE-488 data bus. The VIA (E840h) has the IEEE-488 control lines, the cassette lines, the user port, the character-set select on CA2 (POKE 59468,14 for lower case, 12 for graphics) and CB2, where sound comes out.</p>
+      </section>
+      <section class="panel" id="pSystem" hidden>
         <h2>System <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside">memory map</span></h2>
         <div class="fieldgrid">
           <label for="ramSize">RAM from 0000h</label>
@@ -487,92 +545,63 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 
 <script src="src/m6502core.js"></script>
 <script src="src/m6502asm.js"></script>
+<script src="src/m6821.js"></script>
+<script src="src/m6522.js"></script>
+<script src="src/pet.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
-const SAMPLE_ASM = `; Sample program: counts on the I/O block at 6000h
-; and keeps a copy of the count in zero page.
-; Code starts at the Load at address (or use .org).
-IO      = $6000         ; first I/O register
-count   = $10           ; zero-page variable
-
-reset   ldx #$FF
-        txs             ; stack at 01FFh
-        lda #0
-loop    sta IO
-        clc
-        adc #1
-        sta count
-        jsr copy
-        jmp loop
-
-copy    tay             ; subroutine
+const SAMPLE_ASM = `; Sample program: fills the top line of the screen
+; with a character, then returns to BASIC.
+; Load it (leave "Reset CPU after loading" unticked)
+; and type  SYS 826  at the READY prompt.
+; 033Ah (826) is the second cassette buffer, the
+; usual home for short machine-code routines.
+SCREEN  = $8000         ; screen RAM
+        .org $033A
+start:  ldx #39
+        lda #$51        ; screen code of the ball character
+loop:   sta SCREEN,x
+        dex
+        bpl loop
         rts
-
-nmi
-irq     rti
-
-        .org $FFFA      ; vectors
-        .word nmi, reset, irq
 `;
-const SAMPLE = `; Sample program: counts on the I/O block at 6000h
-; and keeps a copy of the count at 0010h.
-A2 FF      ; 8000  reset: LDX #$FF
-9A         ; 8002  TXS
-A9 00      ; 8003  LDA #$00
-8D 00 60   ; 8005  loop: STA $6000
-18         ; 8008  CLC
-69 01      ; 8009  ADC #$01
-85 10      ; 800B  STA $10
-20 13 80   ; 800D  JSR $8013
-4C 05 80   ; 8010  JMP $8005
-A8         ; 8013  copy: TAY
-60         ; 8014  RTS
-40         ; 8015  nmi/irq: RTI
-FFFA:
-15 80      ; FFFA  NMI vector -> 8015
-00 80      ; FFFC  reset vector -> 8000
-15 80      ; FFFE  IRQ vector -> 8015
+const SAMPLE = `; Sample program: fills the top line of the screen. Type SYS 826.
+033A:
+A2 27      ; LDX #39
+A9 51      ; LDA #$51
+9D 00 80   ; loop: STA $8000,X
+CA         ; DEX
+10 FA      ; BPL loop
+60         ; RTS
 `;
-const LS = 'm6502bench.';
+const LS = 'petbench.';
 
-// ---------- system: memory map ----------
-const mem = new Uint8Array(65536);
-let ramSize = 16384, romStart = 0x8000, ioBase = 0x6000, openBus = false, lastData = 0xFF, romWrites = 0;
-const ioIn = new Map();
-let ioDefault = 0xFF;
-const ioOut = new Map();
-const ioLog = [];
+// ---------- system: the PET ----------
+const pet = new PETMachine();
+const mem = pet.ram;                       // RAM, for the parts of the page that poke memory directly
+let romWrites = 0, ramSize = 0, romStart = 0, ioDefault = 0xFF, lastData = 0xFF;      // the last four belong to the generic bench's hidden System panel
+const openBus = true;
+const ioIn = new Map(), ioOut = new Map(), ioLog = [];
 let lastWrites = new Set();
+const ioBase = 0xE800;
 function region(a) {
-  if (ioBase >= 0 && a >= ioBase && a < ioBase + 16) return 'io';
-  if (romStart >= 0 && a >= romStart) return 'rom';
-  if (a < ramSize) return 'ram';
-  return 'none';
+  if (a < 0x8000) return a < pet.ramSize ? 'ram' : 'none';
+  if (a < 0x9000) return 'ram';
+  if (a >= 0xE800 && a < 0xF000) return (a & 0x70) ? 'io' : 'none';
+  return pet.fitted[pet.socketAt(a)] ? 'rom' : 'none';
 }
-const bus = {
-  read(a) {
-    const r = region(a); let v;
-    if (r === 'io') { const reg = a - ioBase; v = ioIn.has(reg) ? ioIn.get(reg) : ioDefault; ioLog.push({ dir: 'RD', a, v, t: tTotal }); trimLog(); }
-    else if (r === 'ram' || r === 'rom') v = mem[a];
-    else v = openBus ? lastData : 0xFF;
-    lastData = v; return v;
-  },
-  write(a, v) {
-    lastData = v; disDirty = true;
-    const r = region(a);
-    if (r === 'io') { ioOut.set(a - ioBase, v); ioLog.push({ dir: 'WR', a, v, t: tTotal }); trimLog(); }
-    else if (r === 'ram') mem[a] = v;
-    else if (r === 'rom') romWrites++;
-  },
-  peek(a) {
-    const r = region(a);
-    if (r === 'io') { const reg = a - ioBase; return ioIn.has(reg) ? ioIn.get(reg) : ioDefault; }
-    return r === 'ram' || r === 'rom' ? mem[a] : 0xFF;
-  }
+const ioName = a => { const n = []; if (a & 0x10) n.push('PIA 1 ' + ['port A', 'CRA', 'port B', 'CRB'][a & 3]); if (a & 0x20) n.push('PIA 2 ' + ['port A', 'CRA', 'port B', 'CRB'][a & 3]); if (a & 0x40) n.push('VIA ' + ['port B', 'port A', 'DDRB', 'DDRA', 'T1 low', 'T1 high', 'T1 latch low', 'T1 latch high', 'T2 low', 'T2 high', 'shift register', 'ACR', 'PCR', 'IFR', 'IER', 'port A (no handshake)'][a & 15]); return n.join(' + '); };
+const bus = {   // the panes' view of memory (the CPU itself uses pet.bus)
+  read: a => pet.peek(a & 0xFFFF), peek: a => pet.peek(a & 0xFFFF),
+  write: (a, v) => { disDirty = true; pet.write(a & 0xFFFF, v & 0xFF); }
 };
+{ const or = pet.read.bind(pet), ow = pet.write.bind(pet);
+  pet.read = a => { const v = or(a); if (a >= 0xE800 && a < 0xF000) { ioLog.push({ dir: 'RD', a, v, t: tTotal }); trimLog(); } return v; };
+  pet.write = (a, v) => { if (a >= 0x0400 && a < 0x8000) disDirty = true; else if (a >= 0xE800 && a < 0xF000) { ioOut.set(a, v); ioLog.push({ dir: 'WR', a, v, t: tTotal }); trimLog(); } else if (a >= 0x9000) romWrites++; ow(a, v); };
+}
 function trimLog() { if (ioLog.length > 60) ioLog.splice(0, ioLog.length - 60); }
-const cpu = new M6502(bus);
+const cpu = pet.cpu;
 
 // ---------- pins ----------
 const pins = { rdy: 1, irq: 1, nmi: 1, so: 1, res: 1 };
@@ -639,7 +668,7 @@ function pinClick(name) {
   const was = pins[k];
   pins[k] = was ? 0 : 1; pinSync();
   if (k === 'nmi' && was === 1) cpu.nmiPending = true;
-  if (k === 'irq') cpu.irqLine = pins.irq === 0;
+  if (k === 'irq') cpu.irqLine = pins.irq === 0 || pet.irqLevel();
   if (k === 'so' && was === 1) { if (!midInstruction()) cpu.p |= 0x40; else pendingSO = true; }
   if (k === 'res' && pins.res === 1) setStatus('Reset released: the 7-cycle reset sequence runs from the next clock');
   else if (k === 'res') setStatus('/RES is low: the CPU is held in reset from the next clock', true);
@@ -674,7 +703,8 @@ function beginInstruction() {
   const text = disasm(bus.peek, pc).text;
   romWrites = 0;
   memBefore = memWatches.size ? memVals() : null;
-  const cyc = cpu.step();
+  pet.syncIrq(); if (pins.irq === 0) cpu.irqLine = true;
+  const cyc = cpu.step(); pet.afterStep(cyc);
   timeline = expand(cyc); ti = 0; lastTimeline = timeline;
   lastWrites = new Set(cyc.filter(c => c.k === 'W').map(c => c.a));
   curInstr = { pc, text: cpu.jammed && !cpu.lastEvent ? 'CPU jammed (press Reset)' : eventText(cpu.lastEvent, text) };
@@ -760,7 +790,7 @@ function checkBoundary() {
 function frame(now) {
   if (!running) return;
   const dt = Math.min(100, now - lastFrame); lastFrame = now;
-  if (runRate !== 'max') {
+  if (runRate !== 'max' && runRate !== 'real') {
     acc += dt * (+runRate) / 1000;
     let n = Math.floor(acc); acc -= n;
     let stall = null;
@@ -777,13 +807,15 @@ function frame(now) {
     requestAnimationFrame(frame);
     return;
   }
-  // full speed
-  const t0 = performance.now();
+  // full speed, or real time: as many cycles as the PET's 1 MHz clock makes in the time since the last frame
+  const t0 = performance.now(), real = runRate === 'real';
+  if (real) { acc += dt * PET.CPU_HZ / 1000; if (acc > PET.CPU_HZ / 5) acc = PET.CPU_HZ / 5; }
+  const budget = real ? acc : Infinity; let spent = 0;
   let last = null, stall = null;
-  while (performance.now() - t0 < 12) {
+  while (performance.now() - t0 < 12 && spent < budget) {
     for (let k = 0; k < 400; k++) {
       if (pinWatches.size || busWatches.size || pins.rdy === 0 || pins.res === 0 || midInstruction()) {
-        const r = tick();
+        const r = tick(); spent++;
         if (pinHit) { watchStop(takePin()); return; }
         if (r === 'done') { const wn = stopCheck(); if (wn != null) { watchStop(wn); return; } if (checkBoundary()) return; }
         if (r === 'wait' || r === 'reset') { stall = r; break; }
@@ -791,18 +823,21 @@ function frame(now) {
       }
       const pc = cpu.pc;
       const wb = watches.size ? regVals(cpu) : null, mb = memWatches.size ? memVals() : null;
-      const cyc = cpu.step();
+      pet.syncIrq(); if (pins.irq === 0) cpu.irqLine = true;
+      const cyc = cpu.step(); pet.afterStep(cyc); spent += cyc.length;
       tTotal += cyc.length; instrCount++; last = cyc; last.pc = pc; last.ev = cpu.lastEvent;
       if (checkBoundary()) { finishFast(last, pc); return; }
       if (wb) { const wn = watchHit(wb); if (wn != null) { finishFast(last, pc); watchStop(wn); return; } }
       if (mb) { const mh = memHit(mb); if (mh) { finishFast(last, pc); watchStop(mh); return; } }
       if (afterBps.size && afterBps.has(pc) && cpu.pc !== pc) { finishFast(last, pc); watchStop(pc); return; }
       if (cpu.jammed) { finishFast(last, pc); stopRun(); return; }
+      if (spent >= budget) break;
     }
     if (stall) break;
   }
   if (last) finishFast(last, last.pc);
-  if (stall) stalledMsg(stall); else setStatus('Running at full speed', false, true);
+  if (real) acc -= spent;
+  if (stall) stalledMsg(stall); else setStatus(real ? 'Running in real time (1 MHz)' : 'Running at full speed', false, true);
   render();
   requestAnimationFrame(frame);
 }
@@ -816,7 +851,7 @@ function finishFast(cyc, pc) {
 }
 function resetCPU(quiet) {
   if (running) stopRun();
-  cpu.reset(); cpu.irqLine = pins.irq === 0;
+  pet.reset(); cpu.irqLine = pins.irq === 0; acc = 0;
   timeline = null; pre = null; lastTimeline = null; curInstr = null; lastWrites = new Set();
   curT = { t: '–', kind: null, a: null, d: null, rw: 1, sync: 0 };
   tTotal = 0; instrCount = 0; pinSync();
@@ -843,11 +878,13 @@ function pinValue(name) {
   }
   if (/^A\d+$/.test(name)) { if (T.a === null || T.a === 'z') return 'z'; return (T.a >> +name.slice(1)) & 1; }
   if (/^D\d$/.test(name)) { if (T.d === null || T.d === undefined) return 'z'; return (T.d >> +name.slice(1)) & 1; }
+  if (name === 'IRQ') return pins.irq === 0 || pet.irqLevel() ? 0 : 1;
   return pins[name.toLowerCase()];
 }
 function regionNote(a) {
   const r = region(a);
-  if (r === 'io') return '  (I/O register ' + (a - ioBase).toString(16).toUpperCase() + ')';
+  if (r === 'io') return '  (' + ioName(a) + ')';
+  if (a >= 0x8000 && a < 0x9000) return '  (screen)';
   if (r === 'rom') return a >= 0xFFFA ? '  (ROM, vectors)' : '  (ROM)';
   if (r === 'none') return '  (unmapped)';
   if (a < 0x100) return '  (zero page)';
@@ -993,27 +1030,23 @@ function renderMem(focus) {
   }
   const tab = $('mem'); tab.style.top = first * MEM_ROW + 'px'; tab.innerHTML = html;
   if (document.activeElement !== $('memFrom')) $('memFrom').value = h4(Math.floor(view.scrollTop / MEM_ROW) * 16);
-  const parts = ['RAM ' + (ramSize / 1024) + ' KB'];
-  if (romStart >= 0) parts.push('ROM ' + h4(romStart) + '–FFFF');
-  if (ioBase >= 0) parts.push('I/O ' + h4(ioBase) + '–' + h4(ioBase + 15));
+  const parts = ['RAM ' + (pet.ramSize / 1024) + 'K', 'screen 8000h', 'I/O E810h E820h E840h', 'ROM ' + (PET_SOCKETS.filter(s => pet.fitted[s[0]]).map(s => h4(s[1]).slice(0, 1) + '000').join(' ') || 'none')];
   $('memInfo').textContent = parts.join(' · ') + (romWrites ? ` · last instruction tried to write ROM (ignored)` : '');
 }
 function renderIO() {
+  $('ioInfo').textContent = 'E800h–EFFFh · last value written';
   const lat = $('latches');
-  $('ioInfo').textContent = ioBase >= 0 ? `${h4(ioBase)}–${h4(ioBase + 15)} · last value written` : 'no I/O block mapped';
-  if (!ioOut.size) lat.innerHTML = '<div class="empty">No writes to the I/O block yet.</div>';
-  else lat.innerHTML = [...ioOut.entries()].sort((a, b) => a[0] - b[0]).map(([r, v]) => {
+  if (!ioOut.size) lat.innerHTML = '<div class="empty">No writes to the interface chips yet.</div>';
+  else lat.innerHTML = [...ioOut.entries()].sort((a, b) => a[0] - b[0]).map(([a, v]) => {
     let leds = ''; for (let b = 7; b >= 0; b--) leds += `<span class="led${(v >> b) & 1 ? ' on' : ''}" title="bit ${b}"></span>`;
-    return `<div class="latch"><span>${ioBase >= 0 ? h4(ioBase + r) + 'h' : '+' + r}</span><span class="leds">${leds}</span><span>${h2(v)}h  ${v.toString(2).padStart(8, '0')}b</span></div>`;
+    return `<div class="latch" title="${ioName(a)}"><span>${h4(a)}h</span><span class="leds">${leds}</span><span>${h2(v)}h  ${v.toString(2).padStart(8, '0')}b</span></div>`;
   }).join('');
-  $('iolog').innerHTML = ioLog.slice(-14).reverse().map(e => `<div>${e.dir} <b>${h4(e.a)}h</b> ${e.dir === 'WR' ? '←' : '→'} <b>${h2(e.v)}h</b>  <span>(register ${(e.a - ioBase).toString(16).toUpperCase()}, cycle ${e.t})</span></div>`).join('');
-  const pl = [...ioIn.entries()].sort((a, b) => a[0] - b[0]).map(([r, v]) => `${r.toString(16).toUpperCase()}→${h2(v)}h`).join('  ');
-  $('portList').textContent = pl ? 'I/O inputs: ' + pl + '  (click Set with an empty value to remove)' : '';
+  $('iolog').innerHTML = ioLog.slice(-14).reverse().map(e => `<div>${e.dir} <b>${h4(e.a)}h</b> ${e.dir === 'WR' ? '←' : '→'} <b>${h2(e.v)}h</b>  <span>(${ioName(e.a)}, cycle ${e.t.toLocaleString('en-AU')})</span></div>`).join('');
 }
 function render() {
   const pcNow = regsView().pc, focus = pcNow !== lastFocusPc || tTotal !== lastFocusT;
   lastFocusPc = pcNow; lastFocusT = tTotal;
-  renderPins(); renderRegs(); renderStops(); renderDebug(); bmpDraw(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
+  renderPins(); renderRegs(); renderStops(); renderDebug(); mmDraw(); renderPt(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
   $('cntPC').textContent = h4(pcNow) + 'h';
   $('cntT').textContent = tTotal.toLocaleString('en-AU');
   $('cntI').textContent = instrCount.toLocaleString('en-AU');
@@ -1149,14 +1182,12 @@ function assembleSource() {
 }
 function loadChunks(chunks, note, tail) {
   const msg = $('loadMsg');
-  if ($('clearFirst').checked) mem.fill(0);
+  if ($('clearFirst').checked) pet.ram.fill(0);
   let total = 0, outside = 0, vecLo = false, vecHi = false; const ranges = [];
   for (const c of chunks) {
     c.bytes.forEach((v, i) => {
       const a = (c.addr + i) & 0xFFFF; const r = region(a);
-      if (r === 'none' || r === 'io') outside++;
-      if (a === 0xFFFC) vecLo = true; if (a === 0xFFFD) vecHi = true;
-      mem[a] = v;
+      if (a < pet.ramSize) pet.ram[a] = v; else outside++;
     });
     total += c.bytes.length; ranges.push(h4(c.addr) + '–' + h4((c.addr + c.bytes.length - 1) & 0xFFFF));
   }
@@ -1170,7 +1201,7 @@ function loadChunks(chunks, note, tail) {
   }
   ioOut.clear(); ioLog.length = 0;
   msg.className = outside ? 'msg err' : 'msg ok';
-  msg.textContent = (note || '') + `Loaded ${total} byte${total === 1 ? '' : 's'} at ${ranges.join(', ')}.` + (outside ? ` ${outside} byte(s) fall outside RAM and ROM and won't be visible to the CPU; check the memory map in the System panel.` : '') + pcNote + (tail || '');
+  msg.textContent = (note || '') + `Loaded ${total} byte${total === 1 ? '' : 's'} at ${ranges.join(', ')}.` + (outside ? ` ${outside} byte(s) fall outside RAM and ROM and were not loaded; check the address in the System panel.` : '') + pcNote + (tail || '');
   render();
 }
 let importedName = null;
@@ -1388,7 +1419,7 @@ function bind() {
     const commit = save => {
       if (done) return; done = true;
       const v = parseInt(inp.value, 16);
-      if (save && !isNaN(v)) { if (region(a) === 'io') ioIn.set(a - ioBase, v & 0xFF); else mem[a] = v & 0xFF; disDirty = true; }
+      if (save && !isNaN(v)) { bus.write(a, v & 0xFF); disDirty = true; }
       render();
     };
     inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') commit(true); else if (ev.key === 'Escape') commit(false); });
@@ -1559,64 +1590,6 @@ $('dbgAdd').onclick = dbgAdd;
 for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
 $('dbgClear').onclick = () => { breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
-// ---------- memory bitmap: every bit as a pixel ----------
-// Each byte is a row of 8 pixels (bit 7 on the left); each strip is one 256-byte page, top to bottom; a band holds
-// 32 pages (8K). An 8-pixel margin above each band carries the markers. A band is only redrawn when its bytes,
-// the theme or a marker changes, and at most four times a second while running.
-const BMP = { size: 0x10000, read: a => mem[a], has: () => true, what: 'memory' };
-const BMP_TOP = 8, BMP_BAND = 0x2000, bmpBands = [];
-let bmpAt = 0, bmpTheme = '', bmpInk = [0, 0, 0], bmpPaper = [255, 255, 255];
-function bmpAddr(e, band) {
-  const r = band.cv.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) * band.cv.width / r.width), y = Math.floor((e.clientY - r.top) * band.cv.height / r.height) - BMP_TOP;
-  if (!BMP.has() || x < 0 || y < 0 || y > 255 || x >= band.cv.width) return -1;
-  return band.base + (x >> 3) * 256 + y;
-}
-{
-  const n = Math.ceil(BMP.size / BMP_BAND), box = $('bmpBands');
-  for (let b = 0; b < n; b++) {
-    const bytes = Math.min(BMP_BAND, BMP.size - b * BMP_BAND), d = document.createElement('div'); d.className = 'bmpband';
-    if (n > 1) d.innerHTML = `<div class="cap">${h4(b * BMP_BAND)}h-${h4(b * BMP_BAND + bytes - 1)}h</div>`;
-    const cv = document.createElement('canvas'); cv.width = bytes / 256 * 8; cv.height = 256 + BMP_TOP; d.appendChild(cv); box.appendChild(d);
-    const band = { cv, ctx: cv.getContext('2d', { willReadFrequently: true }), base: b * BMP_BAND, bytes, img: null, sig: null, mark: null }; bmpBands.push(band);
-    cv.addEventListener('mousemove', e => {
-      const a = bmpAddr(e, band); if (a < 0) return; const v = BMP.read(a); let dis = ''; try { dis = disasm(x => BMP.read((x & 0xFFFF) % BMP.size), a).text; } catch (err) {}
-      $('bmpRead').innerHTML = `<b>${h4(a)}h</b>: <b>${h2(v)}h</b> ${v.toString(2).padStart(8, '0').replace(/0/g, '·').replace(/1/g, '█')} · ${esc(dis)}`;
-    });
-    cv.addEventListener('click', e => { const a = bmpAddr(e, band); if (a < 0) return; $('memFollow').checked = false; $('memFrom').value = h4(a); memScrollTo(a); renderMem(false); });
-  }
-  window.addEventListener('resize', () => { if (!running) bmpDraw(true); });
-}
-function bmpDraw(force) {
-  const now = performance.now(); if (running && !force && now - bmpAt < 250) return; bmpAt = now;
-  const cs = getComputedStyle(document.documentElement), theme = cs.getPropertyValue('--ink') + cs.getPropertyValue('--panel'), has = BMP.has();
-  if (theme !== bmpTheme) {
-    bmpTheme = theme; const c = bmpBands[0].ctx, col = v => { c.fillStyle = cs.getPropertyValue(v).trim() || '#000'; c.fillRect(0, 0, 1, 1); return c.getImageData(0, 0, 1, 1).data; };
-    bmpInk = col('--ink'); bmpPaper = col('--panel'); for (const b of bmpBands) b.sig = null;
-  }
-  const rv = regsView(), pc = rv.pc, sp = rv.sp !== undefined ? rv.sp : rv.s !== undefined ? 0x100 + rv.s : -1;
-  const box = $('bmpBands'), room = box.clientWidth - 16 - (box.offsetWidth - box.clientWidth), dpr = Math.max(1, Math.round((window.devicePixelRatio || 1) * 4) / 4);
-  for (const b of bmpBands) {
-    const W = b.cv.width;
-    let s = has ? 1 : 0; if (has) for (let i = 0; i < b.bytes; i++) s = (Math.imul(s, 31) + BMP.read(b.base + i)) | 0;
-    if (s !== b.sig) {
-      b.sig = s; b.mark = null; const img = b.img || (b.img = b.ctx.createImageData(W, b.cv.height)), d = img.data;
-      for (let o = 0; o < d.length; o += 4) { d[o] = bmpPaper[0]; d[o + 1] = bmpPaper[1]; d[o + 2] = bmpPaper[2]; d[o + 3] = 255; }
-      if (has) for (let i = 0; i < b.bytes; i++) {
-        const v = BMP.read(b.base + i); if (!v) continue; const x0 = (i >> 8) * 8, y = (i & 0xFF) + BMP_TOP;
-        for (let k = 0; k < 8; k++) if ((v >> (7 - k)) & 1) { const o = (y * W + x0 + k) * 4; d[o] = bmpInk[0]; d[o + 1] = bmpInk[1]; d[o + 2] = bmpInk[2]; }
-      }
-    }
-    const inB = a => has && a >= b.base && a < b.base + b.bytes, mark = (inB(pc) ? pc : -1) + '|' + (inB(sp) ? sp : -1);
-    if (mark !== b.mark) {
-      b.mark = mark; b.ctx.putImageData(b.img, 0, 0);
-      const box2 = (a, colr) => { const x = ((a - b.base) >> 8) * 8, y = ((a - b.base) & 0xFF) + BMP_TOP; b.ctx.fillStyle = colr; b.ctx.fillRect(x, 0, 8, 3); b.ctx.fillRect(x - 1, y - 1, 10, 1); b.ctx.fillRect(x - 1, y + 1, 10, 1); b.ctx.fillRect(x - 1, y, 1, 1); b.ctx.fillRect(x + 8, y, 1, 1); };
-      if (inB(sp)) box2(sp, cs.getPropertyValue('--sel').trim() || '#2a6fb0');
-      if (inB(pc)) box2(pc, '#e0322d');
-    }
-    const scale = Math.max(1, Math.min(3, Math.floor(room / W * dpr) / dpr)), cssW = (W * scale) + 'px'; if (b.cv.style.width !== cssW) b.cv.style.width = cssW;
-  }
-  const info = has ? `${BMP.size.toLocaleString('en-AU')} bytes${bmpBands.length > 1 ? ' · ' + bmpBands.length + ' bands of 8K' : ''}` : 'no ' + BMP.what; if ($('bmpInfo').textContent !== info) $('bmpInfo').textContent = info;
-}
 // ---------- dump memory to a file ----------
 // Files leave through the claude.ai viewer's save prompt when this page runs there (it accepts .txt and .zip, so the
 // binary dump goes inside a .zip); anywhere else, through an ordinary browser download.
@@ -1660,18 +1633,21 @@ function memDumpDone(p, what) {
   p.then(n => { if (n) { m.className = 'msg ok'; m.textContent = `${what} saved as ${n} (look in your downloads).`; } else { m.className = 'msg'; m.textContent = 'Not saved: the download was declined.'; } })
    .catch(e => { m.className = 'msg err'; m.textContent = 'Could not save the file' + (e && e.message ? ': ' + e.message : '.'); });
 }
-$('memDumpBin').onclick = () => memDumpDone(benchDownload(`6502-memory-${benchStamp()}.bin`, memSnapshot(), 'application/octet-stream'), 'Memory (65,536 bytes, byte 0 is address 0000h)');
-$('memDumpTxt').onclick = () => memDumpDone(benchDownload(`6502-memory-${benchStamp()}.txt`, memListing(memSnapshot()), 'text/plain;charset=utf-8'), 'Memory listing');
-// ---------- master reset: memory, ROM, every debug point and the input pins ----------
+$('memDumpBin').onclick = () => memDumpDone(benchDownload(`pet-memory-${benchStamp()}.bin`, memSnapshot(), 'application/octet-stream'), 'Memory (65,536 bytes, byte 0 is address 0000h)');
+$('memDumpTxt').onclick = () => memDumpDone(benchDownload(`pet-memory-${benchStamp()}.txt`, memListing(memSnapshot()), 'text/plain;charset=utf-8'), 'Memory listing');
+// ---------- master reset: memory, ROMs, every debug point and the input pins ----------
 function masterReset() {
   if (running) stopRun();
   $('dbgClear').onclick();
   for (const k of Object.keys(pins)) pins[k] = 1;
   cpu.nmiPending = false;
-  mem.fill(0);
+  for (const a of [pet.ram, pet.vram, pet.rom, pet.chargen, pet.keys]) a.fill(0);
+  pet.fitted = {}; pet.hasChargen = false;
+  for (const r of Object.keys(PT_ROLES)) { delete ptRoms[r]; try { localStorage.removeItem(PT_LS + 'rom.' + r); } catch (e) {} }
+  ptQueue.length = 0; ptWant.clear(); ptHeld.clear(); ptLatched.clear(); ptShow(); ptRomShow(); $('ptMsg').className = 'msg'; $('ptMsg').textContent = '';
   resetCPU(true);
   if (typeof disDirty !== 'undefined') disDirty = true;
-  setStatus('Master reset: ROM and RAM (all 64K) cleared; all breakpoints and stops removed; input pins released');
+  setStatus('Master reset: ROMs forgotten (load them again to switch on), RAM and screen cleared; all breakpoints and stops removed; input pins released');
   render();
 }
 let masterArm = null;
@@ -1681,6 +1657,317 @@ $('btnMaster').onclick = () => {
   masterDisarm(); masterReset();
 };
 dbgFields();
+
+// ---------- PET: picture, keyboard, ROMs, programs, hardware panel ----------
+const PT_LS = 'petbench.';
+const pscr = $('ptScreen'), pctx = pscr.getContext('2d'), pimg = pctx.createImageData(PET.FW, PET.FH), pimg32 = new Uint32Array(pimg.data.buffer);
+const PT_COL = (() => { const u = new Uint32Array(2), b = new Uint8Array(u.buffer); [[6, 22, 12], [104, 255, 132]].forEach((c, i) => { b[i * 4] = c[0]; b[i * 4 + 1] = c[1]; b[i * 4 + 2] = c[2]; b[i * 4 + 3] = 255; }); return u; })();
+const ptOn = () => pet.ready() && pet.hasChargen;
+function drawPt() {
+  const src = pet.fb; if (!running && ptOn()) pet.draw();          // paused: show the screen RAM as it is now
+  for (let i = 0; i < src.length; i++) pimg32[i] = PT_COL[src[i]];
+  pctx.putImageData(pimg, 0, 0);
+  if (!ptOn()) { pctx.fillStyle = '#68ff84'; pctx.font = '14px "IBM Plex Mono", monospace'; pctx.textAlign = 'center'; pctx.fillText('Load the PET ROMs to switch on', PET.FW / 2, PET.FH / 2 - 6); pctx.font = '10px "IBM Plex Mono", monospace'; pctx.fillText('BASIC, editor, kernal and character ROMs: not included', PET.FW / 2, PET.FH / 2 + 12); }
+  $('ptScrInfo').textContent = ptOn() ? `40 × 25 · ${pet.charSet() ? 'lower case' : 'graphics'} character set · line ${pet.line} · frame ${pet.frames}` : 'no ROM';
+}
+let ptSig = '';
+const ptBits = v => v.toString(2).padStart(8, '0');
+function renderPtState() {
+  const p1 = pet.pia1, p2 = pet.pia2, v = pet.via, keys = [];
+  PET_KEYS.forEach((row, r) => row.forEach((k, i) => { if (k && pet.keys[r] & (1 << i)) keys.push(k); }));
+  const pia = (p, an, bn) => `Port A <b>${h2(p.pa())}</b> ${ptBits(p.pa())} (direction ${h2(p.ddra)}) ${an}<br>Port B <b>${h2(p.pb())}</b> ${ptBits(p.pb())} (direction ${h2(p.ddrb)}) ${bn}<br>CRA <b>${h2(p.read(1))}</b> · CRB <b>${h2(p.read(3))}</b> · CA1 <b>${p.ca1}</b> CA2 <b>${p.ca2()}</b> CB1 <b>${p.cb1}</b> CB2 <b>${p.cb2()}</b> · IRQ A <b>${p.irqA() ? 'low' : 'high'}</b> B <b>${p.irqB() ? 'low' : 'high'}</b>`;
+  const row = p1.pa() & 15, srOn = (v.acr & 0x1C) === 0x10;
+  const html = `<div class="blk"><div class="hd">PIA 1 · E810h · keyboard and 60 Hz interrupt</div><div class="kv">${pia(p1, '· keyboard row <b>' + (row < 10 ? row : 'none') + '</b>', '· keyboard columns')}<br>Keys down <b>${keys.join(' ') || 'none'}</b></div></div>
+    <div class="blk"><div class="hd">PIA 2 · E820h · IEEE-488 data</div><div class="kv">${pia(p2, '· data in', '· data out')}</div></div>
+    <div class="blk"><div class="hd">VIA · E840h</div><div class="kv">Port A <b>${h2(v.pa())}</b> ${ptBits(v.pa())} (direction ${h2(v.ddra)}) · user port<br>Port B <b>${h2(v.pb())}</b> ${ptBits(v.pb())} (direction ${h2(v.ddrb)}) · bit 5 VIDEO ON<br>Timer 1 <b>${h4(v.t1 & 0xFFFF)}</b> (latch ${h4(v.t1l)}, ${v.acr & 0x40 ? 'free-running' : 'one shot'}) · timer 2 <b>${h4(v.t2 & 0xFFFF)}</b><br>ACR <b>${h2(v.acr)}</b> · PCR <b>${h2(v.pcr)}</b> · IFR <b>${h2(v.read(13))}</b> · IER <b>${h2(v.ier)}</b> · /IRQ <b>${v.irq() ? 'low' : 'high'}</b><br>CA2 <b>${v.ca2()}</b> (${v.ca2() ? 'lower case' : 'graphics'} character set) · CB2 <b>${v.cb2()}</b>${srOn ? ' · sound: shift register <b>' + h2(v.sr) + '</b>, ' + Math.round(1e6 / (2 * (v.t2ll + 2))) + ' bits a second' : ''}</div></div>
+    <div class="blk"><div class="hd">Video and interrupt</div><div class="kv">VIDEO ON <b>${pet.videoOn}</b> (${pet.videoOn ? 'drawing the picture' : 'vertical retrace'}) · line <b>${pet.line}</b> of ${PET.LINES} · frame <b>${pet.frames}</b><br>/IRQ <b>${pet.irqLevel() ? 'low' : 'high'}</b> · interrupts taken <b>${pet.irqs}</b></div></div>
+    <div class="blk"><div class="hd">Machine</div><div class="kv">Dynamic PET (board 320351) · <b>${pet.ramSize / 1024}K</b> RAM · ROMs fitted: <b>${PET_SOCKETS.filter(s => pet.fitted[s[0]]).map(s => s[0]).join(' ') || 'none'}</b>${pet.hasChargen ? ' UF10' : ''}</div></div>`;
+  if (html !== ptSig) { ptSig = html; $('ptState').innerHTML = html; }
+}
+function renderPt() { drawPt(); renderPtState(); }
+// ---- keyboard ----
+// each key: [matrix name, legend, shifted legend, width]; null leaves a gap before the number pad
+const PT_LAYOUT = [
+  [['@'], ['!'], ['"'], ['#'], ['$'], ['%'], ["'"], ['&'], ['\\'], ['('], [')'], ['Left arrow', '←'], ['['], [']'], null, ['Home', 'HOME', 'CLR'], ['Down', '↓', '↑'], ['Right', '→', '←'], ['Del', 'DEL', 'INST']],
+  [['Rvs', 'RVS', 'OFF'], ['Q'], ['W'], ['E'], ['R'], ['T'], ['Y'], ['U'], ['I'], ['O'], ['P'], ['Up arrow', '↑'], ['<'], ['>'], null, ['7'], ['8'], ['9'], ['/']],
+  [['Shift', 'SHIFT', '', 1.5], ['A'], ['S'], ['D'], ['F'], ['G'], ['H'], ['J'], ['K'], ['L'], [':'], ['Stop', 'STOP', 'RUN'], ['Return', 'RETURN', '', 1.5], null, ['4'], ['5'], ['6'], ['*']],
+  [['Shift', 'SHIFT', '', 2], ['Z'], ['X'], ['C'], ['V'], ['B'], ['N'], ['M'], [','], [';'], ['?'], ['Right shift', 'SHIFT', '', 2], null, ['1'], ['2'], ['3'], ['+']],
+  [['Space', 'SPACE', '', 14], null, ['0'], ['.'], ['-'], ['=']]
+];
+const PT_LATCH = new Set(['Shift', 'Right shift']);
+const ptHeld = new Set(), ptLatched = new Set();
+function ptShow() {
+  const all = [...[...ptLatched].map(k => k + ' (latched)'), ...ptHeld];
+  $('ptKeysDown').textContent = all.length ? 'keys: ' + all.join(' + ') : '';
+  for (const b of document.querySelectorAll('#ptKb button')) { b.classList.toggle('down', ptHeld.has(b.dataset.k)); b.classList.toggle('latched', ptLatched.has(b.dataset.k)); }
+}
+// Key presses and releases are queued and played to the machine in order, in PET time. The kernal reads the
+// keyboard once per frame and takes one key per scan, so a key stays down for at least two frames, two presses
+// are at least two frames apart and a key stays up for two frames before it goes down again. A quick tap is never
+// missed, and a fast double letter gives two letters.
+const PT_SCAN = PET.CPU_HZ * 0.035, ptDownAt = new Map(), ptUpAt = new Map();
+const ptQueue = [], ptWant = new Set(); let ptLastDown = -Infinity, ptLastWall = 0, ptPumpTimer = null;
+function ptPump() {
+  clearTimeout(ptPumpTimer); ptPumpTimer = null;
+  while (ptQueue.length) {
+    const ev = ptQueue[0];
+    if (running && performance.now() - ptLastWall < 1500) {
+      if (ev.k && ev.down && !PT_LATCH.has(ev.k) && (pet.t - ptLastDown < PT_SCAN || pet.t - (ptUpAt.get(ev.k) ?? -Infinity) < PT_SCAN)) break;
+      if (ev.k && !ev.down && pet.t - (ptDownAt.get(ev.k) ?? -Infinity) < PT_SCAN) break;
+    }
+    ptQueue.shift(); ptLastWall = performance.now();
+    if (ev.fn) ev.fn();
+    else if (ev.down) { ptHeld.add(ev.k); ptDownAt.set(ev.k, pet.t); if (!PT_LATCH.has(ev.k)) ptLastDown = pet.t; pet.key(ev.k, true); }
+    else { ptHeld.delete(ev.k); ptUpAt.set(ev.k, pet.t); if (!ptLatched.has(ev.k)) pet.key(ev.k, false); }
+    ptShow();
+  }
+  if (ptQueue.length) ptPumpTimer = setTimeout(ptPump, 8);
+}
+function ptPush(ev) { if (!ptQueue.length) ptLastWall = performance.now(); ptQueue.push(ev); ptPump(); }
+function ptDown(k) { if (ptWant.has(k)) return; ptWant.add(k); ptPush({ k, down: true }); }
+function ptUp(k, then) { if (!ptWant.has(k)) return; ptWant.delete(k); ptPush({ k, down: false }); if (then) ptPush({ fn: then }); }
+function ptRenderKb() {
+  $('ptKb').innerHTML = PT_LAYOUT.map(row => '<div class="krow">' + row.map(k => k ? `<button type="button" data-k="${esc(k[0]).replace(/"/g, '&quot;')}" style="flex-grow:${k[3] || 1}" title="${esc(k[0]).replace(/"/g, '&quot;')}${k[2] ? ' · SHIFT ' + esc(k[2]) : ''}"><small>${esc(k[2] || '') || '&nbsp;'}</small>${esc(k[1] || k[0])}</button>` : '<span class="gap"></span>').join('') + '</div>').join('');
+  for (const b of document.querySelectorAll('#ptKb button')) {
+    const k = b.dataset.k;
+    if (PT_LATCH.has(k)) { b.addEventListener('click', () => { if (ptLatched.has(k)) { ptLatched.delete(k); pet.key(k, false); } else { ptLatched.add(k); pet.key(k, true); } ptShow(); }); continue; }
+    b.addEventListener('pointerdown', e => { e.preventDefault(); ptDown(k); });
+    const up = () => { if (!ptWant.has(k)) return; const had = [...ptLatched]; ptUp(k, () => { for (const m of had) if (ptLatched.delete(m)) pet.key(m, false); ptShow(); }); };
+    b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up);
+  }
+  ptShow();
+}
+ptRenderKb();
+// PC keyboard: by character, because the PET has its own keys for ! " # and the rest (SHIFT gives graphics instead)
+const PT_CODE = { Enter: ['Return'], NumpadEnter: ['Return'], Backspace: ['Del'], Delete: ['Del'], Insert: ['Del', 1], Escape: ['Stop'], Home: ['Home'], ArrowDown: ['Down'], ArrowUp: ['Down', 1], ArrowRight: ['Right'], ArrowLeft: ['Right', 1], Tab: ['Rvs'], Space: ['Space'] };
+function ptMap(e) {
+  const c = PT_CODE[e.code]; if (c) return { k: c[0], shift: !!c[1] || (e.shiftKey && (e.code === 'Home' || e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape' || e.code === 'Tab')) };
+  const ch = e.key; if (!ch || ch.length !== 1) return null;
+  if (/[a-z]/i.test(ch)) return { k: ch.toUpperCase(), shift: e.shiftKey };
+  if (ch === '^') return { k: 'Up arrow', shift: false };
+  if (ch === '_') return { k: 'Left arrow', shift: false };
+  return PET_KEYPOS[ch] ? { k: ch, shift: false } : null;
+}
+const ptCodes = new Map(); let ptShiftRefs = 0;
+pscr.addEventListener('keydown', e => {
+  e.stopPropagation();      // keep the page's own shortcuts (C, S, R) away from what is typed into the PET
+  if (e.metaKey || e.ctrlKey || e.altKey) return; const m = ptMap(e); if (!m) return; e.preventDefault(); if (e.repeat || ptCodes.has(e.code)) return;
+  ptCodes.set(e.code, m); if (m.shift && ptShiftRefs++ === 0) ptDown('Shift'); ptDown(m.k);
+});
+function ptKeyUp(code) { const m = ptCodes.get(code); if (!m) return; ptCodes.delete(code); ptUp(m.k); if (m.shift && --ptShiftRefs === 0) ptUp('Shift'); }
+pscr.addEventListener('keyup', e => { if (ptCodes.has(e.code)) e.preventDefault(); ptKeyUp(e.code); });
+pscr.addEventListener('blur', () => { for (const c of [...ptCodes.keys()]) ptKeyUp(c); });
+// ---- ROMs: each file is placed by its checksum or its name, kept by this browser, and the chosen BASIC set is fitted ----
+const PT_ROLES = {
+  b2c: { name: 'BASIC 2 C000h (901465-01)', file: 'basic-2-c000', addr: 0xC000, size: 4096, crc: ['63A7FE4A'] },
+  b2d: { name: 'BASIC 2 D000h (901465-02)', file: 'basic-2-d000', addr: 0xD000, size: 4096, crc: ['AE4CB035'] },
+  e2: { name: 'BASIC 2 editor, graphic keyboard (901447-24)', file: 'edit-2-n', addr: 0xE000, size: 2048, crc: ['E459AB32'] },
+  k2: { name: 'BASIC 2 kernal (901465-03)', file: 'kernal-2', addr: 0xF000, size: 4096, crc: ['F02238E2'] },
+  b4b: { name: 'BASIC 4 B000h (901465-23)', file: 'basic-4-b000', addr: 0xB000, size: 4096, crc: ['AE3DEAC0', '3A5F5721'] },
+  b4c: { name: 'BASIC 4 C000h (901465-20)', file: 'basic-4-c000', addr: 0xC000, size: 4096, crc: ['0FC17B9C'] },
+  b4d: { name: 'BASIC 4 D000h (901465-21)', file: 'basic-4-d000', addr: 0xD000, size: 4096, crc: ['36D91855'] },
+  e4: { name: 'BASIC 4 editor, graphic keyboard (901447-29)', file: 'edit-4-n.', addr: 0xE000, size: 2048, crc: [] },
+  k4: { name: 'BASIC 4 kernal (901465-22)', file: 'kernal-4', addr: 0xF000, size: 4096, crc: ['CC5298A1'] },
+  cg: { name: 'character ROM (901447-10)', file: 'characters-2', addr: -1, size: 2048, crc: ['D8408674'] }
+};
+const PT_SETS = { 2: ['b2c', 'b2d', 'e2', 'k2', 'cg'], 4: ['b4b', 'b4c', 'b4d', 'e4', 'k4', 'cg'] };
+const PT_OTHER = [[/edit-.*-b[-.]/i, 'an editor ROM for the business keyboard'], [/edit-4-(40|80)/i, 'an editor ROM for the later 12-inch PETs with a video controller chip'], [/characters-1/i, 'the character ROM of the original PET 2001'], [/^rom-1-/i, 'a BASIC 1 ROM of the original PET 2001']];
+const ptRoms = {};
+function ptCrc(b) { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; } return (~c >>> 0).toString(16).toUpperCase().padStart(8, '0'); }
+function ptIdentify(name, bytes) {
+  const crc = ptCrc(bytes);
+  for (const [r, d] of Object.entries(PT_ROLES)) if (d.crc.includes(crc)) return { role: r, crc, sure: true };
+  for (const [re, what] of PT_OTHER) if (re.test(name)) return { role: null, crc, why: what + ', not used on this machine' };
+  for (const [r, d] of Object.entries(PT_ROLES)) if (name.toLowerCase().startsWith(d.file) && bytes.length === d.size) return { role: r, crc, sure: false };
+  return { role: null, crc, why: `not recognised (${bytes.length.toLocaleString('en-AU')} bytes, CRC ${crc})` };
+}
+const ptSetReady = s => PT_SETS[s].every(r => ptRoms[r]);
+function ptRomShow() {
+  const line = s => { const miss = PT_SETS[s].filter(r => !ptRoms[r]); return `BASIC ${s}: ` + (miss.length ? (miss.length === PT_SETS[s].length ? 'no ROMs loaded' : 'missing ' + miss.map(r => PT_ROLES[r].file.replace(/\.$/, '') + ' (' + PT_ROLES[r].name + ')').join(', ')) : 'complete'); };
+  $('ptRomList').innerHTML = esc(line(2)) + '<br>' + esc(line(4));
+  for (const o of $('ptBasic').options) o.disabled = !ptSetReady(o.value);
+}
+function ptFit() {      // put the chosen set's ROMs into the sockets
+  const set = $('ptBasic').value; pet.fitted = {}; pet.rom.fill(0); pet.hasChargen = false;
+  if (!ptSetReady(set)) return false;
+  for (const r of PT_SETS[set]) { const d = PT_ROLES[r]; if (d.addr < 0) { pet.chargen.set(ptRoms[r]); pet.hasChargen = true; } else pet.loadRom(d.addr, ptRoms[r]); }
+  disDirty = true; return true;
+}
+function ptPowerOn() {
+  if (running) stopRun();
+  ptQueue.length = 0; ptWant.clear(); ptHeld.clear(); ptCodes.clear(); ptShiftRefs = 0; ptDownAt.clear(); ptUpAt.clear(); ptLastDown = -Infinity; pet.keys.fill(0); for (const k of ptLatched) pet.key(k, true);
+  if (!ptFit()) { resetCPU(true); $('ptMsg').className = 'msg err'; $('ptMsg').textContent = `The BASIC ${$('ptBasic').value} ROM set is not complete: see the list below.`; ptNoRom(); render(); return; }
+  pet.setRam(+$('ptRam').value); pet.ram.fill(0); pet.vram.fill(0x20);
+  try { localStorage.setItem(PT_LS + 'basic', $('ptBasic').value); localStorage.setItem(PT_LS + 'ram', $('ptRam').value); } catch (e) {}
+  resetCPU(true); $('speed').value = 'real'; runRate = 'real'; startRun(); pscr.focus();
+}
+function ptNoRom() { setStatus('Load the PET ROMs to switch on'); }
+$('ptLoadRom').onclick = () => $('ptRomFile').click();
+$('ptRomFile').onchange = () => {
+  const fs = [...$('ptRomFile').files]; $('ptRomFile').value = ''; if (!fs.length) return;
+  Promise.all(fs.map(f => f.arrayBuffer().then(b => [f.name, new Uint8Array(b)]))).then(list => {
+    const used = [], skipped = [];
+    const ids = list.map(([name, bytes]) => ptIdentify(name, bytes)), newB = ids.some(i => i.crc === 'AE3DEAC0') || (ptRoms.b4b && ptCrc(ptRoms.b4b) === 'AE3DEAC0');
+    for (let n = 0; n < list.length; n++) {
+      const [name, bytes] = list[n], id = ids[n];
+      if (!id.role) { skipped.push(`${name}: ${id.why}`); continue; }
+      if (id.role === 'b4b' && id.crc === '3A5F5721' && newB) { skipped.push(`${name}: an older revision of the BASIC 4 B000h ROM; the newer 901465-23 is kept`); continue; }
+      ptRoms[id.role] = bytes; used.push(`${name} → ${PT_ROLES[id.role].name}${id.sure ? '' : ' (placed by its name; checksum ' + id.crc + ' is not one this page knows)'}`);
+      try { let s = ''; for (const x of bytes) s += String.fromCharCode(x); localStorage.setItem(PT_LS + 'rom.' + id.role, btoa(s)); } catch (e) {}
+    }
+    ptRomShow();
+    if (!ptSetReady($('ptBasic').value)) { const other = $('ptBasic').value === '2' ? '4' : '2'; if (ptSetReady(other)) $('ptBasic').value = other; }
+    const msg = $('ptMsg'), ready = ptSetReady($('ptBasic').value);
+    msg.className = used.length ? 'msg ok' : 'msg err';
+    msg.innerHTML = (used.length ? `Loaded ${used.length} ROM${used.length === 1 ? '' : 's'}: ` + used.map(esc).join('; ') + '.' : 'None of those files is a ROM this machine uses.') + (skipped.length ? '<br>Not used: ' + skipped.map(esc).join('; ') + '.' : '') + (ready ? '' : '<br>The set is not complete yet: see the list below.');
+    if (ready && used.length) ptPowerOn(); else render();
+  });
+};
+$('ptRestart').onclick = ptPowerOn;
+$('ptBasic').onchange = ptPowerOn;
+$('ptRam').onchange = ptPowerOn;
+// ---- programs ----
+$('ptPrgIn').onclick = () => $('ptPrgFile').click();
+$('ptPrgFile').onchange = () => {
+  const f = $('ptPrgFile').files[0]; $('ptPrgFile').value = ''; if (!f) return;
+  f.arrayBuffer().then(buf => {
+    const bytes = new Uint8Array(buf), msg = $('ptMsg');
+    if (bytes.length < 3) { msg.className = 'msg err'; msg.textContent = `${f.name} is too short to be a .prg file.`; return; }
+    const r = pet.loadPrg(bytes); disDirty = true;
+    if (!r.ok) { msg.className = 'msg err'; msg.textContent = `${f.name} loads at ${h4(r.addr)}h–${h4(r.end - 1)}h, which does not fit in ${pet.ramSize / 1024}K of RAM${pet.ramSize < 0x8000 ? ': choose a larger RAM size' : ''}.`; return; }
+    msg.className = 'msg ok'; msg.textContent = `${f.name} loaded at ${h4(r.addr)}h–${h4(r.end - 1)}h (${(bytes.length - 2).toLocaleString('en-AU')} bytes). ` + (r.basic ? 'It is a BASIC program: type RUN (or LIST).' : `It is not at the BASIC start address, so it is machine code or data: start it with SYS ${r.addr} if that is its entry point.`);
+    pscr.focus(); render();
+  });
+};
+// ---------- memory bitmap: every bit as a pixel, tinted by region ----------
+// Each byte is a row of 8 pixels (bit 7 on the left); each strip is one 256-byte page, top to bottom; a band holds
+// up to 32 pages (8K). The background of every byte is tinted by the region it belongs to (MM.regions, by address,
+// or a band's own fixed key). An 8-pixel margin above each band carries the PC and SP markers. A band is only
+// redrawn when its bytes, its regions, the theme or a marker changes, and at most four times a second while running.
+const MM_TOP = 8;
+let mmBands = [], mmLayout = null, mmAt = 0, mmTheme = '', mmInk = [0, 0, 0], mmPaper = [255, 255, 255], mmTints = {}, mmLegendSig = '';
+function mmAddr(e, b) {
+  const r = b.cv.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) * b.cv.width / r.width), y = Math.floor((e.clientY - r.top) * b.cv.height / r.height) - MM_TOP;
+  if (x < 0 || y < 0 || y > 255 || x >= b.cv.width) return -1;
+  const off = (x >> 3) * 256 + y; return off < b.def.bytes ? off : -1;
+}
+function mmRebuild(defs) {
+  const box = $('mmBands'); box.innerHTML = ''; mmBands = [];
+  for (const def of defs) {
+    const d = document.createElement('div'); d.className = 'mmband'; d.innerHTML = `<div class="cap">${esc(def.label)}</div>`;
+    const cv = document.createElement('canvas'); cv.width = Math.ceil(def.bytes / 256) * 8; cv.height = 256 + MM_TOP; d.appendChild(cv); box.appendChild(d);
+    const b = { cv, ctx: cv.getContext('2d', { willReadFrequently: true }), def, img: null, sig: null, mark: null, keys: new Uint8Array(def.bytes) }; mmBands.push(b);
+    cv.addEventListener('mousemove', e => {
+      const off = mmAddr(e, b); if (off < 0) return; const a = b.def.base + off, v = b.def.read(a), k = b.keyNames[b.keys[off]], reg = k && MM.legend[k] ? MM.legend[k][0] : '';
+      let dis = ''; if (b.def.cpu) try { dis = disasm(x => peekMem(x & 0xFFFF), a).text; } catch (err) {}
+      $('mmRead').innerHTML = `<b>${h4(a)}h</b>${b.def.space === 'c' ? ' in the character ROM' : ''}: <b>${h2(v)}h</b> ${v.toString(2).padStart(8, '0').replace(/0/g, '·').replace(/1/g, '█')}${reg ? ' · ' + esc(reg) : ''}${dis ? ' · ' + esc(dis) : ''}`;
+    });
+    cv.addEventListener('click', e => { const off = mmAddr(e, b); if (off < 0 || b.def.space) return; const a = b.def.base + off; $('memFollow').checked = false; $('memFrom').value = h4(a); memScrollTo(a); renderMem(false); });
+  }
+}
+window.addEventListener('resize', () => { if (!running) mmDraw(true); });
+function mmDraw(force) {
+  const now = performance.now(); if (running && !force && now - mmAt < 250) return; mmAt = now;
+  const defs = MM.bands(), layout = defs.map(d => d.label + '|' + d.base + '|' + d.bytes).join(';');
+  if (layout !== mmLayout) { mmLayout = layout; mmRebuild(defs); mmTheme = ''; }
+  const cs = getComputedStyle(document.documentElement), theme = cs.getPropertyValue('--ink') + cs.getPropertyValue('--panel');
+  if (theme !== mmTheme && mmBands.length) {
+    mmTheme = theme; const c = mmBands[0].ctx, col = v => { c.fillStyle = v; c.fillRect(0, 0, 1, 1); return c.getImageData(0, 0, 1, 1).data; };
+    mmInk = col(cs.getPropertyValue('--ink').trim() || '#000'); mmPaper = col(cs.getPropertyValue('--panel').trim() || '#fff');
+    const dark = mmPaper[0] + mmPaper[1] + mmPaper[2] < 380, mix = dark ? 0.42 : 0.3; mmTints = {};
+    for (const k in MM.legend) { const h = col(MM.legend[k][1]); mmTints[k] = [0, 1, 2].map(i => Math.round(mmPaper[i] + (h[i] - mmPaper[i]) * mix)); }
+    for (const b of mmBands) b.sig = null; mmLegendSig = '';
+  }
+  const regs = MM.regions(), regSig = regs.map(r => r.join(',')).join(';'), marks = MM.markers(), used = new Set();
+  const box = $('mmBands'), room = box.clientWidth - 16, dpr = Math.max(1, Math.round((window.devicePixelRatio || 1) * 4) / 4);
+  let total = 0;
+  mmBands.forEach((b, bi) => {
+    const def = b.def = defs[bi], W = b.cv.width, n = def.bytes; total += n;
+    let s = 7; for (let i = 0; i < n; i++) s = (Math.imul(s, 31) + def.read(def.base + i)) | 0;
+    const sig = s + '|' + (def.key || regSig) + '|' + def.label;
+    if (sig !== b.sig) {
+      b.sig = sig; b.mark = null;
+      // region key of every byte: 0 = none, then indices into keyNames
+      const names = b.keyNames = ['']; b.keys.fill(0);
+      const idx = k => { let i = names.indexOf(k); if (i < 0) { i = names.length; names.push(k); } return i; };
+      if (def.key) b.keys.fill(idx(def.key));
+      else for (const [a0, a1, k, sp] of regs) { if ((sp || '') !== (def.space || '')) continue; const lo = Math.max(a0, def.base) - def.base, hi = Math.min(a1, def.base + n) - def.base; if (hi > lo) b.keys.fill(idx(k), lo, hi); }
+      const img = b.img || (b.img = b.ctx.createImageData(W, b.cv.height)), d = img.data;
+      for (let o = 0; o < d.length; o += 4) { d[o] = mmPaper[0]; d[o + 1] = mmPaper[1]; d[o + 2] = mmPaper[2]; d[o + 3] = 255; }
+      for (let i = 0; i < n; i++) {
+        const v = def.read(def.base + i), t = mmTints[names[b.keys[i]]]; if (!v && !t) continue;
+        const x0 = (i >> 8) * 8, y = (i & 0xFF) + MM_TOP;
+        for (let k = 0; k < 8; k++) { const c = (v >> (7 - k)) & 1 ? mmInk : t; if (!c) continue; const o = (y * W + x0 + k) * 4; d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; }
+      }
+    }
+    for (const k of b.keyNames) if (k) used.add(k);
+    const mine = def.cpu ? marks.filter(([a]) => a >= def.base && a < def.base + n) : [], mark = mine.map(m => m[0]).join(',');
+    if (mark !== b.mark) {
+      b.mark = mark; b.ctx.putImageData(b.img, 0, 0);
+      for (const [a, colr] of mine) { const x = ((a - def.base) >> 8) * 8, y = ((a - def.base) & 0xFF) + MM_TOP; b.ctx.fillStyle = colr; b.ctx.fillRect(x, 0, 8, 3); b.ctx.fillRect(x - 1, y - 1, 10, 1); b.ctx.fillRect(x - 1, y + 1, 10, 1); b.ctx.fillRect(x - 1, y, 1, 1); b.ctx.fillRect(x + 8, y, 1, 1); }
+    }
+    const scale = Math.max(1, Math.min(3, Math.floor(room / Math.max(W, 128) * dpr) / dpr)), cssW = (W * scale) + 'px'; if (b.cv.style.width !== cssW) b.cv.style.width = cssW;
+  });
+  const lsig = [...used].sort().join(',') + mmTheme;
+  if (lsig !== mmLegendSig) { mmLegendSig = lsig; $('mmLegend').innerHTML = Object.keys(MM.legend).filter(k => used.has(k)).map(k => `<span><i style="background: rgb(${mmTints[k].join(',')})"></i>${esc(MM.legend[k][0])}</span>`).join(''); }
+  const info = `${total.toLocaleString('en-AU')} bytes in ${mmBands.length} band${mmBands.length === 1 ? '' : 's'}`; if ($('mmInfo').textContent !== info) $('mmInfo').textContent = info;
+}
+
+// what the PET memory bitmap shows: RAM, the screen, each ROM that is fitted and the character ROM, tinted by use
+const MM = {
+  legend: {
+    zp: ['zero page', '#8e6bbf'], stack: ['stack', '#d0483f'], sys: ['system variables and cassette buffers', '#1fa3a3'], prog: ['BASIC program', '#3f7fd0'], vars: ['variables and arrays', '#e07b39'],
+    str: ['strings', '#c7559a'], ram: ['RAM', '#8a8f98'], free: ['free', '#ffffff'], screen: ['screen', '#2e9e5b'], cg1: ['graphics character set', '#e6c229'], cg2: ['lower-case character set', '#b98a1a']
+  },
+  bands() {
+    const out = [];
+    for (let a = 0; a < pet.ramSize; a += 0x2000) out.push({ label: `RAM ${h4(a)}h-${h4(a + 0x1FFF)}h`, base: a, bytes: 0x2000, read: x => pet.ram[x], cpu: true });
+    out.push({ label: 'Screen RAM 8000h-83FFh (40 x 25 characters in the first 1,000 bytes)', base: 0x8000, bytes: 0x400, read: x => pet.vram[x - 0x8000], cpu: true });
+    for (const [name, a, n] of PET_SOCKETS) if (pet.fitted[name]) out.push({ label: `${name} ROM ${h4(a)}h-${h4(a + n - 1)}h`, base: a, bytes: n, read: x => pet.rom[x], cpu: true });
+    if (pet.hasChargen) out.push({ label: 'UF10 character ROM (not on the CPU bus): 8 bytes per character', base: 0, bytes: 0x800, read: x => pet.chargen[x], cpu: false, space: 'c' });
+    return out;
+  },
+  regions() {
+    const R = [[0, 0x100, 'zp'], [0x100, 0x200, 'stack'], [0x200, 0x400, 'sys'], [0x8000, 0x83E8, 'screen'], [0, 0x400, 'cg1', 'c'], [0x400, 0x800, 'cg2', 'c']];
+    const w = a => pet.ram[a] | pet.ram[a + 1] << 8, seq = [[w(0x28), 'prog'], [w(0x2A), 'vars'], [w(0x2E), 'free'], [w(0x30), 'str'], [w(0x34), 'ram']];
+    let ok = ptOn() && seq[0][0] >= 0x400 && seq[4][0] <= 0x8000; for (let i = 1; i < seq.length; i++) if (seq[i][0] < seq[i - 1][0]) ok = false;
+    if (!ok) R.push([0x400, pet.ramSize, 'ram']);
+    else seq.forEach(([a, k], i) => { const e = i + 1 < seq.length ? seq[i + 1][0] : pet.ramSize; if (e > a && k !== 'free') R.push([a, e, k]); });
+    return R;
+  },
+  markers() { const cs = getComputedStyle(document.documentElement); return [[0x100 + cpu.s, cs.getPropertyValue('--sel').trim() || '#2a6fb0'], [cpu.pc, '#e0322d']]; }
+};
+$('ptPrgOut').onclick = () => { const p = pet.savePrg(), msg = $('ptMsg'); if (!p) { msg.className = 'msg err'; msg.textContent = 'There is no BASIC program in memory to save.'; return; }
+  ptSaved(benchDownload(`pet-program-${benchStamp()}.prg`, p, 'application/octet-stream'), f => `BASIC program saved as ${f}: ${(p.length - 2).toLocaleString('en-AU')} bytes, load address 0401h.`); };
+$('ptListing').onclick = () => ptSaved(benchDownload(`pet-listing-${benchStamp()}.txt`, pet.report(), 'text/plain;charset=utf-8'), f => `Listing saved as ${f}: registers, BASIC pointers, the interface chips, the BASIC program as text, the screen and a hex dump of RAM.`);
+function ptSaved(p, text) {
+  const m = $('ptMsg');
+  p.then(n => { if (n) { m.className = 'msg ok'; m.textContent = text(n) + ' Look in your downloads.'; } else { m.className = 'msg'; m.textContent = 'Not saved: the download was declined.'; } })
+   .catch(e => { m.className = 'msg err'; m.textContent = 'Could not save the file' + (e && e.message ? ': ' + e.message : '.'); });
+}
+// ---------- sound: the CB2 line, sampled as the machine runs ----------
+let ptAudio = null, ptAr = 0, ptLast = 0, ptHp = 0;
+const ptSoundOn = () => $('ptSound').checked;
+function ptAudioStart() {
+  if (!ptSoundOn()) return;
+  if (ptAudio) { if (ptAudio.state === 'suspended') ptAudio.resume().catch(() => {}); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    ptAudio = new AC(); const node = ptAudio.createScriptProcessor(1024, 0, 1);
+    node.onaudioprocess = e => {
+      const out = e.outputBuffer.getChannelData(0), live = running && runRate === 'real' && ptSoundOn(), rate = pet.audioRate;
+      if (pet.aw - ptAr > rate * 0.2 || pet.aw < ptAr) ptAr = Math.max(0, pet.aw - Math.round(rate * 0.06));
+      for (let i = 0; i < out.length; i++) {
+        if (live && ptAr < pet.aw) ptLast = pet.abuf[ptAr++ & 32767]; else if (!live) { ptLast = 0; ptAr = pet.aw; }
+        ptHp += (ptLast - ptHp) * 0.002; out[i] = ptLast - ptHp;
+      }
+    };
+    node.connect(ptAudio.destination); pet.audioRate = ptAudio.sampleRate; ptAr = pet.aw;
+  } catch (e) { ptAudio = null; }
+}
+for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, ptAudioStart, { passive: true });
+$('ptSound').onchange = () => { try { localStorage.setItem(PT_LS + 'sound', ptSoundOn() ? '1' : '0'); } catch (e) {} if (ptSoundOn()) ptAudioStart(); else if (ptAudio) ptAudio.suspend().catch(() => {}); };
+try { if (localStorage.getItem(PT_LS + 'sound') === '0') $('ptSound').checked = false; } catch (e) {}
 
 // ---------- collapsible side panels ----------
 for (const sec of document.querySelectorAll('.side .panel')) {
@@ -1698,10 +1985,15 @@ let savedHex = null, savedAsm = null, savedMode = null;
 try { savedHex = localStorage.getItem(LS + 'hex'); savedAsm = localStorage.getItem(LS + 'asm'); savedMode = localStorage.getItem(LS + 'mode'); const la = localStorage.getItem(LS + 'loadAddr'); if (la && /^[0-9A-F]{4}$/.test(la)) $('loadAddr').value = la; } catch (e) {}
 $('hexIn').value = savedHex || SAMPLE;
 $('asmIn').value = savedAsm || SAMPLE_ASM;
-ioIn.set(0x2, 0x5A);
 setMode(savedMode === 'hex' ? 'hex' : 'asm');
-loadProgram();
-if ($('loadMsg').classList.contains('ok')) $('loadMsg').textContent += ' Press Step instruction to begin.';
+{ const get = k => { let s = null; try { s = localStorage.getItem(PT_LS + 'rom.' + k); } catch (e) {} if (!s) return null; s = atob(s); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
+  for (const r of Object.keys(PT_ROLES)) { const b = get(r); if (b && b.length === PT_ROLES[r].size) ptRoms[r] = b; }
+  try { const b = localStorage.getItem(PT_LS + 'basic'), k = localStorage.getItem(PT_LS + 'ram'); if (b === '2' || b === '4') $('ptBasic').value = b; if (['8', '16', '32'].includes(k)) $('ptRam').value = k; } catch (e) {}
+  window.petBench = { pet, queue: ptQueue };      // for testing from the browser console
+  ptRomShow();
+  if (!ptSetReady($('ptBasic').value)) { const other = $('ptBasic').value === '2' ? '4' : '2'; if (ptSetReady(other)) $('ptBasic').value = other; }
+  if (ptSetReady($('ptBasic').value)) { $('ptMsg').textContent = `BASIC ${$('ptBasic').value} ROMs loaded from this browser.`; ptPowerOn(); }
+  else { resetCPU(true); ptNoRom(); render(); } }
 })();
 </script>
 </html>
