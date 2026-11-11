@@ -77,7 +77,7 @@ select, input[type=text] { font-family: var(--font-ui); font-size: 14px; backgro
 input.mono { font-size: 13px; }
 label.inline { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
 
-.grid { display: grid; grid-template-columns: minmax(320px, 370px) minmax(0, 1fr) minmax(0, 1.1fr) auto; gap: 14px; align-items: start; }
+.grid { display: grid; grid-template-columns: minmax(340px, 440px) minmax(280px, 1fr) minmax(350px, 1.1fr) auto; gap: 14px; align-items: start; }
 .side { display: flex; flex-direction: column; align-items: flex-end; gap: 14px; min-width: 0; }
 .side .panel { width: 380px; max-width: 100%; }
 .panel h2 .fold { order: 99; margin-left: 6px; padding: 0 7px; font-size: 14px; line-height: 20px; letter-spacing: 0; text-transform: none; color: var(--muted); }
@@ -86,7 +86,7 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; color: var(-
 .side .panel.collapsed > :not(h2), .side .panel.collapsed h2 .aside { display: none; }
 .side .panel.collapsed h2 { writing-mode: vertical-rl; margin: 0; gap: 10px; }
 .side .panel.collapsed h2 .fold { order: -1; margin: 0; writing-mode: horizontal-tb; }
-@media (max-width: 1180px) { .grid { grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); } .side { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: start; } .side .panel { flex: 1 1 380px; width: auto; } .side .panel.collapsed { flex: 0 0 auto; width: auto; padding: 10px 14px; } .side .panel.collapsed h2 { writing-mode: horizontal-tb; } }
+@media (max-width: 1180px) { .grid { grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); } .side { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: start; } .side .panel { flex: 1 1 380px; width: auto; } .side .panel.collapsed { flex: 0 0 auto; width: auto; padding: 10px 14px; } .side .panel.collapsed h2 { writing-mode: horizontal-tb; } }
 @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px 14px; min-width: 0; }
@@ -200,6 +200,13 @@ table.mem input { width: 24px; font-family: var(--font-mono); font-size: 12px; p
 /* loader */
 textarea { width: 100%; min-height: 210px; resize: vertical; font-size: 12.5px; line-height: 1.5; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 10px; }
+.bmpbands { background: var(--panel2); border-radius: 6px; padding: 8px; max-height: 600px; overflow-y: auto; }
+.bmpband + .bmpband { margin-top: 10px; }
+.bmpband .cap { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.bmpband canvas { display: block; max-width: 100%; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; cursor: crosshair; }
+.bmp-read { margin-top: 8px; font-size: 12.5px; min-height: 18px; color: var(--muted); font-family: var(--font-mono); }
+.bmp-read b { color: var(--ink); }
+.dumprow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .msg { font-size: 12.5px; margin-top: 8px; font-family: var(--font-mono); min-height: 1.4em; }
 .msg.err { color: var(--warn); } .msg.ok { color: var(--ok); }
 .fieldgrid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
@@ -376,6 +383,18 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         </div>
         <div class="vscroll" id="memView" tabindex="0" aria-label="Memory"><div class="vspace"><table class="mem vrows" id="mem"></table></div></div>
         <p class="hint">Scroll through all 64 KB. Click a byte to edit it (ROM too). Blue marks the instruction being executed, amber marks bytes written by the last instruction, underline marks the top of the stack. ROM is tinted; I/O registers show the value a read would return. With Follow PC ticked, each step brings the current instruction back into view; untick it to keep watching another area.</p>
+        <div class="dumprow">
+          <button id="memDumpBin" type="button" title="All 64 KB as the CPU sees it now, as one binary file (byte 0 is address 0000h)">Dump memory (.bin)</button>
+          <button id="memDumpTxt" type="button" title="A readable listing: the registers and a hex dump with characters, repeated rows collapsed">Memory listing (.txt)</button>
+        </div>
+        <div class="msg" id="memDumpMsg"></div>
+      </section>
+
+      <section class="panel" id="pBitmap">
+        <h2>Memory bitmap <span class="aside" id="bmpInfo"></span></h2>
+        <div class="bmpbands" id="bmpBands"></div>
+        <div class="bmp-read" id="bmpRead">Point at the bitmap to read a byte; click to show it in Memory.</div>
+        <p class="hint">Every bit of memory is one pixel. Each byte is a row of 8 pixels (bit 7 on the left) and each strip is one 256-byte page, read top to bottom; each band holds 8K. Empty memory is blank, machine code looks like noise, and tables and text show regular patterns, so you can see at a glance where a program and its data sit and watch memory change as it runs. The red mark is the program counter and the blue mark the stack pointer.</p>
       </section>
     </div>
 
@@ -994,7 +1013,7 @@ function renderIO() {
 function render() {
   const pcNow = regsView().pc, focus = pcNow !== lastFocusPc || tTotal !== lastFocusT;
   lastFocusPc = pcNow; lastFocusT = tTotal;
-  renderPins(); renderRegs(); renderStops(); renderDebug(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
+  renderPins(); renderRegs(); renderStops(); renderDebug(); bmpDraw(); renderTiming(); renderDis(focus); renderMem(focus); renderIO();
   $('cntPC').textContent = h4(pcNow) + 'h';
   $('cntT').textContent = tTotal.toLocaleString('en-AU');
   $('cntI').textContent = instrCount.toLocaleString('en-AU');
@@ -1540,6 +1559,109 @@ $('dbgAdd').onclick = dbgAdd;
 for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
 $('dbgClear').onclick = () => { breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
+// ---------- memory bitmap: every bit as a pixel ----------
+// Each byte is a row of 8 pixels (bit 7 on the left); each strip is one 256-byte page, top to bottom; a band holds
+// 32 pages (8K). An 8-pixel margin above each band carries the markers. A band is only redrawn when its bytes,
+// the theme or a marker changes, and at most four times a second while running.
+const BMP = { size: 0x10000, read: a => mem[a], has: () => true, what: 'memory' };
+const BMP_TOP = 8, BMP_BAND = 0x2000, bmpBands = [];
+let bmpAt = 0, bmpTheme = '', bmpInk = [0, 0, 0], bmpPaper = [255, 255, 255];
+function bmpAddr(e, band) {
+  const r = band.cv.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) * band.cv.width / r.width), y = Math.floor((e.clientY - r.top) * band.cv.height / r.height) - BMP_TOP;
+  if (!BMP.has() || x < 0 || y < 0 || y > 255 || x >= band.cv.width) return -1;
+  return band.base + (x >> 3) * 256 + y;
+}
+{
+  const n = Math.ceil(BMP.size / BMP_BAND), box = $('bmpBands');
+  for (let b = 0; b < n; b++) {
+    const bytes = Math.min(BMP_BAND, BMP.size - b * BMP_BAND), d = document.createElement('div'); d.className = 'bmpband';
+    if (n > 1) d.innerHTML = `<div class="cap">${h4(b * BMP_BAND)}h-${h4(b * BMP_BAND + bytes - 1)}h</div>`;
+    const cv = document.createElement('canvas'); cv.width = bytes / 256 * 8; cv.height = 256 + BMP_TOP; d.appendChild(cv); box.appendChild(d);
+    const band = { cv, ctx: cv.getContext('2d', { willReadFrequently: true }), base: b * BMP_BAND, bytes, img: null, sig: null, mark: null }; bmpBands.push(band);
+    cv.addEventListener('mousemove', e => {
+      const a = bmpAddr(e, band); if (a < 0) return; const v = BMP.read(a); let dis = ''; try { dis = disasm(x => BMP.read((x & 0xFFFF) % BMP.size), a).text; } catch (err) {}
+      $('bmpRead').innerHTML = `<b>${h4(a)}h</b>: <b>${h2(v)}h</b> ${v.toString(2).padStart(8, '0').replace(/0/g, '·').replace(/1/g, '█')} · ${esc(dis)}`;
+    });
+    cv.addEventListener('click', e => { const a = bmpAddr(e, band); if (a < 0) return; $('memFollow').checked = false; $('memFrom').value = h4(a); memScrollTo(a); renderMem(false); });
+  }
+  window.addEventListener('resize', () => { if (!running) bmpDraw(true); });
+}
+function bmpDraw(force) {
+  const now = performance.now(); if (running && !force && now - bmpAt < 250) return; bmpAt = now;
+  const cs = getComputedStyle(document.documentElement), theme = cs.getPropertyValue('--ink') + cs.getPropertyValue('--panel'), has = BMP.has();
+  if (theme !== bmpTheme) {
+    bmpTheme = theme; const c = bmpBands[0].ctx, col = v => { c.fillStyle = cs.getPropertyValue(v).trim() || '#000'; c.fillRect(0, 0, 1, 1); return c.getImageData(0, 0, 1, 1).data; };
+    bmpInk = col('--ink'); bmpPaper = col('--panel'); for (const b of bmpBands) b.sig = null;
+  }
+  const rv = regsView(), pc = rv.pc, sp = rv.sp !== undefined ? rv.sp : rv.s !== undefined ? 0x100 + rv.s : -1;
+  const box = $('bmpBands'), room = box.clientWidth - 16 - (box.offsetWidth - box.clientWidth), dpr = Math.max(1, Math.round((window.devicePixelRatio || 1) * 4) / 4);
+  for (const b of bmpBands) {
+    const W = b.cv.width;
+    let s = has ? 1 : 0; if (has) for (let i = 0; i < b.bytes; i++) s = (Math.imul(s, 31) + BMP.read(b.base + i)) | 0;
+    if (s !== b.sig) {
+      b.sig = s; b.mark = null; const img = b.img || (b.img = b.ctx.createImageData(W, b.cv.height)), d = img.data;
+      for (let o = 0; o < d.length; o += 4) { d[o] = bmpPaper[0]; d[o + 1] = bmpPaper[1]; d[o + 2] = bmpPaper[2]; d[o + 3] = 255; }
+      if (has) for (let i = 0; i < b.bytes; i++) {
+        const v = BMP.read(b.base + i); if (!v) continue; const x0 = (i >> 8) * 8, y = (i & 0xFF) + BMP_TOP;
+        for (let k = 0; k < 8; k++) if ((v >> (7 - k)) & 1) { const o = (y * W + x0 + k) * 4; d[o] = bmpInk[0]; d[o + 1] = bmpInk[1]; d[o + 2] = bmpInk[2]; }
+      }
+    }
+    const inB = a => has && a >= b.base && a < b.base + b.bytes, mark = (inB(pc) ? pc : -1) + '|' + (inB(sp) ? sp : -1);
+    if (mark !== b.mark) {
+      b.mark = mark; b.ctx.putImageData(b.img, 0, 0);
+      const box2 = (a, colr) => { const x = ((a - b.base) >> 8) * 8, y = ((a - b.base) & 0xFF) + BMP_TOP; b.ctx.fillStyle = colr; b.ctx.fillRect(x, 0, 8, 3); b.ctx.fillRect(x - 1, y - 1, 10, 1); b.ctx.fillRect(x - 1, y + 1, 10, 1); b.ctx.fillRect(x - 1, y, 1, 1); b.ctx.fillRect(x + 8, y, 1, 1); };
+      if (inB(sp)) box2(sp, cs.getPropertyValue('--sel').trim() || '#2a6fb0');
+      if (inB(pc)) box2(pc, '#e0322d');
+    }
+    const scale = Math.max(1, Math.min(3, Math.floor(room / W * dpr) / dpr)), cssW = (W * scale) + 'px'; if (b.cv.style.width !== cssW) b.cv.style.width = cssW;
+  }
+  const info = has ? `${BMP.size.toLocaleString('en-AU')} bytes${bmpBands.length > 1 ? ' · ' + bmpBands.length + ' bands of 8K' : ''}` : 'no ' + BMP.what; if ($('bmpInfo').textContent !== info) $('bmpInfo').textContent = info;
+}
+// ---------- dump memory to a file ----------
+// Files leave through the claude.ai viewer's save prompt when this page runs there (it accepts .txt and .zip, so the
+// binary dump goes inside a .zip); anywhere else, through an ordinary browser download.
+const benchSaver = window.claude && typeof window.claude.use === 'function' ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+function benchCrc(b) { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; } return ~c >>> 0; }
+function benchZip(name, bytes) {   // one stored (uncompressed) file
+  const n = new TextEncoder().encode(name), crc = benchCrc(bytes), len = bytes.length, le = (v, w) => Array.from({ length: w }, (_, i) => (v >>> (8 * i)) & 0xFF);
+  const common = [...le(20, 2), 0, 0, 0, 0, 0, 0, 0x21, 0, ...le(crc, 4), ...le(len, 4), ...le(len, 4), ...le(n.length, 2), 0, 0];
+  const local = [0x50, 0x4B, 3, 4, ...common], central = [0x50, 0x4B, 1, 2, 20, 0, ...common, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const end = [0x50, 0x4B, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0, ...le(central.length + n.length, 4), ...le(local.length + n.length + len, 4), 0, 0];
+  return new Blob([new Uint8Array(local), n, bytes, new Uint8Array(central), n, new Uint8Array(end)]);
+}
+async function benchDownload(name, data, type) {   // resolves to the name the file was saved under, or null if declined
+  const saver = await benchSaver;
+  if (saver) {
+    let fname = name, body = data; if (!/\.txt$/i.test(name)) { fname = name + '.zip'; body = benchZip(name, data); }
+    try { await saver.save({ filename: fname, data: body }); return fname; } catch (e) { if (e && e.code === 'declined') return null; throw e; }
+  }
+  const url = URL.createObjectURL(new Blob([data], { type })), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return name;
+}
+function benchStamp() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
+function memSnapshot() { const b = new Uint8Array(0x10000); for (let a = 0; a < 0x10000; a++) b[a] = peekMem(a); return b; }
+function memListing(b) {
+  const out = ['6502 Bench memory dump: 64 KB as the CPU sees it, ' + new Date().toLocaleString('en-AU'), ''];
+  const rv = regsView(); out.push('Registers', '  ' + REGDEF.map(([n, get]) => n + ' ' + fmtReg(n, get(rv))).join('  '), '');
+  out.push('Hex dump (a row of * stands for rows identical to the one above)');
+  let prev = null, starred = false;
+  for (let r = 0; r < 0x10000; r += 16) {
+    const row = b.subarray(r, r + 16), key = row.join(',');
+    if (key === prev && r + 16 < 0x10000) { if (!starred) { out.push('*'); starred = true; } continue; }
+    prev = key; starred = false;
+    const hex = [...row].map(v => h2(v)), txt = [...row].map(v => v >= 0x20 && v < 0x7F ? String.fromCharCode(v) : '.').join('');
+    out.push(`${h4(r)}  ${hex.slice(0, 8).join(' ')}  ${hex.slice(8).join(' ')}  ${txt}`);
+  }
+  return out.join('\n') + '\n';
+}
+function memDumpDone(p, what) {
+  const m = $('memDumpMsg');
+  p.then(n => { if (n) { m.className = 'msg ok'; m.textContent = `${what} saved as ${n} (look in your downloads).`; } else { m.className = 'msg'; m.textContent = 'Not saved: the download was declined.'; } })
+   .catch(e => { m.className = 'msg err'; m.textContent = 'Could not save the file' + (e && e.message ? ': ' + e.message : '.'); });
+}
+$('memDumpBin').onclick = () => memDumpDone(benchDownload(`6502-memory-${benchStamp()}.bin`, memSnapshot(), 'application/octet-stream'), 'Memory (65,536 bytes, byte 0 is address 0000h)');
+$('memDumpTxt').onclick = () => memDumpDone(benchDownload(`6502-memory-${benchStamp()}.txt`, memListing(memSnapshot()), 'text/plain;charset=utf-8'), 'Memory listing');
 // ---------- master reset: memory, ROM, every debug point and the input pins ----------
 function masterReset() {
   if (running) stopRun();
