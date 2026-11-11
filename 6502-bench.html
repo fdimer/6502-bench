@@ -321,13 +321,18 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 .ptsockets .chipbtn:hover, .ptsockets .chipbtn:focus-visible { border-color: var(--sel); border-style: solid; }
 .ptsockets .unfit { font-size: 11px; padding: 1px 4px; }
 .ptkeys { font-size: 12px; color: var(--muted); }
-.ptkb { max-width: 860px; margin: 12px auto 0; display: grid; gap: 5px; }
-.ptkb .krow { display: flex; gap: 5px; }
-.ptkb .gap { flex: 0 0 14px; }
-.ptkb button { flex: 1 1 0; min-width: 0; padding: 4px 1px 6px; font-size: 13px; font-weight: 700; line-height: 1.1; background: #2b2b2e; color: #f3f3f3; border-color: #2b2b2e; border-radius: 4px; touch-action: manipulation; overflow: hidden; }
-.ptkb button small { display: block; font-size: 9.5px; font-weight: 500; opacity: 0.75; margin-bottom: 1px; }
-.ptkb button.down { background: var(--sel); border-color: var(--sel); color: #fff; }
-.ptkb button.latched { background: #8a5a00; border-color: #8a5a00; color: #fff; }
+.ptkb { max-width: 860px; margin: 12px auto 0; display: grid; gap: 4px; padding: 14px 14px 16px; background: linear-gradient(#e4dfd0, #d3cdbb); border-radius: 8px; border: 1px solid #b8b19c; box-shadow: inset 0 1px 0 #f4f0e4; }
+.ptkb .krow { display: grid; grid-template-columns: repeat(58, minmax(0, 1fr)) 3% repeat(16, minmax(0, 1fr)); }
+.ptkb button { margin: 0 2px; padding: 0; min-width: 0; display: flex; flex-direction: column; background: #1b1a18; color: #f4f1e6; border: 0; border-radius: 5px; overflow: hidden; touch-action: manipulation; box-shadow: 0 2px 0 #000, 0 3px 3px rgba(0, 0, 0, 0.35); font-family: var(--font-sans, inherit); cursor: pointer; }
+.ptkb .cap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 30px; padding: 3px 1px 2px; font-size: clamp(9px, 1.9vw, 15px); font-weight: 700; line-height: 1.05; background: linear-gradient(#2c2a27, #1b1a18); border-radius: 5px 5px 3px 3px; white-space: nowrap; }
+.ptkb .cap.word { font-size: clamp(5px, 1.45vw, 11px); letter-spacing: -0.02em; }
+.ptkb .cap small { display: block; font-size: clamp(6px, 1.05vw, 8.5px); font-weight: 600; letter-spacing: 0.02em; opacity: 0.85; margin-bottom: 1px; }
+.ptkb .front { height: 17px; display: flex; align-items: center; justify-content: center; background: #37322b; }
+.ptkb .front canvas { width: 12px; height: 12px; image-rendering: pixelated; image-rendering: crisp-edges; }
+.ptkb button.down { transform: translateY(2px); box-shadow: 0 0 0 #000; }
+.ptkb button.down .cap { background: var(--sel); }
+.ptkb button.latched .cap { background: #8a5a00; }
+.ptkb button:focus-visible { outline: 2px solid var(--sel); outline-offset: 1px; }
 .ptstate { display: grid; gap: 8px; font-size: 12.5px; }
 .ptstate .blk { background: var(--panel2); border-radius: 6px; padding: 7px 9px; }
 .ptstate .hd { font-weight: 600; margin-bottom: 3px; }
@@ -386,7 +391,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <div class="ptsockets" id="ptSockets" aria-label="ROM sockets"></div>
         <div class="ptromlist mono" id="ptRomList"></div>
         <div class="ptkb" id="ptKb" aria-label="Keyboard"></div>
-        <p class="hint">Click the picture and type. Letters, digits and symbols go to the PET key with that character, whatever your keyboard layout; hold Shift with a letter for its graphics character. Enter is RETURN, Backspace is DEL, Esc is STOP, Home is HOME (Shift+Home clears the screen), Insert is INST, Tab is RVS, the arrow keys move the cursor, ^ is the up-arrow key and _ the left-arrow key. On the keyboard above, SHIFT stays down for the next key. Load ROM folder asks for the folder that holds your ROM files and fits the ones the chosen BASIC needs; the files must keep their standard names: basic-2-c000, basic-2-d000, edit-2-n and kernal-2 for BASIC 2; basic-4-b000, basic-4-c000, basic-4-d000, edit-4-n and kernal-4 for BASIC 4; characters-2 for both. The row of sockets shows which file sits in each ROM socket on the board. Click a socket to fit a ROM of your own there instead, whatever it is called: a different editor, a patched kernal, or an option ROM in the spare sockets UD3 and UD4. Load program puts a .prg file straight into memory: wait for READY, load it, then type RUN. The ROMs are not included; your browser keeps them once loaded.</p>
+        <p class="hint">Click the picture and type. Letters, digits and symbols go to the PET key with that character, whatever your keyboard layout; hold Shift with a letter for its graphics character. Enter is RETURN, Backspace is DEL, Esc is STOP, Home is HOME (Shift+Home clears the screen), Insert is INST, Tab is RVS, the arrow keys move the cursor, ^ is the up-arrow key and _ the left-arrow key. The keyboard above is laid out like the PET's own; the graphics character each key gives with SHIFT is drawn on its front face from the character ROM, and SHIFT stays down for the next key. Load ROM folder asks for the folder that holds your ROM files and fits the ones the chosen BASIC needs; the files must keep their standard names: basic-2-c000, basic-2-d000, edit-2-n and kernal-2 for BASIC 2; basic-4-b000, basic-4-c000, basic-4-d000, edit-4-n and kernal-4 for BASIC 4; characters-2 for both. The row of sockets shows which file sits in each ROM socket on the board. Click a socket to fit a ROM of your own there instead, whatever it is called: a different editor, a patched kernal, or an option ROM in the spare sockets UD3 and UD4. Load program puts a .prg file straight into memory: wait for READY, load it, then type RUN. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
   </div>
   <div class="grid">
@@ -1659,7 +1664,7 @@ function masterReset() {
   for (const k of Object.keys(pins)) pins[k] = 1;
   cpu.nmiPending = false;
   for (const a of [pet.ram, pet.vram, pet.rom, pet.chargen, pet.keys]) a.fill(0);
-  pet.fitted = {}; pet.hasChargen = false;
+  pet.fitted = {}; pet.hasChargen = false; ptKbGlyphs();
   for (const r of Object.keys(PT_ROLES)) { delete ptRoms[r]; delete ptNames[r]; try { localStorage.removeItem(PT_LS + 'rom.' + r); localStorage.removeItem(PT_LS + 'name.' + r); } catch (e) {} }
   for (const s of Object.keys(ptCustom)) { delete ptCustom[s]; try { localStorage.removeItem(PT_LS + 'custom.' + s); } catch (e) {} }
   ptQueue.length = 0; ptWant.clear(); ptHeld.clear(); ptLatched.clear(); ptShow(); ptRomShow(); $('ptMsg').className = 'msg'; $('ptMsg').textContent = '';
@@ -1704,14 +1709,23 @@ function renderPtState() {
 }
 function renderPt() { drawPt(); renderPtState(); }
 // ---- keyboard ----
-// each key: [matrix name, legend, shifted legend, width]; null leaves a gap before the number pad
+// The PET's graphic keyboard, laid out as on the machine: typewriter-style stagger and the number pad on the right.
+// Each key: [matrix name, legend, word printed above it (what SHIFT gives), width in quarter keys]; a number alone is
+// a gap of that many quarter keys; '|' is the space between the main keys and the number pad.
+// Every key that types a character also gives a graphics character with SHIFT: it is printed on the key's front
+// face, as on the real keys, drawn from the character ROM once that is loaded.
 const PT_LAYOUT = [
-  [['@'], ['!'], ['"'], ['#'], ['$'], ['%'], ["'"], ['&'], ['\\'], ['('], [')'], ['Left arrow', '←'], ['['], [']'], null, ['Home', 'HOME', 'CLR'], ['Down', '↓', '↑'], ['Right', '→', '←'], ['Del', 'DEL', 'INST']],
-  [['Rvs', 'RVS', 'OFF'], ['Q'], ['W'], ['E'], ['R'], ['T'], ['Y'], ['U'], ['I'], ['O'], ['P'], ['Up arrow', '↑'], ['<'], ['>'], null, ['7'], ['8'], ['9'], ['/']],
-  [['Shift', 'SHIFT', '', 1.5], ['A'], ['S'], ['D'], ['F'], ['G'], ['H'], ['J'], ['K'], ['L'], [':'], ['Stop', 'STOP', 'RUN'], ['Return', 'RETURN', '', 1.5], null, ['4'], ['5'], ['6'], ['*']],
-  [['Shift', 'SHIFT', '', 2], ['Z'], ['X'], ['C'], ['V'], ['B'], ['N'], ['M'], [','], [';'], ['?'], ['Right shift', 'SHIFT', '', 2], null, ['1'], ['2'], ['3'], ['+']],
-  [['Space', 'SPACE', '', 14], null, ['0'], ['.'], ['-'], ['=']]
+  [['@'], ['!'], ['"'], ['#'], ['$'], ['%'], ["'"], ['&'], ['\\'], ['('], [')'], ['Left arrow', '←'], ['['], [']'], 2, '|', ['Home', 'HOME', 'CLR'], ['Down', '↓', '↑ CRSR'], ['Right', '→', '← CRSR'], ['Del', 'DEL', 'INST']],
+  [2, ['Rvs', 'RVS', 'OFF'], ['Q'], ['W'], ['E'], ['R'], ['T'], ['Y'], ['U'], ['I'], ['O'], ['P'], ['Up arrow', '↑'], ['<'], ['>'], '|', ['7'], ['8'], ['9'], ['/']],
+  [3, ['Shift', 'LOCK', 'SHIFT'], ['A'], ['S'], ['D'], ['F'], ['G'], ['H'], ['J'], ['K'], ['L'], [':'], ['Stop', 'STOP', 'RUN'], ['Return', 'RETURN', '', 7], '|', ['4'], ['5'], ['6'], ['*']],
+  [1, ['Shift', 'SHIFT', '', 8], ['Z'], ['X'], ['C'], ['V'], ['B'], ['N'], ['M'], [','], [';'], ['?'], ['Right shift', 'SHIFT', '', 8], 1, '|', ['1'], ['2'], ['3'], ['+']],
+  [12, ['Space', '', '', 34], 12, '|', ['0'], ['.'], ['-'], ['=']]
 ];
+// screen code of the character a key types (SHIFT adds 40h, which is the graphics character), or -1
+function ptKeyCode(k) {
+  if (k.length !== 1) return k === 'Up arrow' ? 30 : k === 'Left arrow' ? 31 : -1;
+  const c = k.charCodeAt(0); return c === 64 ? 0 : c >= 65 && c <= 90 ? c - 64 : c >= 91 && c <= 93 ? c - 64 : c >= 33 && c < 64 ? c : -1;
+}
 const PT_LATCH = new Set(['Shift', 'Right shift']);
 const ptHeld = new Set(), ptLatched = new Set();
 function ptShow() {
@@ -1745,7 +1759,13 @@ function ptPush(ev) { if (!ptQueue.length) ptLastWall = performance.now(); ptQue
 function ptDown(k) { if (ptWant.has(k)) return; ptWant.add(k); ptPush({ k, down: true }); }
 function ptUp(k, then) { if (!ptWant.has(k)) return; ptWant.delete(k); ptPush({ k, down: false }); if (then) ptPush({ fn: then }); }
 function ptRenderKb() {
-  $('ptKb').innerHTML = PT_LAYOUT.map(row => '<div class="krow">' + row.map(k => k ? `<button type="button" data-k="${esc(k[0]).replace(/"/g, '&quot;')}" style="flex-grow:${k[3] || 1}" title="${esc(k[0]).replace(/"/g, '&quot;')}${k[2] ? ' · SHIFT ' + esc(k[2]) : ''}"><small>${esc(k[2] || '') || '&nbsp;'}</small>${esc(k[1] || k[0])}</button>` : '<span class="gap"></span>').join('') + '</div>').join('');
+  const q = t => esc(t).replace(/"/g, '&quot;');
+  $('ptKb').innerHTML = PT_LAYOUT.map(row => '<div class="krow">' + row.map(k => {
+    if (k === '|') return '<span class="padgap"></span>';
+    if (typeof k === 'number') return `<span style="grid-column: span ${k}"></span>`;
+    const sc = ptKeyCode(k[0]), word = k[2] || '';
+    return `<button type="button" data-k="${q(k[0])}" style="grid-column: span ${k[3] || 4}" title="${q(k[0])}${word ? ' · with SHIFT: ' + q(word.replace(' CRSR', '')) : sc >= 0 ? ' · with SHIFT: the graphics character on the front of the key' : ''}"><span class="cap${(k[1] === undefined ? k[0] : k[1]).length > 1 ? ' word' : ''}">${word ? '<small>' + esc(word) + '</small>' : ''}${esc(k[1] === undefined ? k[0] : k[1]) || '&nbsp;'}</span><span class="front">${sc >= 0 ? `<canvas width="8" height="8" data-sc="${sc}"></canvas>` : ''}</span></button>`;
+  }).join('') + '</div>').join('');
   for (const b of document.querySelectorAll('#ptKb button')) {
     const k = b.dataset.k;
     if (PT_LATCH.has(k)) { b.addEventListener('click', () => { if (ptLatched.has(k)) { ptLatched.delete(k); pet.key(k, false); } else { ptLatched.add(k); pet.key(k, true); } ptShow(); }); continue; }
@@ -1753,7 +1773,15 @@ function ptRenderKb() {
     const up = () => { if (!ptWant.has(k)) return; const had = [...ptLatched]; ptUp(k, () => { for (const m of had) if (ptLatched.delete(m)) pet.key(m, false); ptShow(); }); };
     b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up);
   }
-  ptShow();
+  ptShow(); ptKbGlyphs();
+}
+// draw each key's graphics character on its front face, straight from the character ROM
+function ptKbGlyphs() {
+  for (const cv of document.querySelectorAll('#ptKb canvas')) {
+    const g = cv.getContext('2d'), im = g.createImageData(8, 8), sc = +cv.dataset.sc + 0x40;
+    if (pet.hasChargen) for (let y = 0; y < 8; y++) { const bits = pet.chargen[sc * 8 + y]; for (let x = 0; x < 8; x++) if (bits & (0x80 >> x)) { const o = (y * 8 + x) * 4; im.data[o] = 240; im.data[o + 1] = 236; im.data[o + 2] = 222; im.data[o + 3] = 255; } }
+    g.putImageData(im, 0, 0);
+  }
 }
 ptRenderKb();
 // PC keyboard: by character, because the PET has its own keys for ! " # and the rest (SHIFT gives graphics instead)
@@ -1826,7 +1854,7 @@ function ptFit() {      // put the chosen BASIC's standard ROMs into their socke
   const place = (s, bytes) => { const d = PT_SOCK.find(x => x[0] === s); if (d[1] < 0) { pet.chargen.set(bytes); pet.hasChargen = true; } else pet.loadRom(d[1], bytes); };
   for (const [s, role] of Object.entries(PT_SOCKET_ROLE[$('ptBasic').value])) if (ptRoms[role]) place(s, ptRoms[role]);
   for (const [s, c] of Object.entries(ptCustom)) place(s, c.bytes);
-  disDirty = true; return ptOn();
+  disDirty = true; ptKbGlyphs(); return ptOn();
 }
 function ptPowerOn() {
   if (running) stopRun();
