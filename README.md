@@ -10,7 +10,7 @@ This branch turns 6502 Bench into a Commodore PET with the "Dynamic PET" main bo
 - **Debugging**: memory bitmap of RAM, screen, ROMs and the character ROM, tinted by BASIC's use of memory; a PET hardware panel (both PIAs, the VIA, video and interrupt state); a log of every access to the interface chips; a text listing with the BASIC program.
 - **Not yet**: cassette, IEEE-488 devices (disk drives), the business keyboard, circuit-level video.
 
-**ROMs are not included.** Load your own with the Load ROMs button (all files at once): `basic-2-c000`, `basic-2-d000`, `edit-2-n`, `kernal-2` and `characters-2` for BASIC 2; `basic-4-b000`, `basic-4-c000`, `basic-4-d000`, `edit-4-n` and `kernal-4` for BASIC 4. Open `6502-bench.html` from this folder. The chips are `src/m6821.js` and `src/m6522.js`, the machine is `src/pet.js`; `node tests/pet-test.js` checks them with a small synthetic ROM.
+**ROMs are not included.** Load your own with the Load ROM folder button, which takes the folder holding the files under their standard names; click a socket in the row under the screen to fit any other ROM there: `basic-2-c000`, `basic-2-d000`, `edit-2-n`, `kernal-2` and `characters-2` for BASIC 2; `basic-4-b000`, `basic-4-c000`, `basic-4-d000`, `edit-4-n` and `kernal-4` for BASIC 4. Open `6502-bench.html` from this folder. The chips are `src/m6821.js` and `src/m6522.js`, the machine is `src/pet.js`; `node tests/pet-test.js` checks them with a small synthetic ROM.
 
 The rest of this file describes the 6502 Bench base.
 
