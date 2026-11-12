@@ -434,7 +434,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
             <div class="row mcbtns"><button id="mcClear" type="button">Clear this chip's faults</button><button id="mcClearAll" type="button">Clear all memory faults</button></div>
           </figure>
         </div>
-        <p class="hint">Every memory chip on the board, from the 320351 parts list and layout: the sixteen 4116 dynamic RAMs (UI2–UI9 and UJ2–UJ9, one per data bit in each 16K bank), the two 2114s of the screen RAM (UF7, UF8), the ROM sockets UD3–UD9 and the character generator UF10. A tile's dot lights while its chip is being accessed. Click a tile to see that chip's pins, which follow the bus on every clock; the screen RAM and the character generator show the video circuit's own reads between CPU accesses. Assumed rather than read from the logic diagram: UI is the bank at 0000h, position 2 is data bit 0 and position 9 bit 7, and UF7 holds screen bits 0–3.</p>
+        <p class="hint">Every memory chip on the board, from the 320351 parts list and layout and the 320349 logic diagram: the sixteen 4116 dynamic RAMs (UI2–UI9 and UJ2–UJ9, one per data bit in each 16K bank), the two 2114s of the screen RAM (UF7, UF8), the ROM sockets UD3–UD9 and the character generator UF10. A tile's dot lights while its chip is being accessed. Click a tile to see that chip's pins, which follow the bus on every clock; the screen RAM and the character generator show the video circuit's own reads between CPU accesses. UI is the bank at 0000h and UJ the one at 4000h; position 9 holds data bit 0 and position 2 bit 7; UF8 holds screen bits 0–3 and UF7 bits 4–7.</p>
         <p class="hint">To simulate a fault, click a pin: Disconnected lifts the pin from the board (an input then floats high, an output no longer reaches the bus), Stuck high and Stuck low hold it at that level. An address pin fault makes the chip use the wrong cell; a data pin fault changes that bit on reads and writes; chip select held high (or a fault on RAS or CAS of a dynamic RAM) takes the chip out of circuit; write enable held high loses writes, held low turns every access into a write. Faults are listed in the Debug panel and cleared there, here, or by Master reset. The memory view and the disassembly show what the CPU reads through the faults.</p>
       </section>
   </div>
@@ -2123,9 +2123,9 @@ const MC = {
   net(c, i, name, B) {
     const A = B.A, db = n => B.D === null ? 'z' : (B.D >> n) & 1;
     let m = /^A(\d+)$/.exec(name), d;
-    if (i < 16) {                       // 4116s: seven address pins carry the row (A0-A6), then the column (A7-A13)
+    if (i < 16) {                       // 4116s: the address pins carry the row (BA0-BA6), then the column (BA13 on A0, BA7-BA12 on A1-A6)
       const sel = A !== null && A < 0x8000 && (A >> 14) === c.bank && A < pet.ramSize;
-      if (m) return A === null ? 'z' : sel ? (A >> (7 + +m[1])) & 1 : (A >> +m[1]) & 1;
+      if (m) return A === null ? 'z' : sel ? (A >> (+m[1] ? 6 + +m[1] : 13)) & 1 : (A >> +m[1]) & 1;
       switch (name) { case 'RAS': return A === null ? 1 : 0; case 'CAS': return sel ? 0 : 1; case 'WE': return sel && B.wr ? 0 : 1; case 'DIN': return db(c.bit); case 'DOUT': return sel && B.rd ? db(c.bit) : 'z'; }
       return 'z';
     }

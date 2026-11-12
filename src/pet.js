@@ -12,12 +12,15 @@
 // from the video RAM once per frame, and the one video signal the software sees, VIDEO ON (high while the 200
 // picture lines are being drawn), is timed from the line counter: it drives PIA 1 CB1, whose falling edge is the
 // machine's 60 Hz interrupt, and VIA PB5.
-// Memory chips (src/memchips.js), for the pin display and fault simulation. From the 320351 parts list and layout:
+// Memory chips (src/memchips.js), for the pin display and fault simulation. From the 320351 parts list and layout,
+// and the 320349 logic diagram (sheet 5, RAMs; sheet 8, display RAMs):
 //   UI2-UI9 and UJ2-UJ9   sixteen 4116 dynamic RAMs, one per data bit: two banks of 16K (an 8K machine has 4108s in UI2-UI9)
 //   UF7, UF8              two 2114s: the 1K of screen RAM, four bits each
 //   UD3-UD9               the ROM sockets (6332 4K ROMs; UD8 is a 6316 2K ROM), UF10 the 6316 character generator
-// Assumed, because the logic diagram was not read for it: UI is the bank at 0000h-3FFFh and UJ the one at 4000h-7FFFh,
-// position 2 holds data bit 0 up to position 9 for bit 7, and UF7 holds screen bits 0-3.
+// UI is the bank on CAS0 (0000h-3FFFh) and UJ the one on CAS1 (4000h-7FFFh); both share RAS0. Position 9 holds data
+// bit 0 and position 2 bit 7 (UI9 and UJ9 drive RD0, UI2 and UJ2 RD7). UF8 holds screen bits 0-3 and UF7 bits 4-7.
+// The 74153 multiplexers put BA0-BA6 on the RAM address pins as the row; as the column, pin A0 carries BA13 and
+// pins A1-A6 carry BA7-BA12.
 // Keyboard (graphic layout): PIA 1 PA0-PA3 go to a decoder that pulls one of ten rows low; PIA 1 port B reads the
 // eight columns, low for a key that is down.
 
@@ -64,8 +67,8 @@ class PETMachine {
     const C = (id, part, what, range, arr, base, abits, extra) => new MemChip(id, part, what, range, arr, base, abits, extra);
     this.ramBanks = [[], []];
     for (let b = 0; b < 2; b++) for (let bit = 0; bit < 8; bit++)
-      this.ramBanks[b].push(C('U' + 'IJ'[b] + (bit + 2), '4116', `RAM: ${b ? 'upper' : 'lower'} 16K, data bit ${bit}`, b ? '4000h-7FFFh (32K machines)' : '0000h-3FFFh', this.ram, b * 0x4000, 14, { dram: true, bit, mux: 7, bank: b }));
-    this.vBank = [C('UF7', '2114', 'screen RAM, data bits 0-3', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 0, en: 'CS' }), C('UF8', '2114', 'screen RAM, data bits 4-7', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 4, en: 'CS' })];
+      this.ramBanks[b].push(C('U' + 'IJ'[b] + (9 - bit), '4116', `RAM: ${b ? 'upper' : 'lower'} 16K, data bit ${bit}`, b ? '4000h-7FFFh (32K machines)' : '0000h-3FFFh', this.ram, b * 0x4000, 14, { dram: true, bit, mux: 7, amap: [0x2001, 0x0082, 0x0104, 0x0208, 0x0410, 0x0820, 0x1040], bank: b }));
+    this.vBank = [C('UF8', '2114', 'screen RAM, data bits 0-3', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 0, en: 'CS' }), C('UF7', '2114', 'screen RAM, data bits 4-7', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 4, en: 'CS' })];
     this.romChips = PET_SOCKETS.map(([name, a, n]) => C(name, n === 0x800 ? '2316' : '2332', name === 'UD8' ? 'ROM socket: screen editor' : name === 'UD9' ? 'ROM socket: kernal' : a >= 0xB000 ? 'ROM socket: BASIC' : 'ROM socket: option ROM', `${a.toString(16).toUpperCase()}h-${(a + n - 1).toString(16).toUpperCase()}h`, this.rom, a, n === 0x800 ? 11 : 12, { rom: true, en: 'CS' }));
     this.cgChip = C('UF10', '2316', 'character generator ROM', 'not on the CPU bus: read by the video circuit', this.chargen, 0, 11, { rom: true, en: 'CS' });
     this.chips = [...this.ramBanks[0], ...this.ramBanks[1], ...this.vBank, ...this.romChips, this.cgChip];
