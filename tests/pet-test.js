@@ -1,7 +1,7 @@
 // PET model checks with a synthetic ROM (no Commodore code): node tests/pet-test.js
 const fs = require('fs'), path = require('path');
 const src = f => fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8').replace(/if \(typeof module[^\n]*/, '');
-const T = {}; eval(['m6502core.js', 'm6502asm.js', 'm6821.js', 'm6522.js', 'pet.js'].map(src).join('\n') + '\nT.assemble=assemble;T.PETMachine=PETMachine;T.PET=PET;T.M6522=M6522;');
+const T = {}; eval(['m6502core.js', 'm6502asm.js', 'm6821.js', 'm6522.js', 'memchips.js', 'pet.js'].map(src).join('\n') + '\nT.assemble=assemble;T.PETMachine=PETMachine;T.PET=PET;T.M6522=M6522;');
 let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok  ', m); };
 // A stand-in kernal: enables the retrace interrupt on PIA 1 CB1, puts "A" on the screen, then scans keyboard row 6.
 const r = T.assemble(`

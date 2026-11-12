@@ -12,6 +12,12 @@
 // from the video RAM once per frame, and the one video signal the software sees, VIDEO ON (high while the 200
 // picture lines are being drawn), is timed from the line counter: it drives PIA 1 CB1, whose falling edge is the
 // machine's 60 Hz interrupt, and VIA PB5.
+// Memory chips (src/memchips.js), for the pin display and fault simulation. From the 320351 parts list and layout:
+//   UI2-UI9 and UJ2-UJ9   sixteen 4116 dynamic RAMs, one per data bit: two banks of 16K (an 8K machine has 4108s in UI2-UI9)
+//   UF7, UF8              two 2114s: the 1K of screen RAM, four bits each
+//   UD3-UD9               the ROM sockets (6332 4K ROMs; UD8 is a 6316 2K ROM), UF10 the 6316 character generator
+// Assumed, because the logic diagram was not read for it: UI is the bank at 0000h-3FFFh and UJ the one at 4000h-7FFFh,
+// position 2 holds data bit 0 up to position 9 for bit 7, and UF7 holds screen bits 0-3.
 // Keyboard (graphic layout): PIA 1 PA0-PA3 go to a decoder that pulls one of ten rows low; PIA 1 port B reads the
 // eight columns, low for a key that is down.
 
@@ -55,6 +61,18 @@ class PETMachine {
     this.audioRate = 0; this.abuf = new Float32Array(32768); this.aw = 0; this.audioT = 0;
     this.bus = { read: a => this.read(a), write: (a, v) => this.write(a, v), peek: a => this.peek(a) };
     this.cpu = new M6502(this.bus);
+    const C = (id, part, what, range, arr, base, abits, extra) => new MemChip(id, part, what, range, arr, base, abits, extra);
+    this.ramBanks = [[], []];
+    for (let b = 0; b < 2; b++) for (let bit = 0; bit < 8; bit++)
+      this.ramBanks[b].push(C('U' + 'IJ'[b] + (bit + 2), '4116', `RAM: ${b ? 'upper' : 'lower'} 16K, data bit ${bit}`, b ? '4000h-7FFFh (32K machines)' : '0000h-3FFFh', this.ram, b * 0x4000, 14, { dram: true, bit, mux: 7, bank: b }));
+    this.vBank = [C('UF7', '2114', 'screen RAM, data bits 0-3', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 0, en: 'CS' }), C('UF8', '2114', 'screen RAM, data bits 4-7', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 4, en: 'CS' })];
+    this.romChips = PET_SOCKETS.map(([name, a, n]) => C(name, n === 0x800 ? '2316' : '2332', name === 'UD8' ? 'ROM socket: screen editor' : name === 'UD9' ? 'ROM socket: kernal' : a >= 0xB000 ? 'ROM socket: BASIC' : 'ROM socket: option ROM', `${a.toString(16).toUpperCase()}h-${(a + n - 1).toString(16).toUpperCase()}h`, this.rom, a, n === 0x800 ? 11 : 12, { rom: true, en: 'CS' }));
+    this.cgChip = C('UF10', '2316', 'character generator ROM', 'not on the CPU bus: read by the video circuit', this.chargen, 0, 11, { rom: true, en: 'CS' });
+    this.chips = [...this.ramBanks[0], ...this.ramBanks[1], ...this.vBank, ...this.romChips, this.cgChip];
+    this.banks = [this.ramBanks[0], this.ramBanks[1], this.vBank, ...this.romChips.map(c => [c]), [this.cgChip]];
+    this.chipById = {}; for (const c of this.chips) this.chipById[c.id] = c;
+    this.acc = new Uint32Array(12);          // accesses: 0, 1 the RAM banks; 2 screen RAM; 3-9 the ROM sockets UD3-UD9; 10 the character generator
+    this.faulty = false;
     this.pia1.onPA = () => this.scanKeys();
     this.reset();
   }
@@ -75,30 +93,49 @@ class PETMachine {
   }
   // ---- memory ----
   socketAt(a) { for (const [name, s, n] of PET_SOCKETS) if (a >= s && a < s + n) return name; return null; }
+  socketIndex(a) { return a >= 0xF000 ? 6 : a >= 0xE000 ? (a < 0xE800 ? 5 : -1) : a >= 0x9000 ? (a >> 12) - 9 : -1; }
   read(a) {
-    if (a < 0x8000) return a < this.ramSize ? this.ram[a] : (a >> 8);          // empty RAM reads the bus's last value: the address high byte
-    if (a < 0x9000) return this.vram[a & 0x3FF];
-    if (a >= 0xE800 && a < 0xF000) {
-      let v = 0xFF;                                                            // more than one chip can be selected at once; they share the bus
-      if (a & 0x10) v &= this.pia1.read(a & 3);
-      if (a & 0x20) v &= this.pia2.read(a & 3);
-      if (a & 0x40) v &= this.via.read(a & 15);
-      return (a & 0x70) ? v : (a >> 8);
-    }
-    return this.fitted[this.socketAt(a)] ? this.rom[a] : (a >> 8);
+    if (this.faulty) return this.readF(a, false);
+    if (a < 0x8000) { this.acc[a >> 14]++; return a < this.ramSize ? this.ram[a] : (a >> 8); }      // empty RAM reads the bus's last value: the address high byte
+    if (a < 0x9000) { this.acc[2]++; return this.vram[a & 0x3FF]; }
+    if (a >= 0xE800 && a < 0xF000) return this.readIO(a);
+    const i = this.socketIndex(a); this.acc[3 + i]++;
+    return this.fitted[PET_SOCKETS[i][0]] ? this.rom[a] : (a >> 8);
+  }
+  readIO(a) {
+    let v = 0xFF;                                                            // more than one chip can be selected at once; they share the bus
+    if (a & 0x10) v &= this.pia1.read(a & 3);
+    if (a & 0x20) v &= this.pia2.read(a & 3);
+    if (a & 0x40) v &= this.via.read(a & 15);
+    return (a & 0x70) ? v : (a >> 8);
+  }
+  // memory with chip faults (used only while at least one pin fault is set)
+  readF(a, quiet) {
+    let v, sel = -1;
+    if (a < 0x8000) { if (!quiet) this.acc[a >> 14]++; v = a < this.ramSize ? memBankRead(this.ramBanks[a >> 14], a & 0x3FFF, quiet) : (a >> 8); }
+    else if (a < 0x9000) { if (!quiet) this.acc[2]++; v = memBankRead(this.vBank, a & 0x3FF, quiet); }
+    else if (a >= 0xE800 && a < 0xF000) v = quiet ? this.peekIO(a) : this.readIO(a);
+    else { sel = this.socketIndex(a); if (!quiet) this.acc[3 + sel]++; v = this.fitted[PET_SOCKETS[sel][0]] ? memBankRead(this.banks[3 + sel], a & this.romChips[sel].mask, quiet) : (a >> 8); }
+    // a ROM whose chip select is stuck low drives the bus during every read: the lines carry the AND of the two
+    for (let i = 0; i < 7; i++) { const c = this.romChips[i]; if (c.always && i !== sel && this.fitted[c.id]) v &= memBankRead(this.banks[3 + i], a & c.mask, true); }
+    return v;
   }
   // reading without side effects, for the memory and disassembly panes
+  peekIO(a) {
+    if (a & 0x40) { const r = a & 15, v = this.via; return r === 0 ? v.pb() : r === 1 || r === 15 ? v.pa() : r === 4 ? v.t1 & 0xFF : r === 8 ? v.t2 & 0xFF : r === 10 ? v.sr : v.read(r); }
+    const p = a & 0x10 ? this.pia1 : a & 0x20 ? this.pia2 : null; if (!p) return a >> 8;
+    switch (a & 3) { case 0: return p.cra & 4 ? p.pa() : p.ddra; case 2: return p.crb & 4 ? p.pb() : p.ddrb; default: return p.read(a & 3); }
+  }
   peek(a) {
-    if (a >= 0xE800 && a < 0xF000) {
-      if (a & 0x40) { const r = a & 15, v = this.via; return r === 0 ? v.pb() : r === 1 || r === 15 ? v.pa() : r === 4 ? v.t1 & 0xFF : r === 8 ? v.t2 & 0xFF : r === 10 ? v.sr : v.read(r); }
-      const p = a & 0x10 ? this.pia1 : a & 0x20 ? this.pia2 : null; if (!p) return a >> 8;
-      switch (a & 3) { case 0: return p.cra & 4 ? p.pa() : p.ddra; case 2: return p.crb & 4 ? p.pb() : p.ddrb; default: return p.read(a & 3); }
-    }
-    return this.read(a);
+    if (this.faulty) return this.readF(a, true);
+    if (a >= 0xE800 && a < 0xF000) return this.peekIO(a);
+    if (a < 0x8000) return a < this.ramSize ? this.ram[a] : (a >> 8);
+    if (a < 0x9000) return this.vram[a & 0x3FF];
+    return this.fitted[this.socketAt(a)] ? this.rom[a] : (a >> 8);
   }
   write(a, v) {
-    if (a < 0x8000) { if (a < this.ramSize) this.ram[a] = v; return; }
-    if (a < 0x9000) { this.vram[a & 0x3FF] = v; return; }
+    if (a < 0x8000) { this.acc[a >> 14]++; if (a < this.ramSize) { if (this.faulty && this.ramBanks[a >> 14].faulty) memBankWrite(this.ramBanks[a >> 14], a & 0x3FFF, v); else this.ram[a] = v; } return; }
+    if (a < 0x9000) { this.acc[2]++; if (this.faulty && this.vBank.faulty) memBankWrite(this.vBank, a & 0x3FF, v); else this.vram[a & 0x3FF] = v; return; }
     if (a >= 0xE800 && a < 0xF000) {
       if (a & 0x10) this.pia1.write(a & 3, v);
       if (a & 0x20) this.pia2.write(a & 3, v);
@@ -113,10 +150,11 @@ class PETMachine {
   charSet() { return this.via.ca2() ? 1 : 0; }       // VIA CA2 high selects the second character set (lower case)
   draw() {
     const fb = this.fb, B = PET.BORDER, FW = PET.FW, cg = this.chargen, set = this.charSet() << 10; fb.fill(0);
+    const vf = this.faulty && this.vBank.faulty, cf = this.faulty && this.cgChip.faulty, cgB = this.banks[this.banks.length - 1];
     for (let cy = 0; cy < 25; cy++) for (let cx = 0; cx < 40; cx++) {
-      const c = this.vram[cy * 40 + cx], inv = c & 0x80 ? 0xFF : 0, base = set | (c & 0x7F) << 3;
+      const c = vf ? memBankRead(this.vBank, cy * 40 + cx, true) : this.vram[cy * 40 + cx], inv = c & 0x80 ? 0xFF : 0, base = set | (c & 0x7F) << 3;
       for (let y = 0; y < 8; y++) {
-        const bits = cg[base + y] ^ inv, o = (B + cy * 8 + y) * FW + B + cx * 8;
+        const bits = (cf ? memBankRead(cgB, base + y, true) : cg[base + y]) ^ inv, o = (B + cy * 8 + y) * FW + B + cx * 8;
         for (let x = 0; x < 8; x++) fb[o + x] = (bits >> (7 - x)) & 1;
       }
     }
