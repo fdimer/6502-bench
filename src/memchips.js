@@ -42,7 +42,8 @@ const MEM_ACTIVE_LOW = new Set(['CE', 'CS', 'OE', 'WE', 'RAS', 'CAS', 'PGM']);
 class MemChip {
   // arr/base/abits: where the chip's cells are (arr[base + address], address 0 .. 2^abits - 1)
   // extra: rom, dram (1-bit dynamic RAM: bit, mux = address pins), nib (2114 or 4416: 0 = low nibble, 4 = high),
-  //        mux (multiplexed address pins: pin n carries bits n and n + mux), en (name of the chip-select pin), plus anything the machine wants
+  //        mux (multiplexed address pins: pin n carries bits n and n + mux), amap (instead: the address bits each pin carries, as a mask per pin),
+  //        en (name of the chip-select pin), plus anything the machine wants
   constructor(id, part, what, range, arr, base, abits, extra) {
     Object.assign(this, { id, part, what, range, arr, base, abits, mask: (1 << abits) - 1, f: {}, en: 'CE', mux: 0, nib: -1 }, extra || {});
     this.dmask = this.dram ? 1 << this.bit : this.nib >= 0 ? 0x0F << this.nib : 0xFF;
@@ -54,7 +55,7 @@ class MemChip {
     let aAnd = 0xFFFF, aOr = 0, dAnd = 0xFF, dOr = 0, n = 0;
     for (const k in f) {
       n++; let m;
-      if ((m = /^A(\d+)$/.exec(k))) { const b = +m[1], bits = this.mux ? (1 << b) | (1 << (b + this.mux)) : 1 << b; if (lvl(k)) aOr |= bits; else aAnd &= ~bits; }
+      if ((m = /^A(\d+)$/.exec(k))) { const b = +m[1], bits = this.amap ? this.amap[b] : this.mux ? (1 << b) | (1 << (b + this.mux)) : 1 << b; if (lvl(k)) aOr |= bits; else aAnd &= ~bits; }
       else if ((m = /^[DO](\d)$/.exec(k)) || (m = /^(?:I\/O|DQ)(\d)$/.exec(k))) { const b = /^[DO]\d$/.test(k) ? +m[1] : +m[1] - 1 + this.nib; if (lvl(k)) dOr |= 1 << b; else dAnd &= ~(1 << b); }
     }
     Object.assign(this, { aAnd, aOr, dAnd, dOr, faulty: n > 0 });

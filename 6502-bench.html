@@ -2151,7 +2151,7 @@ const MC = {
 };
 // ---------- memory chips: tiles, a live pinout of the selected chip, and pin faults ----------
 // The page supplies MC: { m (the machine: chips, acc, faulty), groups(), tile(c, i), acc(i), bus(), net(c, i, name, B) }.
-let mcSel = 0, mcEls = {}, mcDrawn = '', mcPrevAcc = null, mcTileSig = '', mcPop = null;
+let mcSel = 0, mcEls = {}, mcDrawn = '', mcPrevAcc = null, mcSeen = null, mcTileSig = '', mcPop = null;
 const mcFaultText = v => v === 'z' ? 'disconnected' : v ? 'stuck high' : 'stuck low';
 function mcSetFault(id, pin, v) { memSetFault(MC.m, id, pin, v); disDirty = true; }
 function mcClosePop() { if (mcPop) { mcPop.remove(); mcPop = null; } }
@@ -2216,9 +2216,10 @@ function renderMemChips() {
   const ch = MC.m.chips; if (mcSel >= ch.length) mcSel = 0;
   if (mcDrawn !== ch[mcSel].id + '/' + ch[mcSel].part) mcDraw();
   mcTiles();
-  const acc = MC.m.acc; if (!mcPrevAcc || mcPrevAcc.length !== acc.length) mcPrevAcc = new Uint32Array(acc.length);
-  for (const t of $('mcTiles').querySelectorAll('.mctile')) { const a = MC.acc(+t.dataset.i); t.classList.toggle('act', a >= 0 && acc[a] !== mcPrevAcc[a]); }
-  mcPrevAcc.set(acc);
+  // a tile's dot stays lit for half a second after its chip was last accessed
+  const acc = MC.m.acc, now = performance.now(); if (!mcPrevAcc || mcPrevAcc.length !== acc.length) { mcPrevAcc = new Uint32Array(acc.length); mcSeen = new Float64Array(acc.length).fill(-1e9); }
+  for (let k = 0; k < acc.length; k++) if (acc[k] !== mcPrevAcc[k]) { mcSeen[k] = now; mcPrevAcc[k] = acc[k]; }
+  for (const t of $('mcTiles').querySelectorAll('.mctile')) { const k = MC.acc(+t.dataset.i); t.classList.toggle('act', k >= 0 && now - mcSeen[k] < 500); }
   const c = ch[mcSel], B = MC.bus();
   for (const [, name, kind] of MEM_PINOUTS[c.part]) {
     const el = mcEls[name], f = name in c.f;
