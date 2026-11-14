@@ -289,6 +289,20 @@ table.mem tr { height: 20px; }
 .dbgfoot { display: flex; justify-content: flex-end; margin-top: 8px; }
 .dbgfoot button { padding: 4px 10px; font-size: 12.5px; }
 table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
+.pinpop { position: absolute; z-index: 30; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2); padding: 8px 10px; font-size: 12.5px; min-width: 220px; max-width: 300px; }
+.pinpop .ttl { font-weight: 600; margin-bottom: 2px; }
+.pinpop .sub { color: var(--muted); margin-bottom: 6px; font-family: var(--font-mono); font-size: 11.5px; }
+.pinpop .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.pinpop button { padding: 4px 10px; font-size: 12.5px; }
+.pinpop .note { color: var(--muted); margin-top: 6px; font-size: 11.5px; line-height: 1.35; }
+#cpuFig { position: relative; margin: 0; }
+#cpuFig .pin.bus { cursor: pointer; }
+#cpuFig .pin.bus .ring { fill: none; stroke: var(--line); stroke-width: 1.2; }
+#cpuFig .pin.bus:hover .ring { stroke: var(--sel); stroke-width: 2; }
+#cpuFig .pin.forced .ring { stroke: var(--warn); stroke-width: 2.6; stroke-dasharray: 4 2; }
+#cpuFig .pin.forced .nm { fill: var(--warn); }
+#cpuFig .pin.forced.fz .ring { stroke-dasharray: 2 3; }
+#cpuFaults { display: block; text-align: center; margin-top: 2px; color: var(--warn); font-size: 12px; }
 </style>
 
 <div class="wrap">
@@ -324,7 +338,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
     <div class="col">
       <section class="panel">
         <h2>Pinout <span class="aside">NMOS 6502 · 40-pin DIP · top view</span></h2>
-        <div class="chipwrap"><svg class="chip" id="chip" viewBox="0 0 380 540" role="group" aria-label="6502 pinout"></svg></div>
+        <figure id="cpuFig"><div class="chipwrap"><svg class="chip" id="chip" viewBox="0 0 380 540" role="group" aria-label="6502 pinout"></svg></div><div class="mono" id="cpuFaults"></div></figure>
         <div class="legend">
           <span><i class="lh"></i>High (1)</span><span><i class="ll"></i>Low (0)</span><span><i class="lz"></i>Floating (Z)</span><span><i class="li"></i>Input: click to toggle</span>
         </div>
@@ -334,6 +348,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
           <dt>Data bus</dt><dd id="brData">–</dd>
         </dl>
         <p class="hint">Clicking φ0 pulses one clock, which is one bus cycle: the 6502 reads or writes memory on every cycle. /IRQ is level-sensitive and masked by the I flag; /NMI and /SO trigger on a falling edge. Holding RDY low stops the CPU on its next read cycle (writes still complete, as on the NMOS part). /RES low holds the CPU in reset; releasing it runs the 7-cycle reset sequence and loads PC from FFFCh.</p>
+        <p class="hint">Click an address or data pin, or R/W, to give it a fault: disconnected (it floats high, so the memory and ports see a 1), or held high or low. With no other chips on this bench, each pin is a line of its own; an address pin fault makes every access go to the wrong place, a data pin fault changes that bit of every byte read or written. Faults are listed under the chip and in the Debug pane, and removed there.</p>
       </section>
 
       <section class="panel">
@@ -573,6 +588,59 @@ const bus = {
 };
 function trimLog() { if (ioLog.length > 60) ioLog.splice(0, ioLog.length - 60); }
 const cpu = new M6502(bus);
+
+// ---------- pin faults on the processor's bus pins ----------
+// With no other chips on this bench, each pin is a line of its own: a fault is the pin disconnected (it floats high:
+// the memory and ports see a 1 there) or held high or low. pinF[pin] = 'z', 1 or 0.
+const pinF = {}, FAULT_BUS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'], FAULT_CTL = { RW: 'Every cycle looks like a read to the memory: writes are lost.' };
+const pinLv = n => n in pinF ? (pinF[n] === 'z' ? 1 : pinF[n]) : undefined;
+function fA(a) { for (const n in pinF) { const m = /^A(\d+)$/.exec(n); if (m) a = pinLv(n) ? a | 1 << +m[1] : a & ~(1 << +m[1]); } return a & 0xFFFF; }
+function fD(v) { for (const n in pinF) { const m = /^D(\d)$/.exec(n); if (m) v = pinLv(n) ? v | 1 << +m[1] : v & ~(1 << +m[1]); } return v & 0xFF; }
+const pinFaulty = () => { for (const k in pinF) return true; return false; };
+{ const r = bus.read.bind(bus), w = bus.write.bind(bus), k = bus.peek.bind(bus);
+  bus.read = a => pinFaulty() ? fD(r(fA(a))) : r(a);
+  bus.write = (a, v) => { if (!pinFaulty()) return w(a, v); if (pinLv('RW') === 1) return; w(fA(a), fD(v)); };
+  bus.peek = a => pinFaulty() ? fD(k(fA(a))) : k(a);
+}
+let pinPop = null;
+function closePinPop() { if (pinPop) { pinPop.remove(); pinPop = null; } }
+document.addEventListener('click', e => { if (pinPop && !pinPop.contains(e.target) && !e.target.closest('.pin.bus')) closePinPop(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePinPop(); });
+function setPinFault(n, v) { if (v === null) delete pinF[n]; else pinF[n] = v; disDirty = true; }
+const faultText = (n, v) => '6502 pin ' + n + ' ' + (v === 'z' ? 'disconnected' : v ? 'stuck high' : 'stuck low');
+function faultMenu(name, ev) {
+  closePinPop();
+  const fig = $('cpuFig'), r = fig.getBoundingClientRect(), own = name in pinF ? pinF[name] : null, ctrl = name in FAULT_CTL;
+  const btn = (a, label, on) => `<button type="button" data-a="${a}"${on ? ' class="primary" aria-pressed="true"' : ''}>${label}</button>`;
+  const el = document.createElement('div'); el.className = 'pinpop'; fig.appendChild(el); pinPop = el;
+  const draw = () => {
+    const f = name in pinF ? pinF[name] : null;
+    el.innerHTML = `<div class="ttl">6502 · ${esc(name)}</div><div class="sub">a line of its own on this bench</div><div class="btns">${btn('n', 'Normal', f === null)}${btn('z', 'Disconnected', f === 'z')}${btn('1', 'High', f === 1)}${ctrl ? '' : btn('0', 'Low', f === 0)}</div>`
+      + `<div class="note">${ctrl ? esc(FAULT_CTL[name]) : /^A/.test(name) ? 'Every address the processor puts out has this bit forced: it reads and writes the wrong place.' : 'Every byte that passes this pin, read or written, has this bit forced.'} A disconnected pin floats high.</div>`;
+  };
+  draw();
+  el.style.left = Math.max(4, Math.min(ev.clientX - r.left, r.width - el.offsetWidth - 4)) + 'px'; el.style.top = (ev.clientY - r.top + 10) + 'px';
+  el.addEventListener('click', e2 => { e2.stopPropagation(); const b = e2.target.closest('button'); if (!b) return; const a = b.dataset.a; setPinFault(name, a === 'n' ? null : a === 'z' ? 'z' : +a); draw(); render(); });
+  const b0 = el.querySelector('button'); if (b0) b0.focus();
+}
+let faultPinsDone = false;
+function faultPins() {
+  faultPinsDone = true;
+  for (const name of FAULT_BUS.concat(Object.keys(FAULT_CTL))) {
+    const g = pinEls[name].g, stub = g.querySelector('.stub'), x = +stub.getAttribute('x'), y = +stub.getAttribute('y') + 6, left = x < 128;
+    const hit = svg('rect', { x: left ? x - 70 : x - 4, y: y - 11, width: 104, height: 22, fill: 'transparent' }), ring = svg('rect', { class: 'ring', x: x - 3, y: y - 9, width: 32, height: 18, rx: 3 });
+    g.insertBefore(ring, g.firstChild); g.insertBefore(hit, g.firstChild);
+    g.classList.add('bus'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+    g.querySelector('title').textContent += ': click to disconnect it or hold it high or low';
+    g.addEventListener('click', ev => { ev.stopPropagation(); faultMenu(name, ev); });
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const r = g.getBoundingClientRect(); faultMenu(name, { clientX: r.left, clientY: r.top }); } });
+  }
+}
+function renderPinFaults() {
+  if (!faultPinsDone) faultPins();
+  for (const name of FAULT_BUS.concat(Object.keys(FAULT_CTL))) { const g = pinEls[name].g, f = name in pinF; g.classList.toggle('forced', f); g.classList.toggle('fz', f && pinF[name] === 'z'); }
+  $('cpuFaults').textContent = Object.entries(pinF).map(([n, v]) => n + ' ' + (v === 'z' ? 'disconnected' : v ? 'stuck high' : 'stuck low')).join(' · ');
+}
 
 // ---------- pins ----------
 const pins = { rdy: 1, irq: 1, nmi: 1, so: 1, res: 1 };
@@ -832,6 +900,7 @@ let disStart = 0, memFrom = 0;
 function regsView() { return midInstruction() && pre ? pre : cpu; }
 function pinValue(name) {
   const T = curT;
+  if (name in pinF) return pinF[name];
   switch (name) {
     case 'VCC': return 'p';
     case 'VSS1': case 'VSS2': return 'g';
@@ -855,6 +924,7 @@ function regionNote(a) {
   return '';
 }
 function renderPins() {
+  renderPinFaults();
   for (const [, name] of PINS) {
     const v = pinValue(name), el = pinEls[name];
     const cls = v === 'z' ? 'vz' : v === 'p' ? 'vp' : v === 'g' ? 'vg' : v === 'n' ? 'vn' : v ? 'v1' : 'v0';
@@ -1523,7 +1593,7 @@ function dbgRemove(k) {
   const i = k.indexOf(':'), t = k.slice(0, i), v = k.slice(i + 1);
   if (t === 'at') breakpoints.delete(+v); else if (t === 'after') afterBps.delete(+v);
   else if (t === 'reg') { watches.delete(v); if (hitReg === v) hitReg = null; }
-  else if (t === 'mem') memWatches.delete(+v); else if (t === 'pin') pinWatches.delete(v); else if (t === 'bus') busWatches.delete(v);
+  else if (t === 'mem') memWatches.delete(+v); else if (t === 'pin') pinWatches.delete(v); else if (t === 'pfault') setPinFault(v, null); else if (t === 'bus') busWatches.delete(v);
   if (dbgHit === k) dbgHit = null;
   render();
 }
@@ -1546,6 +1616,7 @@ function renderDebug() {
   for (const a of sorted(memWatches.keys())) { const w = memWatches.get(a); items.push(['mem:' + a, 'memory', h4(a) + 'h ' + (w.to === null ? 'changes' : 'becomes ' + h2(w.to) + 'h') + (now ? ', now ' + h2(peekMem(a)) + 'h' : '')]); }
   for (const [n, w] of pinWatches) items.push(['pin:' + n, 'pin', pinLabel(n) + ' ' + { any: 'changes', rise: 'goes high', fall: 'goes low' }[w.edge] + (now ? ', now ' + pv(pinValue(n)) : '')]);
   for (const w of [...busWatches.values()].sort((x, y) => (x.bus > y.bus) - (x.bus < y.bus) || x.v - y.v)) { const cur = busVal(w.bus); items.push(['bus:' + w.bus + ':' + w.v, w.bus === 'a' ? 'address bus' : 'data bus', 'becomes ' + (w.bus === 'a' ? h4(w.v) : h2(w.v)) + 'h' + (now ? ', now ' + (cur === null ? 'floating' : (w.bus === 'a' ? h4(cur) : h2(cur)) + 'h') : '')]); }
+  for (const [n, v] of Object.entries(pinF)) items.push(['pfault:' + n, 'pin fault', faultText(n, v)]);
   $('dbgCount').textContent = items.length ? items.length + ' active' : '';
   const sig = JSON.stringify(items) + dbgHit;
   if (sig === dbgSig) return;
@@ -1558,7 +1629,7 @@ $('dbgType').onchange = dbgFields; $('dbgMemCond').onchange = dbgFields;
 $('dbgAdd').onclick = dbgAdd;
 for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
-$('dbgClear').onclick = () => { breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
+$('dbgClear').onclick = () => { for (const n of Object.keys(pinF)) delete pinF[n]; breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
 // ---------- memory bitmap: every bit as a pixel ----------
 // Each byte is a row of 8 pixels (bit 7 on the left); each strip is one 256-byte page, top to bottom; a band holds
 // 32 pages (8K). An 8-pixel margin above each band carries the markers. A band is only redrawn when its bytes,
