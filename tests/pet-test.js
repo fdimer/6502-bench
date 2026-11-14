@@ -54,4 +54,21 @@ v.write(8, 20); v.write(11, 0x10); v.write(10, 0x0F); let flips = 0, last = v.cb
 ok(flips >= 10 && flips <= 14, 'shift register free-runs on CB2 (sound): ' + flips + ' edges in 2000 cycles');
 const prg = new Uint8Array([0x01, 0x04, 0x07, 0x04, 0x0A, 0x00, 0x80, 0x00, 0x00, 0x00]); m.setRam(32); const res = m.loadPrg(prg);
 ok(res.ok && res.basic && m.ram[0x0401] === 0x07 && (m.ram[0x2A] | m.ram[0x2B] << 8) === 0x0409, '.prg loads at 0401h and sets the end-of-program pointers');
+// lines and the two kinds of fault (a line held, a pin disconnected)
+{ const z = new T.PETMachine(); for (const c of r.chunks) z.loadRom(c.addr, new Uint8Array(c.bytes)); z.reset();
+  const N = z.nets();
+  ok(N.D3.pins.length === 8 && N.BA11.pins.length === 6 && N.BA10.pins.length === 7 && N.FA0.pins.length === 16 && N.RD3.pins.join() === 'UI6,DIN,UI6,DOUT,UJ6,DIN,UJ6,DOUT', 'PET lines: D3 joins the 6502 and the seven ROM sockets; BA11 the six 4K ROMs; FA0 all sixteen RAMs; RD3 the two chips of bit 3');
+  z.ram[0x10] = 0x5A; const r0 = z.read(0xF000);
+  z.setNetFault('RD3', 1); ok(z.read(0x10) === 0x5A && z.read(0x11) === (z.ram[0x11] | 8) && z.read(0xF000) === r0, 'RD3 held high: RAM reads have bit 3 set, ROM reads do not');
+  z.clearFaults(); z.setNetFault('D3', 0); ok(z.read(0x10) === 0x52 && z.read(0xF000) === (r0 & 0xF7), "D3 held low: every byte the 6502 reads loses bit 3");
+  ok(z.chipById.UD9.f.D3 === 0 && z.cpuC.f.D3 === 0, 'the held line shows on every pin on it');
+  z.clearFaults(); z.setPinFault('UJ6', 'DOUT', 0); z.ram[0x4010] = 0xFF; ok(z.read(0x4010) === 0xF7 && z.read(0x10) === 0x5A, 'one RAM chip\'s DOUT disconnected at low: only its bank loses bit 3');
+  z.clearFaults(); ok(z.read(0x10) === 0x5A && !z.fx, 'clearing the faults restores the machine');
+  z.setPinFault('UC4', 'A15', 0); ok(z.read(0x8010) === 0x5A && z.busA(0x8010) === 0x10, '6502 A15 stuck low: 8010h reads RAM at 0010h');
+  z.clearFaults(); z.setPinFault('UC4', 'RW', 'z'); z.write(0x20, 0x77); z.clearFaults(); ok(z.read(0x20) !== 0x77, '6502 R/W disconnected (floats high): writes are lost');
+  z.setNetFault('CAS0', 1); ok(z.read(0x10) === 0xFF, 'CAS0 held high: the lower bank is out of circuit'); z.clearFaults();
+  z.setPinFault('UC4', 'PHI0', 0); ok(/clock/.test(z.held()) && z.cpu.step()[0].held, '6502 PHI0 stuck: the processor is held'); z.clearFaults(); ok(z.held() === null, 'and runs again once cleared');
+  z.setPinFault('UC4', 'IRQ', 0); z.syncIrq(); ok(z.cpu.irqLine, '6502 IRQ stuck low: the interrupt line is on'); z.clearFaults(); z.syncIrq(); ok(!z.cpu.irqLine, 'and off again');
+  z.setNetFault('FA2', 0); z.setPinFault('UD9', 'CS', 1); ok(z.faultList().length === 2 && z.chipFaults('UI9').join() === 'A2: line held low', 'faults are listed as lines and as pins');
+  z.clearChip('UI9'); ok(z.faultList().length === 1, "clearing a chip's faults releases the lines its pins are on"); }
 console.log(fails ? fails + ' FAILED' : 'all passed'); process.exit(fails ? 1 : 0);

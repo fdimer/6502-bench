@@ -64,6 +64,13 @@ class PETMachine {
     this.audioRate = 0; this.abuf = new Float32Array(32768); this.aw = 0; this.audioT = 0;
     this.bus = { read: a => this.read(a), write: (a, v) => this.write(a, v), peek: a => this.peek(a) };
     this.cpu = new M6502(this.bus);
+    // a held processor (no clock, or RES or RDY low at its pin) does nothing for one clock at a time
+    const run = this.cpu.step.bind(this.cpu);
+    this.cpu.step = () => {
+      const why = this.heldWhy; if (!why) { this.zr = false; return run(); }
+      if (!this.zr && this.cpuC.lv.RES === 0) { this.cpu.reset(); this.zr = true; }
+      this.cpu.lastEvent = null; return [{ k: 'R', a: this.cpu.pc, d: 0xFF, dummy: true, held: why }];
+    };
     const C = (id, part, what, range, arr, base, abits, extra) => new MemChip(id, part, what, range, arr, base, abits, extra);
     this.ramBanks = [[], []];
     for (let b = 0; b < 2; b++) for (let bit = 0; bit < 8; bit++)
@@ -71,7 +78,9 @@ class PETMachine {
     this.vBank = [C('UF8', '2114', 'screen RAM, data bits 0-3', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 0, en: 'CS' }), C('UF7', '2114', 'screen RAM, data bits 4-7', '8000h-83FFh, repeated to 8FFFh', this.vram, 0, 10, { nib: 4, en: 'CS' })];
     this.romChips = PET_SOCKETS.map(([name, a, n]) => C(name, n === 0x800 ? '2316' : '2332', name === 'UD8' ? 'ROM socket: screen editor' : name === 'UD9' ? 'ROM socket: kernal' : a >= 0xB000 ? 'ROM socket: BASIC' : 'ROM socket: option ROM', `${a.toString(16).toUpperCase()}h-${(a + n - 1).toString(16).toUpperCase()}h`, this.rom, a, n === 0x800 ? 11 : 12, { rom: true, en: 'CS' }));
     this.cgChip = C('UF10', '2316', 'character generator ROM', 'not on the CPU bus: read by the video circuit', this.chargen, 0, 11, { rom: true, en: 'CS' });
-    this.chips = [...this.ramBanks[0], ...this.ramBanks[1], ...this.vBank, ...this.romChips, this.cgChip];
+    this.cpuC = new BoardChip('UC4', '6502', 'processor', 'address, data and control lines', { label: 'UC4' });
+    this.chips = [...this.ramBanks[0], ...this.ramBanks[1], ...this.vBank, ...this.romChips, this.cgChip, this.cpuC];      // the processor last, so the other indexes stay put
+    this.pinF = {}; this.netF = {}; this.heldWhy = null; this.fx = false;
     this.banks = [this.ramBanks[0], this.ramBanks[1], this.vBank, ...this.romChips.map(c => [c]), [this.cgChip]];
     this.chipById = {}; for (const c of this.chips) this.chipById[c.id] = c;
     this.acc = new Uint32Array(12);          // accesses: 0, 1 the RAM banks; 2 screen RAM; 3-9 the ROM sockets UD3-UD9; 10 the character generator
@@ -80,6 +89,39 @@ class PETMachine {
     this.reset();
   }
   setRam(kb) { this.ramSize = kb * 1024; }
+  // ---- lines and faults (the shared scheme in memchips.js) ----
+  // The lines, from the 320349 logic diagram. The 6502 (UC4) drives the buffered address bus BA0-BA15 through the
+  // 74LS244s UC3 and UB3 and the buffered data bus BD0-BD7 through UE9 and UE10 (sheet 1); its own data bus D0-D7 goes
+  // to the ROM sockets and to the PIAs and the VIA. The sixteen 4116s (sheet 5) share the address lines FA0-FA6 from the
+  // 74153 multiplexers UE3-UE6, the RAS0 and RAM R/W lines, and each bank its CAS line (CAS0 for UI, CAS1 for UJ); each
+  // chip's DI and DO are joined, and the two chips of a data bit share one line, RD0-RD7, which the 74LS244s UI10 and
+  // UI11 put on the buffered data bus. The buffers, multiplexers and support chips are not drawn, so a line they drive
+  // has no drawn driver.
+  nets() {
+    if (this.NETS) return this.NETS;
+    const N = {}, U = 'UC4', roms = this.romChips, ram = [...this.ramBanks[0], ...this.ramBanks[1]];
+    for (let n = 0; n < 8; n++) N['D' + n] = { label: `data line D${n} (the 6502's own data bus)`, d: -1, pins: [[U, 'D' + n], ...roms.map(c => [c.id, 'D' + n])] };
+    for (let n = 0; n < 12; n++) { const pins = roms.filter(c => MEM_PINOUTS[c.part].some(q => q[1] === 'A' + n)).map(c => [c.id, 'A' + n]); N['BA' + n] = { label: `buffered address line BA${n}`, d: -1, pins }; }
+    for (let n = 0; n < 7; n++) N['FA' + n] = { label: `RAM address line FA${n} (from the 74153 multiplexers)`, d: -1, pins: ram.map(c => [c.id, 'A' + n]) };
+    N.RAS0 = { label: 'RAM RAS0 line', d: -1, pins: ram.map(c => [c.id, 'RAS']) };
+    N.CAS0 = { label: 'RAM CAS0 line (the UI bank)', d: -1, pins: this.ramBanks[0].map(c => [c.id, 'CAS']) };
+    N.CAS1 = { label: 'RAM CAS1 line (the UJ bank)', d: -1, pins: this.ramBanks[1].map(c => [c.id, 'CAS']) };
+    N.RAMRW = { label: 'RAM R/W line', d: -1, pins: ram.map(c => [c.id, 'WE']) };
+    for (let n = 0; n < 8; n++) N['RD' + n] = { label: `RAM data line RD${n}`, d: -1, pins: [this.ramBanks[0][n], this.ramBanks[1][n]].flatMap(c => [[c.id, 'DIN'], [c.id, 'DOUT']]) };
+    return (this.NETS = N);
+  }
+  // Faults changed: what the 6502's pins do. An address pin at a level changes the address for everything; a data pin
+  // changes every byte that passes it; R/W held high loses the writes, held low turns reads into nothing (the bus floats
+  // to the last address byte); PHI0, RES and RDY hold the processor; IRQ at a level acts on it, NMI on its falling edge.
+  refault() {
+    const z = this.cpuC.lv;
+    this.fx = this.cpuC.faulty;
+    this.heldWhy = 'PHI0' in z ? 'no clock at the 6502\'s PHI0 pin' : z.RES === 0 ? 'RES is low at the 6502: it is held in reset' : z.RDY === 0 ? 'RDY is low at the 6502: it waits' : null;
+    if (z.NMI === 0 && !this.nmiLow && this.cpu) this.cpu.nmiPending = true;
+    this.nmiLow = z.NMI === 0;
+  }
+  held() { return this.heldWhy; }
+  busA(a) { return this.fx ? this.cpuC.busA(a) : a; }
   // put a ROM image at an address; marks every socket it covers as fitted
   loadRom(addr, bytes) {
     this.rom.set(bytes, addr);
@@ -98,6 +140,7 @@ class PETMachine {
   socketAt(a) { for (const [name, s, n] of PET_SOCKETS) if (a >= s && a < s + n) return name; return null; }
   socketIndex(a) { return a >= 0xF000 ? 6 : a >= 0xE000 ? (a < 0xE800 ? 5 : -1) : a >= 0x9000 ? (a >> 12) - 9 : -1; }
   read(a) {
+    if (this.fx) { a = this.cpuC.busA(a); return this.cpuC.busD(this.cpuC.lv.RW === 0 ? a >> 8 : this.readF(a, false)); }
     if (this.faulty) return this.readF(a, false);
     if (a < 0x8000) { this.acc[a >> 14]++; return a < this.ramSize ? this.ram[a] : (a >> 8); }      // empty RAM reads the bus's last value: the address high byte
     if (a < 0x9000) { this.acc[2]++; return this.vram[a & 0x3FF]; }
@@ -130,6 +173,7 @@ class PETMachine {
     switch (a & 3) { case 0: return p.cra & 4 ? p.pa() : p.ddra; case 2: return p.crb & 4 ? p.pb() : p.ddrb; default: return p.read(a & 3); }
   }
   peek(a) {
+    if (this.fx) { a = this.cpuC.busA(a); return this.cpuC.busD(this.readF(a, true)); }
     if (this.faulty) return this.readF(a, true);
     if (a >= 0xE800 && a < 0xF000) return this.peekIO(a);
     if (a < 0x8000) return a < this.ramSize ? this.ram[a] : (a >> 8);
@@ -137,6 +181,7 @@ class PETMachine {
     return this.fitted[this.socketAt(a)] ? this.rom[a] : (a >> 8);
   }
   write(a, v) {
+    if (this.fx) { if (this.cpuC.lv.RW === 1) return; a = this.cpuC.busA(a); v = this.cpuC.busD(v); }
     if (a < 0x8000) { this.acc[a >> 14]++; if (a < this.ramSize) { if (this.faulty && this.ramBanks[a >> 14].faulty) memBankWrite(this.ramBanks[a >> 14], a & 0x3FFF, v); else this.ram[a] = v; } return; }
     if (a < 0x9000) { this.acc[2]++; if (this.faulty && this.vBank.faulty) memBankWrite(this.vBank, a & 0x3FF, v); else this.vram[a & 0x3FF] = v; return; }
     if (a >= 0xE800 && a < 0xF000) {
@@ -174,7 +219,7 @@ class PETMachine {
   }
   // ---- per instruction ----
   irqLevel() { return this.pia1.irqA() || this.pia1.irqB() || this.pia2.irqA() || this.pia2.irqB() || this.via.irq(); }
-  syncIrq() { this.cpu.irqLine = this.irqLevel(); }
+  syncIrq() { const i = this.cpuC.lv.IRQ; this.cpu.irqLine = i !== undefined ? i === 0 : this.irqLevel(); }
   afterStep(cyc) {
     const n = cyc.length; this.t += n; this.via.tick(n);
     if (this.cpu.lastEvent === 'IRQ') this.irqs++;
@@ -244,4 +289,5 @@ class PETMachine {
     return { ok: true, addr, end, basic: addr === 0x0401 };
   }
 }
+Object.assign(PETMachine.prototype, BOARD_FAULTS);
 if (typeof module !== 'undefined') module.exports = { PETMachine, PET, PET_KEYS, PET_SOCKETS, PET_TOKENS };

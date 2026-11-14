@@ -368,6 +368,15 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 .mcpop .sub { color: var(--muted); margin-bottom: 6px; font-family: var(--font-mono); font-size: 11.5px; }
 .mcpop .btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .mcpop button { padding: 4px 10px; font-size: 12.5px; }
+.mcpop { min-width: 250px; max-width: 320px; }
+.mcpop label.cut { display: flex; gap: 6px; align-items: center; margin: 2px 0 8px; font-weight: 600; cursor: pointer; }
+.mcpop .cap { color: var(--muted); margin-bottom: 4px; }
+.mcpop .note { color: var(--muted); margin-top: 6px; font-size: 11.5px; line-height: 1.35; }
+#chip .pin.forced .ring { stroke: var(--warn); stroke-width: 2.6; stroke-dasharray: 4 2; }
+#chip .pin.forced .nm { fill: var(--warn); }
+#chip .pin.forced.fz .ring { stroke-dasharray: 2 3; }
+#cpuFig { position: relative; margin: 0; }
+#cpuFaults { display: block; text-align: center; margin-top: 2px; }
 </style>
 
 <div class="wrap">
@@ -424,34 +433,34 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <p class="hint">Click the picture and type. Letters, digits and symbols go to the PET key with that character, whatever your keyboard layout; hold Shift with a letter for its graphics character. Enter is RETURN, Backspace is DEL, Esc is STOP, Home is HOME (Shift+Home clears the screen), Insert is INST, Tab is RVS, the arrow keys move the cursor, ^ is the up-arrow key and _ the left-arrow key. The keyboard above is laid out like the PET's own; the graphics character each key gives with SHIFT is drawn on its front face from the character ROM, and SHIFT stays down for the next key. Load ROM folder asks for the folder that holds your ROM files and fits the ones the chosen BASIC needs; the files must keep their standard names: basic-2-c000, basic-2-d000, edit-2-n and kernal-2 for BASIC 2; basic-4-b000, basic-4-c000, basic-4-d000, edit-4-n and kernal-4 for BASIC 4; characters-2 for both. The row of sockets shows which file sits in each ROM socket on the board. Click a socket to fit a ROM of your own there instead, whatever it is called: a different editor, a patched kernal, or an option ROM in the spare sockets UD3 and UD4. Load program puts a .prg file straight into memory: wait for READY, load it, then type RUN. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
       <section class="panel" id="pMemChips">
-        <h2>Memory chips <span class="aside" id="mcInfo">live pins · click a pin to disconnect it or hold it high or low</span></h2>
+        <h2>Memory chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
         <div class="mcwrap">
           <div class="mctiles" id="mcTiles"></div>
           <figure class="mcfig" id="mcFig">
             <svg class="chip" id="mcChip" role="group" aria-label="Selected memory chip pinout"></svg>
             <figcaption id="mcCap"></figcaption>
             <div class="mcfaults mono" id="mcFaults"></div>
-            <div class="row mcbtns"><button id="mcClear" type="button">Clear this chip's faults</button><button id="mcClearAll" type="button">Clear all memory faults</button></div>
+            <div class="row mcbtns"><button id="mcClear" type="button">Clear this chip's faults</button><button id="mcClearAll" type="button">Clear all faults</button></div>
           </figure>
         </div>
         <p class="hint">Every memory chip on the board, from the 320351 parts list and layout and the 320349 logic diagram: the sixteen 4116 dynamic RAMs (UI2–UI9 and UJ2–UJ9, one per data bit in each 16K bank), the two 2114s of the screen RAM (UF7, UF8), the ROM sockets UD3–UD9 and the character generator UF10. A tile's dot lights while its chip is being accessed. Click a tile to see that chip's pins, which follow the bus on every clock; the screen RAM and the character generator show the video circuit's own reads between CPU accesses. UI is the bank at 0000h and UJ the one at 4000h; position 9 holds data bit 0 and position 2 bit 7; UF8 holds screen bits 0–3 and UF7 bits 4–7.</p>
-        <p class="hint">To simulate a fault, click a pin: Disconnected lifts the pin from the board (an input then floats high, an output no longer reaches the bus), Stuck high and Stuck low hold it at that level. An address pin fault makes the chip use the wrong cell; a data pin fault changes that bit on reads and writes; chip select held high (or a fault on RAS or CAS of a dynamic RAM) takes the chip out of circuit; write enable held high loses writes, held low turns every access into a write. Faults are listed in the Debug panel and cleared there, here, or by Master reset. The memory view and the disassembly show what the CPU reads through the faults.</p>
+        <p class="hint">To simulate a fault, click a pin for its menu. A pin on a line shared with other chips gets a tick box: without it, the buttons hold the whole line high or low, and every pin on that line, on every chip, sees the level; with it ("Disconnected from the line"), the fault is on this chip's pin alone. A pin with a line of its own has the plain choices: Disconnected (an input then floats high), High or Low. An address pin fault makes the chip use the wrong cell; a data pin fault changes that bit on reads and writes; chip select held high (or a fault on RAS or CAS of a dynamic RAM) takes the chip out of circuit; write enable held high loses writes, held low turns every access into a write. A chip with a fault is marked in red, and every fault is listed in the Debug panel, where it can be removed. The memory view and the disassembly show what the CPU reads through the faults.</p>
       </section>
   </div>
   <div class="grid">
     <div class="col">
       <section class="panel">
         <h2>Pinout <span class="aside">NMOS 6502 · 40-pin DIP · top view</span></h2>
-        <div class="chipwrap"><svg class="chip" id="chip" viewBox="0 0 380 540" role="group" aria-label="6502 pinout"></svg></div>
+        <figure class="mcfig" id="cpuFig"><div class="chipwrap"><svg class="chip" id="chip" viewBox="0 0 380 540" role="group" aria-label="6502 pinout"></svg></div><div class="mcfaults mono" id="cpuFaults"></div></figure>
         <div class="legend">
-          <span><i class="lh"></i>High (1)</span><span><i class="ll"></i>Low (0)</span><span><i class="lz"></i>Floating (Z)</span><span><i class="li"></i>Input: click to toggle</span>
+          <span><i class="lh"></i>High (1)</span><span><i class="ll"></i>Low (0)</span><span><i class="lz"></i>Floating (Z)</span><span><i class="li"></i>Ringed pin: click for its fault menu</span>
         </div>
         <dl class="busread">
           <dt>Bus cycle</dt><dd id="brCycle">–</dd>
           <dt>Address bus</dt><dd id="brAddr">–</dd>
           <dt>Data bus</dt><dd id="brData">–</dd>
         </dl>
-        <p class="hint">Clicking φ0 pulses one clock, which is one bus cycle: the 6502 reads or writes memory on every cycle. /IRQ is level-sensitive and masked by the I flag; /NMI and /SO trigger on a falling edge. Holding RDY low stops the CPU on its next read cycle (writes still complete, as on the NMOS part). /RES low holds the CPU in reset; releasing it runs the 7-cycle reset sequence and loads PC from FFFCh.</p>
+        <p class="hint">Clicking φ0 pulses one clock; right-click it for its fault menu. Every other ringed pin opens the fault menu: on a line shared with other chips, hold the whole line high or low, or tick "Disconnected from the line" for a fault on this pin alone; a pin with a line of its own can be disconnected (it then floats high) or held high or low. On the PET the 6502 (UC4) reaches most of the machine through buffers: its address pins feed BA0–BA15 through UC3 and UB3, and its data pins share D0–D7 with the ROM sockets, the PIAs and the VIA (see the Memory chips panel). Faults are listed in the Debug pane and stay until cleared there, in the Memory chips panel, or by Master reset.</p>
       </section>
 
       <section class="panel">
@@ -683,11 +692,11 @@ const PIN_LABEL = { VSS1: 'VSS', VSS2: 'VSS', NC5: 'NC', NC35: 'NC', NC36: 'NC',
 const ACTIVE_LOW = new Set(['IRQ', 'NMI', 'SO', 'RES']);
 const PIN_TITLE = {
   PHI0: 'φ0 clock input. Click to pulse one clock (one bus cycle).',
-  RDY: 'Ready, active high. While low, the CPU stops on its next read cycle (writes still complete). Click to toggle.',
-  IRQ: 'Interrupt request, active low, level-sensitive; ignored while the I flag is set. Click to toggle.',
-  NMI: 'Non-maskable interrupt, active low, triggers on the falling edge. Click to toggle.',
-  SO: 'Set overflow, active low: a falling edge sets the V flag. Click to toggle.',
-  RES: 'Reset, active low. Holds the CPU in reset; releasing it runs the 7-cycle reset sequence. Click to toggle.',
+  RDY: 'Ready, active high. While low, the CPU stops on its next read cycle (writes still complete). Click for its fault menu.',
+  IRQ: 'Interrupt request, active low, level-sensitive; ignored while the I flag is set. Click for its fault menu.',
+  NMI: 'Non-maskable interrupt, active low, triggers on the falling edge. Click for its fault menu.',
+  SO: 'Set overflow, active low: a falling edge sets the V flag. Click for its fault menu.',
+  RES: 'Reset, active low. Holds the CPU in reset; releasing it runs the 7-cycle reset sequence. Click for its fault menu.',
   RW: 'Read/write: high for a read, low for a write.',
   SYNC: 'High during an opcode fetch cycle.',
   PHI1: 'φ1 clock output (inverse of φ2).', PHI2: 'φ2 clock output: memory is accessed while φ2 is high.'
@@ -731,6 +740,7 @@ function buildChip() {
 }
 function pinClick(name) {
   if (name === 'PHI0') { pulseClock(); return; }
+  return;   // the other inputs open the fault menu (cpuFaultPins)
   const k = name.toLowerCase();
   const was = pins[k];
   pins[k] = was ? 0 : 1; pinSync();
@@ -758,6 +768,7 @@ const RESET_T = { t: '–', kind: null, a: 'z', d: null, rw: 1, sync: 0, reset: 
 curT = { t: '–', kind: null, a: null, d: null, rw: 1, sync: 0 };
 
 function eventText(ev, text) {
+  if (pet.held()) return 'Processor held (' + pet.held() + ')';
   if (ev === 'RESET') return 'Reset sequence (vector FFFCh)';
   if (ev === 'NMI') return 'NMI response (vector FFFAh)';
   if (ev === 'IRQ') return 'IRQ response (vector FFFEh)';
@@ -803,6 +814,7 @@ function setStatus(text, warn, run) {
   el.className = 'status' + (warn ? ' warn' : run ? ' run' : '');
 }
 function describeInputs() {
+  if (pet.held()) return setStatus('Processor held: ' + pet.held(), true);
   if (pins.res === 0) return setStatus('Held in reset (/RES low)', true);
   if (curT.waitIns && pins.rdy === 0) return setStatus('Stopped by RDY low on a read cycle', true);
   if (cpu.jammed) return setStatus('CPU jammed on an undocumented opcode at ' + h4(cpu.pc) + 'h: press Reset CPU or pulse /RES', true);
@@ -934,6 +946,7 @@ let disStart = 0, memFrom = 0;
 function regsView() { return midInstruction() && pre ? pre : cpu; }
 function pinValue(name) {
   const T = curT;
+  { const zf = pet.chipById['UC4'].f; if (name in zf) return zf[name]; }
   switch (name) {
     case 'VCC': return 'p';
     case 'VSS1': case 'VSS2': return 'g';
@@ -1657,7 +1670,7 @@ $('dbgType').onchange = dbgFields; $('dbgMemCond').onchange = dbgFields;
 $('dbgAdd').onclick = dbgAdd;
 for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
-$('dbgClear').onclick = () => { if (mcReady) { memClearFaults(MC.m); disDirty = true; } breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
+$('dbgClear').onclick = () => { if (mcReady) { pet.clearFaults(); disDirty = true; } breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
 // ---------- dump memory to a file ----------
 // Files leave through the claude.ai viewer's save prompt when this page runs there (it accepts .txt and .zip, so the
 // binary dump goes inside a .zip); anywhere else, through an ordinary browser download.
@@ -2115,7 +2128,7 @@ const MC = {
   tile(c, i) { return i < 16 ? [c.id, '4116 · D' + c.bit] : i < 18 ? [c.id, '2114 · D' + (c.nib ? '4–7' : '0–3')] : i === 25 ? [c.id, '6316 · chars'] : [c.id, pet.fitted[c.id] ? (c.abits === 11 ? '6316' : '6332') + ' · ' + h4(c.base) + 'h' : 'empty']; },
   acc(i) { return i < 8 ? 0 : i < 16 ? 1 : i < 18 ? 2 : i < 25 ? 3 + (i - 18) : 10; },
   bus() {
-    const T = curT, A = T.a === null || T.a === 'z' || T.a === undefined ? null : T.a, D = T.d === null || T.d === undefined || T.d === 'z' ? null : T.d;
+    const T = curT, A = T.a === null || T.a === 'z' || T.a === undefined ? null : pet.busA(T.a), D = T.d === null || T.d === undefined || T.d === 'z' ? null : T.d;
     // where the video circuit is reading: the character cell under the beam
     const col = Math.max(0, Math.min(63, pet.t - (pet.nextLine - PET.LINE_T))), row = Math.min(24, pet.line >> 3), va = pet.line < PET.VISIBLE && col < 40 ? row * 40 + col : row * 40;
     return { A, D, rd: A !== null && T.rw === 1, wr: A !== null && T.rw === 0, va, scan: pet.line & 7 };
@@ -2149,17 +2162,42 @@ const MC = {
     }
   }
 };
+// ---------- the processor's pins take faults too ----------
+const CPU_FAULT_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'RW', 'RDY', 'IRQ', 'NMI', 'RES'], MCCPU = pet.chips.indexOf(pet.chipById['UC4']);
+let cpuFaultsDone = false;
+function cpuFaultPins() {
+  cpuFaultsDone = true; const fig = $('cpuFig');
+  for (const name of CPU_FAULT_PINS) {
+    const g = pinEls[name].g;
+    if (!g.querySelector('.ring')) {
+      const stub = g.querySelector('.stub'), x = +stub.getAttribute('x'), y = +stub.getAttribute('y') + 6, left = x < 128;
+      const hit = svg('rect', { x: left ? x - 70 : x - 4, y: y - 11, width: 104, height: 22, fill: 'transparent' }), ring = svg('rect', { class: 'ring', x: x - 3, y: y - 9, width: 32, height: 18, rx: 3 });
+      g.insertBefore(ring, g.firstChild); g.insertBefore(hit, g.firstChild);
+      g.classList.add('input'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+    }
+    g.querySelector('title').textContent = `${pet.chipName('UC4')} pin ${name}: click for its fault menu`;
+    g.addEventListener('click', ev => { ev.stopPropagation(); mcMenu(name, ev, MCCPU, fig); });
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const r = g.getBoundingClientRect(); mcMenu(name, { clientX: r.left, clientY: r.top }, MCCPU, fig); } });
+  }
+  const clkPin = pinEls['PHI0'].g; clkPin.querySelector('title').textContent += ' Right-click for its fault menu.';
+  clkPin.addEventListener('contextmenu', ev => { ev.preventDefault(); mcMenu('PHI0', ev, MCCPU, fig); });
+}
+function cpuFaultRender() {
+  if (!cpuFaultsDone && pinEls['PHI0']) cpuFaultPins();
+  const zf = pet.chipById['UC4'].f; for (const name of CPU_FAULT_PINS.concat(['PHI0'])) { const g = pinEls[name].g, f = name in zf; g.classList.toggle('forced', f); g.classList.toggle('fz', f && zf[name] === 'z'); }
+  $('cpuFaults').textContent = pet.chipFaults('UC4').join(' · ');
+}
 // ---------- memory chips: tiles, a live pinout of the selected chip, and pin faults ----------
 // The page supplies MC: { m (the machine: chips, acc, faulty), groups(), tile(c, i), acc(i), bus(), net(c, i, name, B) }.
 let mcSel = 0, mcEls = {}, mcDrawn = '', mcPrevAcc = null, mcSeen = null, mcTileSig = '', mcPop = null;
 const mcFaultText = v => v === 'z' ? 'disconnected' : v ? 'stuck high' : 'stuck low';
-function mcSetFault(id, pin, v) { memSetFault(MC.m, id, pin, v); disDirty = true; }
+function mcSetFault(id, pin, v) { pet.setPinFault(id, pin, v); disDirty = true; }
 function mcClosePop() { if (mcPop) { mcPop.remove(); mcPop = null; } }
-document.addEventListener('click', e => { if (mcPop && !mcPop.contains(e.target) && !e.target.closest('#mcChip .pin.input')) mcClosePop(); });
+document.addEventListener('click', e => { if (mcPop && !mcPop.contains(e.target) && !e.target.closest('.pin.input') && !e.target.closest('.mcpop')) mcClosePop(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') mcClosePop(); });
 // debug-pane entries for the faults
-function mcDebugItems() { return memFaultList(MC.m).map(([id, pin, v]) => ['mfault:' + id + ':' + pin, 'chip fault', `${id} (${MC.m.chipById[id].part}) pin ${pin} ${mcFaultText(v)}`]); }
-function mcDebugRemove(t, v) { if (t !== 'mfault') return false; const i = v.lastIndexOf(':'); mcSetFault(v.slice(0, i), v.slice(i + 1), null); return true; }
+function mcDebugItems() { return pet.faultList().map(([id, pin, text]) => ['mfault:' + id + ':' + pin, id === 'net' ? 'line fault' : 'pin fault', text]); }
+function mcDebugRemove(t, v) { if (t !== 'mfault') return false; const i = v.indexOf(':'); mcSetFault(v.slice(0, i), v.slice(i + 1), null); return true; }
 // a DIP of any size, drawn the same way as the CPU
 function mcDraw() {
   const ch = MC.m.chips; if (mcSel >= ch.length) mcSel = 0;
@@ -2179,7 +2217,7 @@ function mcDraw() {
     const num = svg('text', { class: 'num', x: left ? bx + 7 : bx + bw - 7, y, 'text-anchor': left ? 'start' : 'end' }, g); num.textContent = n;
     const nm = svg('text', { class: 'nm', x: left ? sx - 8 : sx + 34, y, 'text-anchor': left ? 'end' : 'start' }, g);
     if (MEM_ACTIVE_LOW.has(name)) { const ov = svg('tspan', { class: 'ov' }, nm); ov.textContent = name; } else nm.textContent = name;
-    const title = svg('title', {}, g); title.textContent = kind === 'i' ? `${c.id} pin ${n}, ${name}: click to disconnect it or hold it high or low` : `${c.id} pin ${n}, ${name}`;
+    const title = svg('title', {}, g); title.textContent = kind === 'i' ? `${pet.chipName(c.id)} pin ${n}, ${name}: click for its fault menu` : `${pet.chipName(c.id)} pin ${n}, ${name}`;
     if (kind === 'i') {
       g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
       g.addEventListener('click', ev => mcMenu(name, ev));
@@ -2189,17 +2227,43 @@ function mcDraw() {
   }
   $('mcCap').innerHTML = `<b>${esc(c.id)} · ${esc(c.part)}</b><br>${esc(c.what)}<br>${esc(c.range)}`;
 }
-function mcMenu(name, ev) {
+// The fault menu of a pin. A pin on a shared line gets a tick box, "disconnected from the line (this pin only)":
+// without the tick the level buttons hold the whole line (every pin on it, on every chip); with it they set what
+// this pin alone sees. A pin with a line of its own keeps the plain choices.
+function mcMenu(name, ev, ci, host) {
   mcClosePop();
-  const c = MC.m.chips[mcSel], f = name in c.f ? c.f[name] : null, fig = $('mcFig'), r = fig.getBoundingClientRect();
-  const el = document.createElement('div'); el.className = 'mcpop';
-  el.innerHTML = `<div class="ttl">${esc(c.id)} · ${esc(name)}</div><div class="sub">${f === null ? 'normal: connected to the board' : mcFaultText(f)}</div><div class="btns">` +
-    `<button type="button" data-a="z"${f === 'z' ? ' disabled' : ''}>Disconnected</button><button type="button" data-a="1"${f === 1 ? ' disabled' : ''}>Stuck high</button><button type="button" data-a="0"${f === 0 ? ' disabled' : ''}>Stuck low</button>` +
-    (f !== null ? '<button type="button" class="primary" data-a="r">Normal</button>' : '') + '</div>';
-  fig.appendChild(el); mcPop = el;
+  const c = MC.m.chips[ci === undefined ? mcSel : ci], fig = host || $('mcFig'), r = fig.getBoundingClientRect(), key = c.id + '.' + name;
+  const net = pet.netOf(c.id, name), N = net && pet.lines()[net], shared = !!N && N.pins.length > 1, out = pet.isDriver(c.id, name);
+  const el = document.createElement('div'); el.className = 'mcpop'; fig.appendChild(el); mcPop = el;
+  const lv = v => v ? 'high' : 'low', btn = (a, label, on) => `<button type="button" data-a="${a}"${on ? ' class="primary" aria-pressed="true"' : ''}>${label}</button>`;
+  const draw = () => {
+    const own = key in pet.pinF ? pet.pinF[key] : null, line = shared && net in pet.netF ? pet.netF[net] : null, cut = own !== null;
+    let h = `<div class="ttl">${esc(pet.chipName(c.id))} · ${esc(name)}</div>`;
+    if (shared) {
+      const others = N.pins.filter(([i2, p2]) => i2 !== c.id || p2 !== name).map(([i2, p2]) => pet.chipName(i2) + ' ' + p2), ids = [...new Set(others.map(o => o.split(' ')[0]))];
+      h += `<div class="sub">${esc(N.label)}: shared with ${others.length > 4 ? ids.length + ' chips (' + esc(ids[0]) + '…' + esc(ids[ids.length - 1]) + ')' : esc(others.join(', '))}</div>`;
+      h += `<label class="cut"><input type="checkbox" data-a="cut"${cut ? ' checked' : ''}> Disconnected from the line (this pin only)</label>`;
+      if (!cut) h += `<div class="cap">Hold the whole line:</div><div class="btns">${btn('n', 'Normal', line === null)}${btn('1', 'High', line === 1)}${btn('0', 'Low', line === 0)}</div><div class="note">${line === null ? 'No fault on the line.' : `Every pin on this line sees it ${lv(line)}.`}</div>`;
+      else if (out) h += `<div class="note">This pin no longer drives the line, which floats high for the other pins${line !== null ? ' (but the line is held ' + lv(line) + ')' : ''}.</div>`;
+      else h += `<div class="cap">This pin then sees:</div><div class="btns">${btn('z', 'Floating', own === 'z')}${btn('1', 'High', own === 1)}${btn('0', 'Low', own === 0)}</div><div class="note">Only ${esc(pet.chipName(c.id))} is affected${line !== null ? '; the rest of the line is held ' + lv(line) : ''}. A floating input reads high.</div>`;
+    } else {
+      h += `<div class="sub">a line of its own on this board</div><div class="btns">${btn('n', 'Normal', own === null)}${btn('z', 'Disconnected', own === 'z')}${btn('1', 'High', own === 1)}${btn('0', 'Low', own === 0)}</div>`;
+    }
+    el.innerHTML = h;
+  };
+  const act = a => {
+    const cut = key in pet.pinF;
+    if (a === 'cut') { pet.setPinFault(c.id, name, cut ? null : 'z'); }
+    else if (!shared || cut) pet.setPinFault(c.id, name, a === 'n' ? null : a === 'z' ? 'z' : +a);
+    else pet.setNetFault(net, a === 'n' ? null : +a);
+    disDirty = true; draw(); render();
+  };
+  draw();
   el.style.left = Math.max(4, Math.min(ev.clientX - r.left, r.width - el.offsetWidth - 4)) + 'px'; el.style.top = (ev.clientY - r.top + 10) + 'px';
-  el.addEventListener('click', e2 => { e2.stopPropagation(); const a = e2.target.dataset.a; if (!a) return; mcSetFault(c.id, name, a === 'r' ? null : a === 'z' ? 'z' : +a); mcClosePop(); render(); });
-  const b0 = el.querySelector('button:not([disabled])'); if (b0) b0.focus();
+  el.addEventListener('click', e2 => { e2.stopPropagation(); const b = e2.target.closest('button'); if (b && b.dataset.a) act(b.dataset.a); });
+  el.addEventListener('change', e2 => { if (e2.target.dataset.a === 'cut') act('cut'); });
+  el.addEventListener('keydown', e2 => { if (e2.key === 'Escape') mcClosePop(); });
+  const b0 = el.querySelector('input, button'); if (b0) b0.focus();
 }
 function mcTiles() {
   const ch = MC.m.chips, groups = MC.groups();
@@ -2210,12 +2274,12 @@ function mcTiles() {
   $('mcTiles').innerHTML = groups.map(([title, idx]) => `<div><h3>${esc(title)}</h3><div class="grp">${idx.map(tile).join('')}</div></div>`).join('');
 }
 $('mcTiles').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; mcSel = +b.dataset.i; mcClosePop(); mcDraw(); render(); });
-$('mcClear').onclick = () => { const c = MC.m.chips[mcSel]; for (const k of Object.keys(c.f)) mcSetFault(c.id, k, null); render(); };
-$('mcClearAll').onclick = () => { memClearFaults(MC.m); disDirty = true; render(); };
+$('mcClear').onclick = () => { pet.clearChip(MC.m.chips[mcSel].id); disDirty = true; render(); };
+$('mcClearAll').onclick = () => { pet.clearFaults(); disDirty = true; render(); };
 function renderMemChips() {
   const ch = MC.m.chips; if (mcSel >= ch.length) mcSel = 0;
   if (mcDrawn !== ch[mcSel].id + '/' + ch[mcSel].part) mcDraw();
-  mcTiles();
+  mcTiles(); cpuFaultRender();
   // a tile's dot stays lit for half a second after its chip was last accessed
   const acc = MC.m.acc, now = performance.now(); if (!mcPrevAcc || mcPrevAcc.length !== acc.length) { mcPrevAcc = new Uint32Array(acc.length); mcSeen = new Float64Array(acc.length).fill(-1e9); }
   for (let k = 0; k < acc.length; k++) if (acc[k] !== mcPrevAcc[k]) { mcSeen[k] = now; mcPrevAcc[k] = acc[k]; }
@@ -2231,10 +2295,10 @@ function renderMemChips() {
     el.g.classList.toggle('forced', f); el.g.classList.toggle('fz', f && c.f[name] === 'z');
     el.sv.textContent = v === 'z' ? 'Z' : v === 'p' ? '+' : v === 'g' ? '⏚' : v; el.prev = v;
   }
-  const fl = Object.entries(c.f), total = memFaultList(MC.m).length;
-  $('mcFaults').textContent = fl.length ? fl.map(([k, v]) => `${k} ${mcFaultText(v)}`).join(' · ') : '';
+  const fl = pet.chipFaults(c.id), total = pet.faultList().length;
+  $('mcFaults').textContent = fl.join(' · ');
   $('mcClear').disabled = !fl.length; $('mcClearAll').disabled = !total;
-  $('mcInfo').textContent = total ? `${total} pin fault${total === 1 ? '' : 's'} set` : 'live pins · click a pin to disconnect it or hold it high or low';
+  $('mcInfo').textContent = total ? `${total} fault${total === 1 ? '' : 's'} set` : 'live pins · click a pin for its fault menu';
 }
 mcDraw();
 var mcReady = true;      // (var: render can run before this point)
