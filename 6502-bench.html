@@ -348,7 +348,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
           <dt>Data bus</dt><dd id="brData">–</dd>
         </dl>
         <p class="hint">Clicking φ0 pulses one clock, which is one bus cycle: the 6502 reads or writes memory on every cycle. /IRQ is level-sensitive and masked by the I flag; /NMI and /SO trigger on a falling edge. Holding RDY low stops the CPU on its next read cycle (writes still complete, as on the NMOS part). /RES low holds the CPU in reset; releasing it runs the 7-cycle reset sequence and loads PC from FFFCh.</p>
-        <p class="hint">Click an address or data pin, or R/W, to give it a fault: disconnected (it floats high, so the memory and ports see a 1), or held high or low. With no other chips on this bench, each pin is a line of its own; an address pin fault makes every access go to the wrong place, a data pin fault changes that bit of every byte read or written. Faults are listed under the chip and in the Debug pane, and removed there.</p>
+        <p class="hint">Click an address or data pin, R/W or SYNC to give it a fault, or right-click an input or PHI0: disconnected (it floats high, so the memory and ports see a 1), or held high or low. With no other chips on this bench, each pin is a line of its own; an address pin fault makes every access go to the wrong place, a data pin fault changes that bit of every byte read or written; a fault on an input overrides the level you set, and one on PHI0 stops the clock. Faults are listed under the chip and in the Debug pane, and removed there.</p>
       </section>
 
       <section class="panel">
