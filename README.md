@@ -7,6 +7,7 @@ This branch turns 6502 Bench into a Commodore PET with the "Dynamic PET" main bo
 - **Keyboard**: the graphic keyboard matrix, from the PC keyboard by character or the on-screen keyboard.
 - **Programs**: load a `.prg` file straight into memory, save the BASIC program as a `.prg`.
 - **Sound**: the VIA's shift register on CB2, as used by PET sound add-ons.
+- **Memory and I/O chips, with faults**: every memory chip and the three interface chips (UC7 PIA 1, UC6 PIA 2, UC5 VIA) have live pins wired as on the 320349 logic diagram; click a pin to hold its line high or low or to disconnect it. Faults on the interface chips' clock, chip selects, R/W, register selects, data, RESET, IRQ and port lines act as on the board.
 - **Debugging**: memory bitmap of RAM, screen, ROMs and the character ROM, tinted by BASIC's use of memory; a PET hardware panel (both PIAs, the VIA, video and interrupt state); a log of every access to the interface chips; a text listing with the BASIC program.
 - **Not yet**: cassette, IEEE-488 devices (disk drives), the business keyboard, circuit-level video.
 

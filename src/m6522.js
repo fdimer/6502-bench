@@ -10,6 +10,8 @@ class M6522 {
     this.name = name || 'VIA';
     this.inA = 0xFF; this.inB = 0xFF; this.ca1 = 1; this.cb1 = 1; this.ca2in = 1; this.cb2in = 1;
     this.onPA = () => {}; this.onPB = () => {}; this.onCA2 = () => {}; this.onCB2 = () => {};
+    // forced (stuck) pins for fault finding, as on the 6821 model; they survive reset
+    this.fmA = 0; this.fvA = 0; this.fmB = 0; this.fvB = 0; this.fc = {}; this.ext = { ca1: 1, cb1: 1, ca2: 1, cb2: 1 };
     this.reset();
   }
   reset() {
@@ -18,14 +20,14 @@ class M6522 {
     this.ca2out = 1; this.cb2out = 1; this.srCnt = 0; this.srPhase = 0;
     this.onPA(this.pa()); this.onPB(this.pb());
   }
-  pa() { return ((this.ora & this.ddra) | (this.inA & ~this.ddra)) & 0xFF; }
-  pb() { return ((this.orb & this.ddrb) | (this.inB & ~this.ddrb)) & 0xFF; }
-  ca2() { return this.pcr & 0x08 ? this.ca2out : this.ca2in; }
-  cb2() { return (this.acr & 0x1C) === 0x10 ? this.cb2out : this.pcr & 0x80 ? this.cb2out : this.cb2in; }
+  pa() { const v = (this.ora & this.ddra) | (this.inA & ~this.ddra); return ((v & ~this.fmA) | (this.fvA & this.fmA)) & 0xFF; }
+  pb() { const v = (this.orb & this.ddrb) | (this.inB & ~this.ddrb); return ((v & ~this.fmB) | (this.fvB & this.fmB)) & 0xFF; }
+  ca2() { if ('CA2' in this.fc) return this.fc.CA2; return this.pcr & 0x08 ? this.ca2out : this.ca2in; }
+  cb2() { if ('CB2' in this.fc) return this.fc.CB2; return (this.acr & 0x1C) === 0x10 ? this.cb2out : this.pcr & 0x80 ? this.cb2out : this.cb2in; }
   irq() { return !!(this.ifr & this.ier & 0x7F); }
   read(rs) {
     switch (rs & 15) {
-      case 0: this.ifr &= ~0x18; return ((this.orb & this.ddrb) | (this.inB & ~this.ddrb)) & 0xFF;
+      case 0: this.ifr &= ~0x18; return ((this.orb & this.ddrb) | (this.pb() & ~this.ddrb)) & 0xFF;
       case 1: this.ifr &= ~0x03; return this.pa();
       case 2: return this.ddrb;
       case 3: return this.ddra;
@@ -52,7 +54,7 @@ class M6522 {
       case 2: this.ddrb = v; this.onPB(this.pb()); break;
       case 3: this.ddra = v; this.onPA(this.pa()); break;
       case 4: case 6: this.t1l = (this.t1l & 0xFF00) | v; break;
-      case 5: this.t1l = (this.t1l & 0xFF) | v << 8; this.t1 = this.t1l + 1; this.t1armed = true;      // the counter is loaded one cycle after the write this.ifr &= ~0x40; break;
+      case 5: this.t1l = (this.t1l & 0xFF) | v << 8; this.t1 = this.t1l + 1; this.t1armed = true; this.ifr &= ~0x40; break;      // the counter is loaded one cycle after the write
       case 7: this.t1l = (this.t1l & 0xFF) | v << 8; this.ifr &= ~0x40; break;
       case 8: this.t2ll = v; break;
       case 9: this.t2 = (v << 8 | this.t2ll) + 1; this.t2armed = true; this.ifr &= ~0x20; break;
@@ -70,10 +72,25 @@ class M6522 {
   setCa2Out(l) { if (this.ca2out !== l) { this.ca2out = l; this.onCA2(l); } }
   setCb2Out(l) { if (this.cb2out !== l) { this.cb2out = l; this.onCB2(l); } }
   // control inputs: PCR bit 0 (CA1) and bit 4 (CB1) choose the active edge, 1 = rising
-  setCA1(l) { l = l ? 1 : 0; if (l === this.ca1) return; this.ca1 = l; if (l === (this.pcr & 1)) this.ifr |= 0x02; }
-  setCB1(l) { l = l ? 1 : 0; if (l === this.cb1) return; this.cb1 = l; if (l === ((this.pcr >> 4) & 1)) this.ifr |= 0x10; }
-  setCA2(l) { l = l ? 1 : 0; if (l === this.ca2in) return; this.ca2in = l; if (!(this.pcr & 0x08) && l === ((this.pcr >> 2) & 1)) this.ifr |= 0x01; }
-  setCB2(l) { l = l ? 1 : 0; if (l === this.cb2in) return; this.cb2in = l; if (!(this.pcr & 0x80) && l === ((this.pcr >> 6) & 1)) this.ifr |= 0x08; }
+  // a forced control input ignores the outside world (byForce: the change comes from the force itself)
+  setCA1(l, byForce) { l = l ? 1 : 0; if (!byForce) { this.ext.ca1 = l; if ('CA1' in this.fc) return; } if (l === this.ca1) return; this.ca1 = l; if (l === (this.pcr & 1)) this.ifr |= 0x02; }
+  setCB1(l, byForce) { l = l ? 1 : 0; if (!byForce) { this.ext.cb1 = l; if ('CB1' in this.fc) return; } if (l === this.cb1) return; this.cb1 = l; if (l === ((this.pcr >> 4) & 1)) this.ifr |= 0x10; }
+  setCA2(l, byForce) { l = l ? 1 : 0; if (!byForce) { this.ext.ca2 = l; if ('CA2' in this.fc) return; } if (l === this.ca2in) return; this.ca2in = l; if (!(this.pcr & 0x08) && l === ((this.pcr >> 2) & 1)) this.ifr |= 0x01; }
+  setCB2(l, byForce) { l = l ? 1 : 0; if (!byForce) { this.ext.cb2 = l; if ('CB2' in this.fc) return; } if (l === this.cb2in) return; this.cb2in = l; if (!(this.pcr & 0x80) && l === ((this.pcr >> 6) & 1)) this.ifr |= 0x08; }
+  // stick a pin at 0 or 1 (null releases it): port pins override what both sides see; a control pin is held at the
+  // level (an input then ignores the outside world, an output no longer reaches its line)
+  force(name, l) {
+    const m = /^P([AB])(\d)$/.exec(name);
+    if (m) {
+      const bit = 1 << +m[2];
+      if (m[1] === 'A') { this.fmA = l === null ? this.fmA & ~bit : this.fmA | bit; this.fvA = l ? this.fvA | bit : this.fvA & ~bit; this.onPA(this.pa()); }
+      else { this.fmB = l === null ? this.fmB & ~bit : this.fmB | bit; this.fvB = l ? this.fvB | bit : this.fvB & ~bit; this.onPB(this.pb()); }
+      return;
+    }
+    if (l === null) delete this.fc[name]; else this.fc[name] = l ? 1 : 0;
+    const k = name.toLowerCase(), lv = l === null ? this.ext[k] : l ? 1 : 0;
+    this['set' + name](lv, true);
+  }
   // advance n clock cycles
   tick(n) {
     this.t1 -= n;

@@ -57,7 +57,7 @@ ok(res.ok && res.basic && m.ram[0x0401] === 0x07 && (m.ram[0x2A] | m.ram[0x2B] <
 // lines and the two kinds of fault (a line held, a pin disconnected)
 { const z = new T.PETMachine(); for (const c of r.chunks) z.loadRom(c.addr, new Uint8Array(c.bytes)); z.reset();
   const N = z.nets();
-  ok(N.D3.pins.length === 8 && N.BA11.pins.length === 6 && N.BA10.pins.length === 7 && N.FA0.pins.length === 16 && N.RD3.pins.join() === 'UI6,DIN,UI6,DOUT,UJ6,DIN,UJ6,DOUT', 'PET lines: D3 joins the 6502 and the seven ROM sockets; BA11 the six 4K ROMs; FA0 all sixteen RAMs; RD3 the two chips of bit 3');
+  ok(N.D3.pins.length === 11 && N.BA0.pins.length === 10 && N.BA4.pins.length === 8 && N.BA11.pins.length === 6 && N.BA10.pins.length === 7 && N.FA0.pins.length === 16 && N.RD3.pins.join() === 'UI6,DIN,UI6,DOUT,UJ6,DIN,UJ6,DOUT', 'PET lines: D3 joins the 6502, the seven ROM sockets and the three interface chips; BA0 also their RS0, BA4 the CS1 of PIA 1; BA11 the six 4K ROMs; FA0 all sixteen RAMs; RD3 the two chips of bit 3');
   z.ram[0x10] = 0x5A; const r0 = z.read(0xF000);
   z.setNetFault('RD3', 1); ok(z.read(0x10) === 0x5A && z.read(0x11) === (z.ram[0x11] | 8) && z.read(0xF000) === r0, 'RD3 held high: RAM reads have bit 3 set, ROM reads do not');
   z.clearFaults(); z.setNetFault('D3', 0); ok(z.read(0x10) === 0x52 && z.read(0xF000) === (r0 & 0xF7), "D3 held low: every byte the 6502 reads loses bit 3");
@@ -71,4 +71,26 @@ ok(res.ok && res.basic && m.ram[0x0401] === 0x07 && (m.ram[0x2A] | m.ram[0x2B] <
   z.setPinFault('UC4', 'IRQ', 0); z.syncIrq(); ok(z.cpu.irqLine, '6502 IRQ stuck low: the interrupt line is on'); z.clearFaults(); z.syncIrq(); ok(!z.cpu.irqLine, 'and off again');
   z.setNetFault('FA2', 0); z.setPinFault('UD9', 'CS', 1); ok(z.faultList().length === 2 && z.chipFaults('UI9').join() === 'A2: line held low', 'faults are listed as lines and as pins');
   z.clearChip('UI9'); ok(z.faultList().length === 1, "clearing a chip's faults releases the lines its pins are on"); }
+// the interface chips: PIA 1 (UC7), PIA 2 (UC6) and the VIA (UC5)
+{ const q = new T.PETMachine(); for (const c of r.chunks) q.loadRom(c.addr, new Uint8Array(c.bytes)); q.reset();
+  q.write(0xE811, 0x00); q.write(0xE810, 0x0F); q.write(0xE811, 0x04); q.write(0xE810, 0x06); ok((q.pia1.pa() & 15) === 6, 'PIA 1 port A selects keyboard row 6');
+  q.setPinFault('UC7', 'PA1', 0); ok((q.pia1.pa() & 15) === 4, 'PIA 1 PA1 stuck low: the keyboard decoder gets row 4'); q.clearFaults();
+  q.setPinFault('UC7', 'PHI2', 0); ok(q.read(0xE811) === 0xE8, 'PIA 1 with no clock never answers (the bus floats)');
+  q.write(0xE811, 0x05); q.clearFaults(); ok(q.pia1.cra === 0x04, 'and a write to it is lost');
+  q.setPinFault('UC7', 'D2', 0); ok(q.read(0xE811) === 0x00, 'PIA 1 D2 cut off and low: bit 2 reads low'); q.clearFaults();
+  q.setPinFault('UC7', 'R/W', 1); q.write(0xE811, 0x3C); ok(q.pia1.cra === 0x04, 'PIA 1 R/W stuck high: the write becomes a read'); q.clearFaults();
+  q.setPinFault('UC7', 'RS1', 1); ok(q.read(0xE811) === q.pia1.crb, 'PIA 1 RS1 stuck high: E811h reads control register B'); q.clearFaults();
+  q.setPinFault('UC7', 'CS2', 0); q.write(0x1811, 0x05); ok(q.pia1.cra === 0x05, 'PIA 1 CS2 stuck low: it answers at 1811h too (BA4 and X8XX agree there)'); q.clearFaults(); q.write(0xE811, 0x04);
+  q.setNetFault('IO', 1); ok(q.read(0xE811) === 0xE8, 'the I/O line held high: none of the interface chips answer'); q.clearFaults();
+  q.write(0xE813, 0x05); q.setVideoOn(1); q.setVideoOn(0); ok(q.irqLevel(), 'VIDEO ON falling on PIA 1 CB1 raises IRQ');
+  q.setPinFault('UC7', 'IRQB', 'z'); ok(!q.irqLevel(), 'PIA 1 IRQB cut off from the IRQ line: no interrupt'); q.clearFaults(); q.read(0xE812);
+  q.setNetFault('VIDEOON', 1); q.setVideoOn(1); q.setVideoOn(0); ok(!q.irqLevel() && (q.via.pb() & 0x20), 'VIDEO ON held high: no 60 Hz interrupt, and the VIA sees it high on PB5'); q.clearFaults();
+  q.setNetFault('RES', 0); q.write(0xE811, 0x07); ok(q.pia1.cra === 0, 'RES held low: the interface chips stay in reset'); q.clearFaults();
+  q.setPinFault('UC7', 'RESET', 'z'); q.write(0xE811, 0x34); q.reset(); ok(q.pia1.cra === 0x34, 'PIA 1 RESET cut off: the reset does not reach it'); q.clearFaults(); q.reset();
+  q.write(0xE84C, 0x0E); ok(q.charSet() === 1, 'VIA CA2 high: the second character set');
+  q.setPinFault('UC5', 'CA2', 0); ok(q.charSet() === 0, 'VIA CA2 stuck low: the first set, whatever the program says'); q.clearFaults();
+  q.setPinFault('UC5', 'RS3', 0); q.write(0xE84E, 0xC0); ok(q.via.ier === 0 && (q.via.t1l & 0xFF) === 0xC0, 'VIA RS3 stuck low: a write to the IER (E84Eh) lands in the timer 1 latch (register 6)'); q.clearFaults();
+  q.setPinFault('UC5', 'CB2', 0); q.via.write(11, 0x10); q.via.write(8, 2); q.via.write(10, 0x0F); q.via.tick(200); ok(q.via.cb2() === 0, 'VIA CB2 stuck low: no sound'); q.clearFaults();
+  q.setPinFault('UC5', 'PHI2', 'z'); const t1 = q.via.t1; q.afterStep([1, 1, 1]); ok(q.via.t1 === t1, 'VIA with no clock: its timers stop'); q.clearFaults();
+  ok(!q.ioF && q.faultList().length === 0, 'all cleared'); }
 console.log(fails ? fails + ' FAILED' : 'all passed'); process.exit(fails ? 1 : 0);

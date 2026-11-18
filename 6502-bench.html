@@ -433,11 +433,11 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <p class="hint">Click the picture and type. Letters, digits and symbols go to the PET key with that character, whatever your keyboard layout; hold Shift with a letter for its graphics character. Enter is RETURN, Backspace is DEL, Esc is STOP, Home is HOME (Shift+Home clears the screen), Insert is INST, Tab is RVS, the arrow keys move the cursor, ^ is the up-arrow key and _ the left-arrow key. The keyboard above is laid out like the PET's own; the graphics character each key gives with SHIFT is drawn on its front face from the character ROM, and SHIFT stays down for the next key. Load ROM folder asks for the folder that holds your ROM files and fits the ones the chosen BASIC needs; the files must keep their standard names: basic-2-c000, basic-2-d000, edit-2-n and kernal-2 for BASIC 2; basic-4-b000, basic-4-c000, basic-4-d000, edit-4-n and kernal-4 for BASIC 4; characters-2 for both. The row of sockets shows which file sits in each ROM socket on the board. Click a socket to fit a ROM of your own there instead, whatever it is called: a different editor, a patched kernal, or an option ROM in the spare sockets UD3 and UD4. Load program puts a .prg file straight into memory: wait for READY, load it, then type RUN. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
       <section class="panel" id="pMemChips">
-        <h2>Memory chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
+        <h2>Memory and I/O chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
         <div class="mcwrap">
           <div class="mctiles" id="mcTiles"></div>
           <figure class="mcfig" id="mcFig">
-            <svg class="chip" id="mcChip" role="group" aria-label="Selected memory chip pinout"></svg>
+            <svg class="chip" id="mcChip" role="group" aria-label="Selected chip pinout"></svg>
             <figcaption id="mcCap"></figcaption>
             <div class="mcfaults mono" id="mcFaults"></div>
             <div class="row mcbtns"><button id="mcClear" type="button">Clear this chip's faults</button><button id="mcClearAll" type="button">Clear all faults</button></div>
@@ -445,6 +445,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         </div>
         <p class="hint">Every memory chip on the board, from the 320351 parts list and layout and the 320349 logic diagram: the sixteen 4116 dynamic RAMs (UI2–UI9 and UJ2–UJ9, one per data bit in each 16K bank), the two 2114s of the screen RAM (UF7, UF8), the ROM sockets UD3–UD9 and the character generator UF10. A tile's dot lights while its chip is being accessed. Click a tile to see that chip's pins, which follow the bus on every clock; the screen RAM and the character generator show the video circuit's own reads between CPU accesses. UI is the bank at 0000h and UJ the one at 4000h; position 9 holds data bit 0 and position 2 bit 7; UF8 holds screen bits 0–3 and UF7 bits 4–7.</p>
         <p class="hint">To simulate a fault, click a pin for its menu. A pin on a line shared with other chips gets a tick box: without it, the buttons hold the whole line high or low, and every pin on that line, on every chip, sees the level; with it ("Disconnected from the line"), the fault is on this chip's pin alone. A pin with a line of its own has the plain choices: Disconnected (an input then floats high), High or Low. An address pin fault makes the chip use the wrong cell; a data pin fault changes that bit on reads and writes; chip select held high (or a fault on RAS or CAS of a dynamic RAM) takes the chip out of circuit; write enable held high loses writes, held low turns every access into a write. A chip with a fault is marked in red, and every fault is listed in the Debug panel, where it can be removed. The memory view and the disassembly show what the CPU reads through the faults.</p>
+        <p class="hint"><b>Interface chips</b> (logic diagram sheets 1–3): UC7 is the 6520 PIA 1 (E810h: keyboard, cassette 1, the 60 Hz interrupt on CB1), UC6 the 6520 PIA 2 (E820h: IEEE-488 data) and UC5 the 6522 VIA (E840h: IEEE-488 control, cassette 2, the user port, the character set on CA2 and the sound on CB2). They sit on the 6502's own data bus, BA0–BA3 select their registers, and they share R/W from the 6502, the buffered clock BΦ2, RES (through a 7417, so not the 6502's own RES pin) and the IRQ line. Their chip selects: CS1 is BA4 (PIA 1), BA5 (PIA 2), or BA6 AND X8XX (the VIA); the PIAs' CS0 is X8XX (BA8–BA11 = 1000); CS2 is I/O (E800h–EFFFh). Hover over a pin to see what it is wired to. Faults: any fault on φ2 and the chip is never clocked, so it never answers (the VIA's timers stop too); a chip select at the wrong level and it never answers, or answers wherever its other selects agree, as well as what should; R/W at the wrong level turns a read into a write of the floating bus, or a write into a read; an RS pin picks the wrong register; a data pin puts its bit at the fault's level; RESET low holds the chip in reset, and cut off it misses the reset; a port or control pin at a level is what both the chip and its line see (PIA 1's PA0–PA3 pick the keyboard row, its PB0–PB7 read the columns, CB1 takes VIDEO ON; the VIA's CA2 picks the character set and CB2 makes the sound); an IRQ pin cut off from the IRQ line no longer interrupts. The cassettes, the IEEE-488 port and the user port have nothing attached in the emulator, so faults on those pins show on the pins but change nothing else.</p>
       </section>
   </div>
   <div class="grid">
@@ -2122,11 +2123,11 @@ const MC = {
   groups() {
     const g = [['RAM · lower 16K, 0000h–3FFFh · one 4116 per data bit', [7, 6, 5, 4, 3, 2, 1, 0]]];
     if (pet.ramSize > 0x4000) g.push(['RAM · upper 16K, 4000h–7FFFh', [15, 14, 13, 12, 11, 10, 9, 8]]);
-    g.push(['Screen RAM and character generator', [17, 16, 25]], ['ROM sockets', [18, 19, 20, 21, 22, 23, 24]]);
+    g.push(['Screen RAM and character generator', [17, 16, 25]], ['ROM sockets', [18, 19, 20, 21, 22, 23, 24]], ['Interface chips', MC_IO]);
     return g;
   },
-  tile(c, i) { return i < 16 ? [c.id, '4116 · D' + c.bit] : i < 18 ? [c.id, '2114 · D' + (c.nib ? '4–7' : '0–3')] : i === 25 ? [c.id, '6316 · chars'] : [c.id, pet.fitted[c.id] ? (c.abits === 11 ? '6316' : '6332') + ' · ' + h4(c.base) + 'h' : 'empty']; },
-  acc(i) { return i < 8 ? 0 : i < 16 ? 1 : i < 18 ? 2 : i < 25 ? 3 + (i - 18) : 10; },
+  tile(c, i) { return MC_IO.includes(i) ? [c.id, c.part + ' · ' + (c === pet.viaC ? 'VIA' : c === pet.pia1C ? 'PIA 1' : 'PIA 2')] : i < 16 ? [c.id, '4116 · D' + c.bit] : i < 18 ? [c.id, '2114 · D' + (c.nib ? '4–7' : '0–3')] : i === 25 ? [c.id, '6316 · chars'] : [c.id, pet.fitted[c.id] ? (c.abits === 11 ? '6316' : '6332') + ' · ' + h4(c.base) + 'h' : 'empty']; },
+  acc(i) { const k = MC_IO.indexOf(i); if (k >= 0) return 12 + k; return i < 8 ? 0 : i < 16 ? 1 : i < 18 ? 2 : i < 25 ? 3 + (i - 18) : 10; },
   bus() {
     const T = curT, A = T.a === null || T.a === 'z' || T.a === undefined ? null : pet.busA(T.a), D = T.d === null || T.d === undefined || T.d === 'z' ? null : T.d;
     // where the video circuit is reading: the character cell under the beam
@@ -2136,6 +2137,19 @@ const MC = {
   net(c, i, name, B) {
     const A = B.A, db = n => B.D === null ? 'z' : (B.D >> n) & 1;
     let m = /^A(\d+)$/.exec(name), d;
+    if (MC_IO.includes(i)) {            // the interface chips: their selects and registers from the address, their ports from the chip
+      const k = MC_IO.indexOf(i), p = [pet.pia1, pet.pia2, pet.via][k], via = k === 2, bit = [0x10, 0x20, 0x40][k], io = A !== null && A >= 0xE800 && A < 0xF000, sel = io && !!(A & bit);
+      if ((d = /^D(\d)$/.exec(name))) return sel ? db(+d[1]) : 'z';
+      if ((d = /^RS(\d)$/.exec(name))) return A === null ? 'z' : (A >> +d[1]) & 1;
+      if ((d = /^P([AB])(\d)$/.exec(name))) return ((d[1] === 'A' ? p.pa() : p.pb()) >> +d[2]) & 1;
+      switch (name) {
+        case 'CS0': return io ? 1 : A !== null && ((A >> 8) & 15) === 8 ? 1 : 0; case 'CS1': return A !== null && A & bit ? 1 : 0; case 'CS2': return io ? 0 : 1;
+        case 'R/W': return B.wr ? 0 : 1; case 'PHI2': return clk; case 'RESET': return pins.res;
+        case 'CA1': return p.ca1; case 'CB1': return p.cb1; case 'CA2': return p.ca2(); case 'CB2': return p.cb2();
+        case 'IRQ': return p.irq() ? 0 : 1; case 'IRQA': return p.irqA() ? 0 : 1; case 'IRQB': return p.irqB() ? 0 : 1;
+      }
+      return 'z';
+    }
     if (i < 16) {                       // 4116s: the address pins carry the row (BA0-BA6), then the column (BA13 on A0, BA7-BA12 on A1-A6)
       const sel = A !== null && A < 0x8000 && (A >> 14) === c.bank && A < pet.ramSize;
       if (m) return A === null ? 'z' : sel ? (A >> (+m[1] ? 6 + +m[1] : 13)) & 1 : (A >> +m[1]) & 1;
@@ -2162,6 +2176,12 @@ const MC = {
     }
   }
 };
+// what the interface chips' port and control pins are wired to (sheets 2 and 3 of the 320349 logic diagram)
+const PET_PIN_TIPS = { 'UC7.PA0': 'KEYA, to the 74LS145 keyboard row decoder', 'UC7.PA1': 'KEYB, to the keyboard decoder', 'UC7.PA2': 'KEYC, to the keyboard decoder', 'UC7.PA3': 'KEYD, to the keyboard decoder', 'UC7.PA4': 'Cassette 1 switch', 'UC7.PA5': 'Cassette 2 switch', 'UC7.PA6': 'EOI in (IEEE-488)', 'UC7.PA7': 'DIAG: the diagnostic sense jumper',
+  'UC7.CA1': 'Cassette 1 read', 'UC7.CA2': 'EOI out (IEEE-488)', 'UC7.CB1': 'VIDEO ON: its falling edge is the 60 Hz interrupt', 'UC7.CB2': 'Cassette 1 motor', 'UC6.CA1': 'ATN in (IEEE-488)', 'UC6.CA2': 'NDAC out (IEEE-488)', 'UC6.CB1': 'SRQ in (IEEE-488)', 'UC6.CB2': 'DAV out (IEEE-488)',
+  'UC5.PB0': 'NDAC in', 'UC5.PB1': 'NRFD out', 'UC5.PB2': 'ATN out', 'UC5.PB3': 'Cassette write', 'UC5.PB4': 'Cassette 2 motor', 'UC5.PB5': 'VIDEO ON', 'UC5.PB6': 'NRFD in', 'UC5.PB7': 'DAV in', 'UC5.CA1': 'User port CA1', 'UC5.CA2': 'GRAPHIC: the character set (high is the second set)', 'UC5.CB1': 'Cassette 2 read', 'UC5.CB2': 'User port CB2, and the sound', 'UC5.CS1': 'BA6 AND X8XX, from F1 (74LS08)' };
+for (let n = 0; n < 8; n++) { PET_PIN_TIPS['UC7.PB' + n] = 'KIN' + n + ': keyboard column ' + n + ' (pulled up; low for a key that is down)'; PET_PIN_TIPS['UC6.PA' + n] = 'IEEE-488 data in DI' + (n + 1); PET_PIN_TIPS['UC6.PB' + n] = 'IEEE-488 data out DO' + (n + 1); PET_PIN_TIPS['UC5.PA' + n] = 'User port PA' + n; }
+const MC_IO = [pet.pia1C, pet.pia2C, pet.viaC].map(c => pet.chips.indexOf(c));
 // ---------- the processor's pins take faults too ----------
 const CPU_FAULT_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'RW', 'SYNC', 'RDY', 'IRQ', 'NMI', 'SO', 'RES'], MCCPU = pet.chips.indexOf(pet.chipById['UC4']);
 let cpuFaultsDone = false;
@@ -2216,8 +2236,9 @@ function mcDraw() {
     const sv = svg('text', { class: 'sv', x: sx + 13, y: y + 0.5 }, g);
     const num = svg('text', { class: 'num', x: left ? bx + 7 : bx + bw - 7, y, 'text-anchor': left ? 'start' : 'end' }, g); num.textContent = n;
     const nm = svg('text', { class: 'nm', x: left ? sx - 8 : sx + 34, y, 'text-anchor': left ? 'end' : 'start' }, g);
-    if (MEM_ACTIVE_LOW.has(name)) { const ov = svg('tspan', { class: 'ov' }, nm); ov.textContent = name; } else nm.textContent = name;
-    const title = svg('title', {}, g); title.textContent = kind === 'i' ? `${pet.chipName(c.id)} pin ${n}, ${name}: click for its fault menu` : `${pet.chipName(c.id)} pin ${n}, ${name}`;
+    const label = name === 'PHI2' ? 'φ2' : name;
+    if (MEM_ACTIVE_LOW.has(name)) { const ov = svg('tspan', { class: 'ov' }, nm); ov.textContent = label; } else nm.textContent = label;
+    const title = svg('title', {}, g); title.textContent = (kind === 'i' ? `${pet.chipName(c.id)} pin ${n}, ${label}: click for its fault menu` : `${pet.chipName(c.id)} pin ${n}, ${label}`) + (PET_PIN_TIPS[c.id + '.' + name] ? '. ' + PET_PIN_TIPS[c.id + '.' + name] : '');
     if (kind === 'i') {
       g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
       g.addEventListener('click', ev => mcMenu(name, ev));

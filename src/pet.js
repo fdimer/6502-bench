@@ -21,6 +21,8 @@
 // bit 0 and position 2 bit 7 (UI9 and UJ9 drive RD0, UI2 and UJ2 RD7). UF8 holds screen bits 0-3 and UF7 bits 4-7.
 // The 74153 multiplexers put BA0-BA6 on the RAM address pins as the row; as the column, pin A0 carries BA13 and
 // pins A1-A6 carry BA7-BA12.
+// The interface chips (sheets 1-3) are board chips too: UC7, the 6520 PIA 1; UC6, the 6520 PIA 2; UC5, the 6522 VIA.
+// See ioFaults below for what their pin faults do.
 // Keyboard (graphic layout): PIA 1 PA0-PA3 go to a decoder that pulls one of ten rows low; PIA 1 port B reads the
 // eight columns, low for a key that is down.
 
@@ -42,6 +44,12 @@ const PET_KEYS = [
   ['Shift', '@', ']', null, '>', 'Right shift', '0', '-'],
   ['Rvs', '[', 'Space', '<', 'Stop', null, '.', '=']
 ];
+// The interface chips' pinouts. Their clock input is the board's BΦ2 (PHI2 here).
+MEM_PINOUTS['6520'] = [[1, 'VSS', 'g'], ...[0, 1, 2, 3, 4, 5, 6, 7].map(n => [2 + n, 'PA' + n, 'i']), ...[0, 1, 2, 3, 4, 5, 6, 7].map(n => [10 + n, 'PB' + n, 'i']), [18, 'CB1', 'i'], [19, 'CB2', 'i'], [20, 'VCC', 'p'],
+  [21, 'R/W', 'i'], [22, 'CS0', 'i'], [23, 'CS2', 'i'], [24, 'CS1', 'i'], [25, 'PHI2', 'i'], ...[7, 6, 5, 4, 3, 2, 1, 0].map((d, k) => [26 + k, 'D' + d, 'i']), [34, 'RESET', 'i'], [35, 'RS1', 'i'], [36, 'RS0', 'i'], [37, 'IRQB', 'i'], [38, 'IRQA', 'i'], [39, 'CA2', 'i'], [40, 'CA1', 'i']];
+MEM_PINOUTS['6522'] = [[1, 'VSS', 'g'], ...[0, 1, 2, 3, 4, 5, 6, 7].map(n => [2 + n, 'PA' + n, 'i']), ...[0, 1, 2, 3, 4, 5, 6, 7].map(n => [10 + n, 'PB' + n, 'i']), [18, 'CB1', 'i'], [19, 'CB2', 'i'], [20, 'VCC', 'p'],
+  [21, 'IRQ', 'i'], [22, 'R/W', 'i'], [23, 'CS2', 'i'], [24, 'CS1', 'i'], [25, 'PHI2', 'i'], ...[7, 6, 5, 4, 3, 2, 1, 0].map((d, k) => [26 + k, 'D' + d, 'i']), [34, 'RESET', 'i'], [35, 'RS3', 'i'], [36, 'RS2', 'i'], [37, 'RS1', 'i'], [38, 'RS0', 'i'], [39, 'CA2', 'i'], [40, 'CA1', 'i']];
+for (const n of ['CS2', 'RESET', 'IRQ', 'IRQA', 'IRQB']) MEM_ACTIVE_LOW.add(n);
 const PET_KEYPOS = {}; PET_KEYS.forEach((row, r) => row.forEach((k, c) => { if (k) PET_KEYPOS[k] = [r, c]; }));
 // ROM sockets: name, start address, size
 const PET_SOCKETS = [['UD3', 0x9000, 0x1000], ['UD4', 0xA000, 0x1000], ['UD5', 0xB000, 0x1000], ['UD6', 0xC000, 0x1000], ['UD7', 0xD000, 0x1000], ['UD8', 0xE000, 0x0800], ['UD9', 0xF000, 0x1000]];
@@ -82,8 +90,13 @@ class PETMachine {
     this.chips = [...this.ramBanks[0], ...this.ramBanks[1], ...this.vBank, ...this.romChips, this.cgChip, this.cpuC];      // the processor last, so the other indexes stay put
     this.pinF = {}; this.netF = {}; this.heldWhy = null; this.fx = false;
     this.banks = [this.ramBanks[0], this.ramBanks[1], this.vBank, ...this.romChips.map(c => [c]), [this.cgChip]];
+    // the interface chips, after the processor so the indexes above stay put
+    this.pia1C = new BoardChip('UC7', '6520', 'PIA 1: keyboard, cassette 1, the 60 Hz interrupt (VIDEO ON on CB1)', 'E810h-E813h', { label: 'UC7' });
+    this.pia2C = new BoardChip('UC6', '6520', 'PIA 2: IEEE-488 data, ATN, SRQ, NDAC and DAV', 'E820h-E823h', { label: 'UC6' });
+    this.viaC = new BoardChip('UC5', '6522', 'VIA: IEEE-488 control, cassette 2, user port, character set (CA2), sound (CB2)', 'E840h-E84Fh', { label: 'UC5' });
+    this.chips.push(this.pia1C, this.pia2C, this.viaC);
     this.chipById = {}; for (const c of this.chips) this.chipById[c.id] = c;
-    this.acc = new Uint32Array(12);          // accesses: 0, 1 the RAM banks; 2 screen RAM; 3-9 the ROM sockets UD3-UD9; 10 the character generator
+    this.acc = new Uint32Array(15);          // accesses: 0, 1 the RAM banks; 2 screen RAM; 3-9 the ROM sockets UD3-UD9; 10 the character generator; 12-14 PIA 1, PIA 2, VIA
     this.faulty = false;
     this.pia1.onPA = () => this.scanKeys();
     this.reset();
@@ -107,6 +120,21 @@ class PETMachine {
     N.CAS0 = { label: 'RAM CAS0 line (the UI bank)', d: -1, pins: this.ramBanks[0].map(c => [c.id, 'CAS']) };
     N.CAS1 = { label: 'RAM CAS1 line (the UJ bank)', d: -1, pins: this.ramBanks[1].map(c => [c.id, 'CAS']) };
     N.RAMRW = { label: 'RAM R/W line', d: -1, pins: ram.map(c => [c.id, 'WE']) };
+    // the interface chips (sheets 1-3): on the 6502's own data bus; BA0-BA3 select their registers; BA4 and BA5 are the
+    // PIAs' CS1 (the VIA's CS1 is BA6 AND X8XX, from F1); X8XX (BA8-BA11 = 1000) is the PIAs' CS0 and I/O (E800h-EFFFh)
+    // their CS2. R/W comes straight from the 6502; their clock is BΦ2 and their reset RES, both through 7417 buffers
+    // (so RES here is not the line on the 6502's own RES pin); all four IRQ outputs share the 6502's IRQ line.
+    const P1 = 'UC7', P2 = 'UC6', V = 'UC5';
+    for (let n = 0; n < 8; n++) N['D' + n].pins.push([P1, 'D' + n], [P2, 'D' + n], [V, 'D' + n]);
+    const rs = [[[P1, 'RS0'], [P2, 'RS0'], [V, 'RS0']], [[P1, 'RS1'], [P2, 'RS1'], [V, 'RS1']], [[V, 'RS2']], [[V, 'RS3']], [[P1, 'CS1']], [[P2, 'CS1']]];
+    rs.forEach((pins, n) => N['BA' + n].pins.push(...pins));
+    N.RW = { label: 'R/W (from the 6502)', d: 0, pins: [[U, 'RW'], [P1, 'R/W'], [P2, 'R/W'], [V, 'R/W']] };
+    N.BPHI2 = { label: 'BΦ2, the buffered clock', d: -1, pins: [[P1, 'PHI2'], [P2, 'PHI2'], [V, 'PHI2']] };
+    N.RES = { label: 'RES to the interface chips (through a 7417)', d: -1, pins: [[P1, 'RESET'], [P2, 'RESET'], [V, 'RESET']] };
+    N.IRQ = { label: 'IRQ', d: -1, pins: [[U, 'IRQ'], [P1, 'IRQA'], [P1, 'IRQB'], [P2, 'IRQA'], [P2, 'IRQB'], [V, 'IRQ']] };
+    N.X8XX = { label: 'X8XX (BA8-BA11 = 1000)', d: -1, pins: [[P1, 'CS0'], [P2, 'CS0']] };
+    N.IO = { label: 'I/O (E800h-EFFFh)', d: -1, pins: [[P1, 'CS2'], [P2, 'CS2'], [V, 'CS2']] };
+    N.VIDEOON = { label: 'VIDEO ON', d: -1, pins: [[P1, 'CB1'], [V, 'PB5']] };
     for (let n = 0; n < 8; n++) N['RD' + n] = { label: `RAM data line RD${n}`, d: -1, pins: [this.ramBanks[0][n], this.ramBanks[1][n]].flatMap(c => [[c.id, 'DIN'], [c.id, 'DOUT']]) };
     return (this.NETS = N);
   }
@@ -121,7 +149,55 @@ class PETMachine {
     this.nmiLow = z.NMI === 0;
     if (z.SO === 0 && !this.soLow && this.cpu) this.cpu.p |= 0x40;             // SO going low sets the overflow flag
     this.soLow = z.SO === 0;
+    if (this.viaC) this.ioFaults();
   }
+  // ---- what the interface chips' pin faults do ----
+  // A chip answers when CS0 and CS1 are high and CS2 low (the VIA has no CS0). With no fault they do as the decoding
+  // above: CS2 low from E800h to EFFFh and CS1 the chip's own address bit (the PIAs' CS0 is taken as high there).
+  // A chip select held at the answering level makes the chip answer wherever its other selects agree, and reads carry
+  // the AND of everything that answers. Any fault on PHI2 and the chip is never clocked, so it never answers. R/W at the
+  // wrong level turns a read into a write of the floating bus (the last address byte, as an empty socket reads) and a
+  // write into a read whose byte is lost. RS pins choose the register; a data pin puts its bit at the fault's level.
+  // RESET low holds the chip in reset; cut off (or high) it misses the reset. A port or control pin at a level is what
+  // both the chip and its line see. An IRQ pin cut off from the IRQ line no longer interrupts.
+  ioFaults() {
+    const D = this.ioDevs();
+    for (const dv of D) {
+      const p = dv.p, L = dv.c.lv; let fmA = 0, fvA = 0, fmB = 0, fvB = 0;
+      for (let b = 0; b < 8; b++) {
+        if ('PA' + b in L) { fmA |= 1 << b; if (L['PA' + b]) fvA |= 1 << b; }
+        if ('PB' + b in L) { fmB |= 1 << b; if (L['PB' + b]) fvB |= 1 << b; }
+      }
+      if (fmA !== p.fmA || fvA !== p.fvA) { p.fmA = fmA; p.fvA = fvA; p.onPA(p.pa()); }
+      if (fmB !== p.fmB || fvB !== p.fvB) { p.fmB = fmB; p.fvB = fvB; p.onPB(p.pb()); }
+      for (const n of ['CA1', 'CA2', 'CB1', 'CB2']) { const want = n in L ? L[n] : null, has = n in p.fc ? p.fc[n] : null; if (want !== has) p.force(n, want); }
+      p.held = L.RESET === 0; if (p.held) p.reset();
+    }
+    this.scanKeys();
+    this.ioF = D.some(dv => dv.c.faulty);
+  }
+  ioDevs() { return this.IOD || (this.IOD = [{ c: this.pia1C, p: this.pia1, bit: 0x10, acc: 12, rs: 3 }, { c: this.pia2C, p: this.pia2, bit: 0x20, acc: 13, rs: 3 }, { c: this.viaC, p: this.via, bit: 0x40, acc: 14, rs: 15, via: true }]); }
+  // does this access select the chip (its select pins as the chip sees them)?
+  ioSel(dv, a) {
+    const L = dv.c.lv, io = a >= 0xE800 && a < 0xF000, at = (k, d) => k in L ? L[k] : d;
+    return at('CS2', io ? 0 : 1) === 0 && at('CS1', a & dv.bit ? 1 : 0) === 1 && (dv.via || at('CS0', io ? 1 : ((a >> 8) & 15) === 8 ? 1 : 0) === 1);
+  }
+  ioReg(dv, a) { const L = dv.c.lv; let r = a & dv.rs; for (let n = 0; n < 4; n++) if ('RS' + n in L) r = L['RS' + n] ? r | 1 << n : r & ~(1 << n); return r & dv.rs; }
+  // one access to a chip: returns the byte it drives on a read, or -1
+  ioCycle(dv, a, wr, v) {
+    const c = dv.c, L = c.lv, p = dv.p;
+    if ('PHI2' in L) return -1;
+    this.acc[dv.acc]++; if (p.held) p.reset();
+    const rw = 'R/W' in L ? L['R/W'] : wr ? 0 : 1, r = this.ioReg(dv, a);
+    if (rw === 0) { if (!p.held) p.write(r, wr ? c.busD(v) : a >> 8); return -1; }
+    return c.busD(p.read(r));
+  }
+  readIOF(a) {
+    let v = 0xFF, any = false;
+    for (const dv of this.ioDevs()) if (this.ioSel(dv, a)) { any = true; const d = this.ioCycle(dv, a, false); if (d >= 0) v &= d; else v &= a >> 8; }
+    return any ? v : -1;
+  }
+  irqOn(c, pin) { return !(pin in c.f); }
   held() { return this.heldWhy; }
   busA(a) { return this.fx ? this.cpuC.busA(a) : a; }
   // put a ROM image at an address; marks every socket it covers as fitted
@@ -131,7 +207,9 @@ class PETMachine {
   }
   ready() { return !!(this.fitted.UD6 && this.fitted.UD7 && this.fitted.UD8 && this.fitted.UD9); }
   reset() {
-    this.pia1.reset(); this.pia2.reset(); this.via.reset();
+    // a chip whose RESET pin is cut off from RES (or held high) misses the reset
+    const rs = c => !c || !('RESET' in c.f) || c.lv.RESET === 0;
+    if (rs(this.pia1C)) this.pia1.reset(); if (rs(this.pia2C)) this.pia2.reset(); if (rs(this.viaC)) this.via.reset();
     // inputs as they sit with nothing plugged in: cassette switches open, IEEE-488 lines released, diagnostic jumper out
     this.pia1.inA = 0xFF; this.pia2.inA = 0xFF; this.pia2.inB = 0xFF; this.via.inA = 0xFF; this.via.inB = 0xFF;
     this.t = 0; this.line = 0; this.nextLine = PET.LINE_T; this.frames = 0; this.irqs = 0;
@@ -151,7 +229,9 @@ class PETMachine {
     return this.fitted[PET_SOCKETS[i][0]] ? this.rom[a] : (a >> 8);
   }
   readIO(a) {
-    let v = 0xFF;                                                            // more than one chip can be selected at once; they share the bus
+    if (this.ioF) { const v = this.readIOF(a); return v < 0 ? a >> 8 : v; }
+    let v = 0xFF;
+    if (a & 0x10) this.acc[12]++; if (a & 0x20) this.acc[13]++; if (a & 0x40) this.acc[14]++;                                                            // more than one chip can be selected at once; they share the bus
     if (a & 0x10) v &= this.pia1.read(a & 3);
     if (a & 0x20) v &= this.pia2.read(a & 3);
     if (a & 0x40) v &= this.via.read(a & 15);
@@ -164,6 +244,8 @@ class PETMachine {
     else if (a < 0x9000) { if (!quiet) this.acc[2]++; v = memBankRead(this.vBank, a & 0x3FF, quiet); }
     else if (a >= 0xE800 && a < 0xF000) v = quiet ? this.peekIO(a) : this.readIO(a);
     else { sel = this.socketIndex(a); if (!quiet) this.acc[3 + sel]++; v = this.fitted[PET_SOCKETS[sel][0]] ? memBankRead(this.banks[3 + sel], a & this.romChips[sel].mask, quiet) : (a >> 8); }
+    // an interface chip whose selects are stuck answers outside its own addresses too
+    if (this.ioF && !(a >= 0xE800 && a < 0xF000) && !quiet) { const d = this.readIOF(a); if (d >= 0) v &= d; }
     // a ROM whose chip select is stuck low drives the bus during every read: the lines carry the AND of the two
     for (let i = 0; i < 7; i++) { const c = this.romChips[i]; if (c.always && i !== sel && this.fitted[c.id]) v &= memBankRead(this.banks[3 + i], a & c.mask, true); }
     return v;
@@ -184,9 +266,11 @@ class PETMachine {
   }
   write(a, v) {
     if (this.fx) { if (this.cpuC.lv.RW === 1) return; a = this.cpuC.busA(a); v = this.cpuC.busD(v); }
+    if (this.ioF) { for (const dv of this.ioDevs()) if (this.ioSel(dv, a)) this.ioCycle(dv, a, true, v); if (a >= 0xE800 && a < 0xF000) return; }      // a chip with a stuck select takes writes elsewhere too
     if (a < 0x8000) { this.acc[a >> 14]++; if (a < this.ramSize) { if (this.faulty && this.ramBanks[a >> 14].faulty) memBankWrite(this.ramBanks[a >> 14], a & 0x3FFF, v); else this.ram[a] = v; } return; }
     if (a < 0x9000) { this.acc[2]++; if (this.faulty && this.vBank.faulty) memBankWrite(this.vBank, a & 0x3FF, v); else this.vram[a & 0x3FF] = v; return; }
     if (a >= 0xE800 && a < 0xF000) {
+      if (a & 0x10) this.acc[12]++; if (a & 0x20) this.acc[13]++; if (a & 0x40) this.acc[14]++;
       if (a & 0x10) this.pia1.write(a & 3, v);
       if (a & 0x20) this.pia2.write(a & 3, v);
       if (a & 0x40) this.via.write(a & 15, v);
@@ -220,10 +304,14 @@ class PETMachine {
     return out;
   }
   // ---- per instruction ----
-  irqLevel() { return this.pia1.irqA() || this.pia1.irqB() || this.pia2.irqA() || this.pia2.irqB() || this.via.irq(); }
+  irqLevel() {
+    if (!this.ioF) return this.pia1.irqA() || this.pia1.irqB() || this.pia2.irqA() || this.pia2.irqB() || this.via.irq();
+    const [a, b, c] = [this.pia1C, this.pia2C, this.viaC], on = this.irqOn;
+    return (on(a, 'IRQA') && this.pia1.irqA()) || (on(a, 'IRQB') && this.pia1.irqB()) || (on(b, 'IRQA') && this.pia2.irqA()) || (on(b, 'IRQB') && this.pia2.irqB()) || (on(c, 'IRQ') && this.via.irq());
+  }
   syncIrq() { const i = this.cpuC.lv.IRQ; this.cpu.irqLine = i !== undefined ? i === 0 : this.irqLevel(); }
   afterStep(cyc) {
-    const n = cyc.length; this.t += n; this.via.tick(n);
+    const n = cyc.length; this.t += n; if (!this.ioF || !('PHI2' in this.viaC.lv)) this.via.tick(n);      // the VIA's timers run on its clock
     if (this.cpu.lastEvent === 'IRQ') this.irqs++;
     if (this.audioRate) { this.audioT += n * this.audioRate; while (this.audioT >= PET.CPU_HZ) { this.audioT -= PET.CPU_HZ; this.abuf[this.aw++ & 32767] = this.via.cb2() ? 0.3 : 0; } }
     while (this.t >= this.nextLine) {
