@@ -2163,7 +2163,7 @@ const MC = {
   }
 };
 // ---------- the processor's pins take faults too ----------
-const CPU_FAULT_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'RW', 'RDY', 'IRQ', 'NMI', 'RES'], MCCPU = pet.chips.indexOf(pet.chipById['UC4']);
+const CPU_FAULT_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'RW', 'SYNC', 'RDY', 'IRQ', 'NMI', 'SO', 'RES'], MCCPU = pet.chips.indexOf(pet.chipById['UC4']);
 let cpuFaultsDone = false;
 function cpuFaultPins() {
   cpuFaultsDone = true; const fig = $('cpuFig');

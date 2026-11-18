@@ -119,6 +119,8 @@ class PETMachine {
     this.heldWhy = 'PHI0' in z ? 'no clock at the 6502\'s PHI0 pin' : z.RES === 0 ? 'RES is low at the 6502: it is held in reset' : z.RDY === 0 ? 'RDY is low at the 6502: it waits' : null;
     if (z.NMI === 0 && !this.nmiLow && this.cpu) this.cpu.nmiPending = true;
     this.nmiLow = z.NMI === 0;
+    if (z.SO === 0 && !this.soLow && this.cpu) this.cpu.p |= 0x40;             // SO going low sets the overflow flag
+    this.soLow = z.SO === 0;
   }
   held() { return this.heldWhy; }
   busA(a) { return this.fx ? this.cpuC.busA(a) : a; }
