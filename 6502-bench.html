@@ -593,6 +593,15 @@ const cpu = new M6502(bus);
 // With no other chips on this bench, each pin is a line of its own: a fault is the pin disconnected (it floats high:
 // the memory and ports see a 1 there) or held high or low. pinF[pin] = 'z', 1 or 0.
 const pinF = {}, FAULT_BUS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'], FAULT_CTL = { RW: 'Every cycle looks like a read to the memory: writes are lost.' };
+// the input pins and SYNC carry faults too, as on the PET: a click on an input still toggles it; its fault menu is on
+// a right-click. A fault on an input overrides the level you set.
+const FAULT_IN = { RDY: 'Held low: the CPU stops on the next read cycle and waits for ever. Held high or disconnected: it never waits.',
+  IRQ: 'Held low: an interrupt is asked for all the time (taken whenever the I flag is clear). Held high or disconnected: no interrupt ever reaches the CPU.',
+  NMI: 'Held low: one non-maskable interrupt, at the moment the pin goes low. Held high or disconnected: no NMI ever reaches the CPU.',
+  SO: 'Held low: the overflow flag is set once, at the moment the pin goes low. Held high or disconnected: SO never sets it.',
+  RES: 'Held low: the CPU stays in reset. Held high or disconnected: it cannot be reset from this pin.',
+  PHI0: 'Any fault on the clock input stops the clock: the CPU stands still.' };
+const FAULT_OUT = { SYNC: 'Nothing on this bench listens to SYNC: the pin shows the level, and the CPU carries on.' };
 const pinLv = n => n in pinF ? (pinF[n] === 'z' ? 1 : pinF[n]) : undefined;
 function fA(a) { for (const n in pinF) { const m = /^A(\d+)$/.exec(n); if (m) a = pinLv(n) ? a | 1 << +m[1] : a & ~(1 << +m[1]); } return a & 0xFFFF; }
 function fD(v) { for (const n in pinF) { const m = /^D(\d)$/.exec(n); if (m) v = pinLv(n) ? v | 1 << +m[1] : v & ~(1 << +m[1]); } return v & 0xFF; }
@@ -606,7 +615,7 @@ let pinPop = null;
 function closePinPop() { if (pinPop) { pinPop.remove(); pinPop = null; } }
 document.addEventListener('click', e => { if (pinPop && !pinPop.contains(e.target) && !e.target.closest('.pin.bus')) closePinPop(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePinPop(); });
-function setPinFault(n, v) { if (v === null) delete pinF[n]; else pinF[n] = v; disDirty = true; }
+function setPinFault(n, v) { if (v === null) delete pinF[n]; else pinF[n] = v; disDirty = true; syncPins(); }
 const faultText = (n, v) => '6502 pin ' + n + ' ' + (v === 'z' ? 'disconnected' : v ? 'stuck high' : 'stuck low');
 function faultMenu(name, ev) {
   closePinPop();
@@ -616,7 +625,7 @@ function faultMenu(name, ev) {
   const draw = () => {
     const f = name in pinF ? pinF[name] : null;
     el.innerHTML = `<div class="ttl">6502 · ${esc(name)}</div><div class="sub">a line of its own on this bench</div><div class="btns">${btn('n', 'Normal', f === null)}${btn('z', 'Disconnected', f === 'z')}${btn('1', 'High', f === 1)}${ctrl ? '' : btn('0', 'Low', f === 0)}</div>`
-      + `<div class="note">${ctrl ? esc(FAULT_CTL[name]) : /^A/.test(name) ? 'Every address the processor puts out has this bit forced: it reads and writes the wrong place.' : 'Every byte that passes this pin, read or written, has this bit forced.'} A disconnected pin floats high.</div>`;
+      + `<div class="note">${name in FAULT_IN ? esc(FAULT_IN[name]) : name in FAULT_OUT ? esc(FAULT_OUT[name]) : ctrl ? esc(FAULT_CTL[name]) : /^A/.test(name) ? 'Every address the processor puts out has this bit forced: it reads and writes the wrong place.' : 'Every byte that passes this pin, read or written, has this bit forced.'} A disconnected pin floats high.</div>`;
   };
   draw();
   el.style.left = Math.max(4, Math.min(ev.clientX - r.left, r.width - el.offsetWidth - 4)) + 'px'; el.style.top = (ev.clientY - r.top + 10) + 'px';
@@ -626,7 +635,11 @@ function faultMenu(name, ev) {
 let faultPinsDone = false;
 function faultPins() {
   faultPinsDone = true;
-  for (const name of FAULT_BUS.concat(Object.keys(FAULT_CTL))) {
+  for (const name of Object.keys(FAULT_IN)) {               // inputs: a click toggles (or, for PHI0, pulses); the fault menu is on a right-click
+    const g = pinEls[name].g; g.querySelector('title').textContent += ' Right-click for its fault menu.';
+    g.addEventListener('contextmenu', ev => { ev.preventDefault(); ev.stopPropagation(); faultMenu(name, ev); });
+  }
+  for (const name of FAULT_BUS.concat(Object.keys(FAULT_CTL), Object.keys(FAULT_OUT))) {
     const g = pinEls[name].g, stub = g.querySelector('.stub'), x = +stub.getAttribute('x'), y = +stub.getAttribute('y') + 6, left = x < 128;
     const hit = svg('rect', { x: left ? x - 70 : x - 4, y: y - 11, width: 104, height: 22, fill: 'transparent' }), ring = svg('rect', { class: 'ring', x: x - 3, y: y - 9, width: 32, height: 18, rx: 3 });
     g.insertBefore(ring, g.firstChild); g.insertBefore(hit, g.firstChild);
@@ -638,12 +651,19 @@ function faultPins() {
 }
 function renderPinFaults() {
   if (!faultPinsDone) faultPins();
-  for (const name of FAULT_BUS.concat(Object.keys(FAULT_CTL))) { const g = pinEls[name].g, f = name in pinF; g.classList.toggle('forced', f); g.classList.toggle('fz', f && pinF[name] === 'z'); }
+  for (const name of FAULT_BUS.concat(Object.keys(FAULT_CTL), Object.keys(FAULT_OUT), Object.keys(FAULT_IN))) { const g = pinEls[name].g, f = name in pinF; g.classList.toggle('forced', f); g.classList.toggle('fz', f && pinF[name] === 'z'); }
   $('cpuFaults').textContent = Object.entries(pinF).map(([n, v]) => n + ' ' + (v === 'z' ? 'disconnected' : v ? 'stuck high' : 'stuck low')).join(' · ');
 }
 
 // ---------- pins ----------
-const pins = { rdy: 1, irq: 1, nmi: 1, so: 1, res: 1 };
+const pins = { rdy: 1, irq: 1, nmi: 1, so: 1, res: 1 }, pinsU = { rdy: 1, irq: 1, nmi: 1, so: 1, res: 1 };   // pins: what the CPU sees; pinsU: what you set
+function syncPins() {
+  for (const k in pins) {
+    const n = k.toUpperCase(), was = pins[k]; pins[k] = n in pinF ? pinLv(n) : pinsU[k];
+    if (was === 1 && pins[k] === 0) { if (k === 'nmi') cpu.nmiPending = true; if (k === 'so') { if (!midInstruction()) cpu.p |= 0x40; else pendingSO = true; } }
+  }
+  cpu.irqLine = pins.irq === 0;
+}
 let clk = 1;
 const PINS = [
   [1,'VSS1','g'],[2,'RDY','i'],[3,'PHI1','o'],[4,'IRQ','i'],[5,'NC5','n'],[6,'NMI','i'],[7,'SYNC','o'],[8,'VCC','p'],[9,'A0','o'],[10,'A1','o'],
@@ -704,11 +724,8 @@ function buildChip() {
 function pinClick(name) {
   if (name === 'PHI0') { pulseClock(); return; }
   const k = name.toLowerCase();
-  const was = pins[k];
-  pins[k] = was ? 0 : 1; pinSync();
-  if (k === 'nmi' && was === 1) cpu.nmiPending = true;
-  if (k === 'irq') cpu.irqLine = pins.irq === 0;
-  if (k === 'so' && was === 1) { if (!midInstruction()) cpu.p |= 0x40; else pendingSO = true; }
+  if (k.toUpperCase() in pinF) { setStatus(`${name} has a fault: clear it (right-click) to set the pin yourself`, true); return; }
+  pinsU[k] = pinsU[k] ? 0 : 1; syncPins(); pinSync();
   if (k === 'res' && pins.res === 1) setStatus('Reset released: the 7-cycle reset sequence runs from the next clock');
   else if (k === 'res') setStatus('/RES is low: the CPU is held in reset from the next clock', true);
   else describeInputs();
@@ -750,6 +767,7 @@ function beginInstruction() {
 // one clock: returns 'mid' | 'done' | 'wait' | 'reset'
 function tick() { const r = tick0(); if (pinWatches.size || busWatches.size) pinCheck(); return r; }
 function tick0() {
+  if ('PHI0' in pinF) return 'noclock';                                        // no clock: nothing moves
   tTotal++;
   if (pins.res === 0) {
     cpu.resetPending = true;
@@ -774,6 +792,7 @@ function setStatus(text, warn, run) {
   el.className = 'status' + (warn ? ' warn' : run ? ' run' : '');
 }
 function describeInputs() {
+  if ('PHI0' in pinF) return setStatus('No clock: the PHI0 pin has a fault, so the CPU stands still', true);
   if (pins.res === 0) return setStatus('Held in reset (/RES low)', true);
   if (curT.waitIns && pins.rdy === 0) return setStatus('Stopped by RDY low on a read cycle', true);
   if (cpu.jammed) return setStatus('CPU jammed on an undocumented opcode at ' + h4(cpu.pc) + 'h: press Reset CPU or pulse /RES', true);
@@ -781,7 +800,8 @@ function describeInputs() {
   setStatus('Ready');
 }
 function stalledMsg(r) {
-  if (r === 'reset') setStatus('Held in reset (/RES low)', true);
+  if (r === 'noclock') setStatus('No clock: the PHI0 pin has a fault, so the CPU stands still', true);
+  else if (r === 'reset') setStatus('Held in reset (/RES low)', true);
   else if (r === 'wait') setStatus('Stopped by RDY low on a read cycle', true);
 }
 function bpMsg() { setStatus(bpText(), true); }
@@ -793,7 +813,7 @@ function pulseClock() {
   const wn = pinHit ? takePin() : r === 'done' ? stopCheck() : null;
   if (wn != null) watchStop(wn);
   else   if (r === 'done' && breakpoints.has(cpu.pc)) bpMsg();
-  else if (r === 'reset' || r === 'wait') stalledMsg(r); else describeInputs();
+  else if (r === 'reset' || r === 'wait' || r === 'noclock') stalledMsg(r); else describeInputs();
   render();
   clearTimeout(clkTimer);
   clkTimer = setTimeout(() => { clk = 1; renderPins(); }, 140);
@@ -854,7 +874,7 @@ function frame(now) {
         const r = tick();
         if (pinHit) { watchStop(takePin()); return; }
         if (r === 'done') { const wn = stopCheck(); if (wn != null) { watchStop(wn); return; } if (checkBoundary()) return; }
-        if (r === 'wait' || r === 'reset') { stall = r; break; }
+        if (r === 'wait' || r === 'reset' || r === 'noclock') { stall = r; break; }
         continue;
       }
       const pc = cpu.pc;
@@ -1629,7 +1649,7 @@ $('dbgType').onchange = dbgFields; $('dbgMemCond').onchange = dbgFields;
 $('dbgAdd').onclick = dbgAdd;
 for (const id of ['dbgAddr', 'dbgMemVal', 'dbgBusVal']) $(id).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dbgAdd(); } });
 $('dbgList').addEventListener('click', e => { const b = e.target.closest('button[data-key]'); if (!b) return; b.classList.contains('x') ? dbgRemove(b.dataset.key) : dbgGo(b.dataset.key); });
-$('dbgClear').onclick = () => { for (const n of Object.keys(pinF)) delete pinF[n]; breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
+$('dbgClear').onclick = () => { for (const n of Object.keys(pinF)) delete pinF[n]; syncPins(); breakpoints.clear(); afterBps.clear(); watches.clear(); memWatches.clear(); pinWatches.clear(); busWatches.clear(); hitReg = null; dbgHit = null; render(); };
 // ---------- memory bitmap: every bit as a pixel ----------
 // Each byte is a row of 8 pixels (bit 7 on the left); each strip is one 256-byte page, top to bottom; a band holds
 // 32 pages (8K). An 8-pixel margin above each band carries the markers. A band is only redrawn when its bytes,
@@ -1737,7 +1757,7 @@ $('memDumpTxt').onclick = () => memDumpDone(benchDownload(`6502-memory-${benchSt
 function masterReset() {
   if (running) stopRun();
   $('dbgClear').onclick();
-  for (const k of Object.keys(pins)) pins[k] = 1;
+  for (const k of Object.keys(pins)) pinsU[k] = 1; syncPins();
   cpu.nmiPending = false;
   mem.fill(0);
   resetCPU(true);
