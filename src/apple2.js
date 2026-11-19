@@ -7,7 +7,8 @@
 //                          soft switches C050h-C05Fh (the 74LS259 at F14: graphics/text, mix, page 2, hires, AN0-AN3),
 //                          serial inputs C06Xh (cassette in, three push buttons, four paddle timers on D7),
 //                          paddle timer trigger C07Xh, the slots' device selects C080h-C0FFh
-//   slots    C100h-CFFFh   the slots' I/O selects and I/O strobe (no cards are fitted: these addresses float)
+//   slots    C100h-CFFFh   the slots' I/O selects and I/O strobe: the cards that can be fitted are a 16K language card
+//                          in slot 0 (RAM over the ROMs at D000h-FFFFh) and a Disk II controller in slot 6 (src/a2disk.js)
 //   ROM      D000h-FFFFh   six 2316B ROMs: D0, D8, E0, E8 and F0 (Applesoft BASIC) and F8 (the Autostart Monitor)
 // Nothing drives the data bus at an address no device answers: the 6502 then reads the byte the video scanner drove
 // out of RAM during the first half of the same cycle ("the floating bus", Sather 5-5). The video is generated cycle
@@ -18,6 +19,8 @@
 // (the scanner's HPE' state) is 16, so a line is 65 cycles and 912 periods, and a frame 262 lines, 17030 cycles.
 // The horizontal scanner counts 0000000, then 1000000 to 1111111 (65 states); the picture is shown from 1011000 on
 // (40 states). The vertical scanner counts 011111010 to 111111111 (262 states); lines 0-191 carry the picture.
+// With the Eurapple jumpers it presets to 011001000 instead: 312 states, 20,280 cycles a frame, 50.32 Hz (Sather 3-11
+// and 8-5).
 
 const A2 = {
   MASTER_HZ: 14318180, LINE_T: 65, LINES: 262, FRAME_T: 17030, VISIBLE: 192,
@@ -60,6 +63,42 @@ function a2Render(fb, burst, out, mode, tint) {
     }
   }
 }
+// ---- cassette tapes, as the times at which the signal changes polarity (cycles from the start of the tape) ----
+// The Monitor's tape format, as its WRITE routine makes it (timed in cycles of the 6502): a header of half cycles of
+// 650 cycles (770 Hz), a sync bit (a half cycle of 200 then one of 250), then each byte from bit 7 down, a 0 bit as two
+// half cycles of 250 cycles and a 1 bit as two of 500, and last a checksum: FFh exclusive-ored with every byte. The
+// header has an odd number of half cycles, as WRITE leaves it: READ times the sync bit from that polarity.
+function a2TapeFromBytes(bytes, headerSec) {
+  const edges = []; let t = 0;
+  const half = c => { t += c; edges.push(t); };
+  for (let i = 0, n = 2 * Math.round((headerSec || 4) * A2.CPU_HZ / 1300) + 1; i < n; i++) half(650);
+  half(200); half(250);
+  let sum = 0xFF;
+  const byte = b => { for (let k = 7; k >= 0; k--) { const c = b >> k & 1 ? 500 : 250; half(c); half(c); } };
+  for (const b of bytes) { byte(b); sum ^= b; }
+  byte(sum); for (let i = 0; i < 40; i++) half(650);
+  return Float64Array.from(edges);
+}
+// a recording (samples between -1 and 1 at a rate) to polarity changes, with a little hysteresis against noise
+function a2TapeFromSamples(samples, rate) {
+  let peak = 0; for (let i = 0; i < samples.length; i += 7) peak = Math.max(peak, Math.abs(samples[i]));
+  const h = peak * 0.08, k = A2.CPU_HZ / rate, edges = []; let s = 0, dc = 0;
+  for (let i = 0; i < samples.length; i++) {
+    dc += (samples[i] - dc) * 0.0005; const x = samples[i] - dc;
+    if (s <= 0 && x > h) { s = 1; edges.push(Math.round(i * k)); } else if (s >= 0 && x < -h) { s = -1; edges.push(Math.round(i * k)); }
+  }
+  return Float64Array.from(edges);
+}
+// polarity changes to a WAV file: 16-bit mono at 44.1 kHz, a square wave as the cassette output gives it
+function a2WavFromTape(edges) {
+  const rate = 44100, k = rate / A2.CPU_HZ, n = Math.ceil((edges.length ? edges[edges.length - 1] : 0) * k) + rate / 2;
+  const buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf), w = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, rate, true); dv.setUint32(28, rate * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, n * 2, true);
+  let e = 0, lv = 1;
+  for (let i = 0; i < n; i++) { while (e < edges.length && edges[e] * k <= i) { lv = -lv; e++; } dv.setInt16(44 + i * 2, e < edges.length ? lv * 12000 : 0, true); }
+  return new Uint8Array(buf);
+}
 class AppleMachine {
   constructor() {
     this.ram = new Uint8Array(0xC000); this.ramSize = 0xC000;
@@ -94,10 +133,15 @@ class AppleMachine {
     this.banks = [...this.ramRows, ...this.romChips.map(c => [c]), [this.cgChip]];
     this.pinF = {}; this.netF = {}; this.heldWhy = null; this.fx = false; this.faulty = false;
     this.acc = new Uint32Array(11);           // accesses: 0-2 RAM rows C, D, E; 3-8 the ROMs D0-F8; 9 the text ROM; 10 I/O C000h-C0FFh
-    this.t = 0; this.ct = 0;
+    this.t = 0; this.ct = 0; this.euro = false; this.FT = A2.FRAME_T;
+    // cards: the language card (slot 0) and the Disk II controller (slot 6), fitted from the page
+    this.lc = false; this.lcRam = new Uint8Array(0x4000); this.disk = typeof DiskII !== 'undefined' ? new DiskII(this, 6) : null; this.diskOn = false;
+    this.tape = null; this.rec = null;
     this.reset(true);
   }
   setRam(kb) { this.ramSize = kb * 1024; }
+  // the Eurapple jumpers: 50 Hz scanning (the page powers the machine on again after changing them)
+  setEuro(on) { this.euro = !!on; this.FT = (on ? 312 : 262) * 65; }
   // ---- lines and faults (the shared scheme in memchips.js) ----
   // The lines, from the RFI schematic. The 6502 (H7) reaches the system bus through the 8T97 address buffers (H3-H5)
   // and the 8T28 data transceivers (H10, H11), so its own pins are on lines of their own. The 24 RAMs share RA0-RA6
@@ -146,7 +190,11 @@ class AppleMachine {
       this.strobe = 0; this.kbd = 0; this.spk = 0; this.casOut = 0; this.tapeIn = 0;
       this.frames = 0; this.frameT = this.ct; this.vt = 0; this.flash = 0; this.speakerToggles = 0;
       this.work.fill(0); this.fb.fill(0);
+      this.lcRam.fill(0);
     }
+    // the language card on RESET: read the ROMs, write enabled to bank 2 of its RAM
+    this.lcBank2 = true; this.lcRead = false; this.lcWE = true; this.lcPre = false;
+    if (this.disk) this.disk.reset();
     this.typeQ.length = 0;
     this.cpu.reset();
   }
@@ -155,7 +203,7 @@ class AppleMachine {
   // the next 64 count 1000000 to 1111111. Lines 0-255 are vertical counts 100000000-111111111, lines 256-261 the
   // counts 011111010-011111111 at the start of the next frame's count (they repeat the memory of lines 250-255).
   hState(c) { const h = c % 65; return h ? 0x3F + h : 0; }
-  vState(c) { const l = (c / 65) | 0; return l < 256 ? 0x100 + l : 0xFA + l - 256; }
+  vState(c) { const l = (c / 65) | 0; return l < 256 ? 0x100 + l : (this.euro ? 0xC8 : 0xFA) + l - 256; }
   // the address the scanner drives out of RAM in frame cycle c, for the soft switches s
   scanAddr(c, s) {
     const H = this.hState(c), V = this.vState(c), v3 = V >> 6 & 1, v4 = V >> 7 & 1, v2 = V >> 5 & 1;
@@ -172,7 +220,7 @@ class AppleMachine {
     return this.faulty && this.ramRows[row].faulty ? memBankRead(this.ramRows[row], a & 0x3FFF, true) : this.ram[a];
   }
   frameCycle() { return this.ct - this.frameT; }
-  floating() { const c = this.ct - 1 - this.frameT; return this.scanByte(c < 0 ? c + A2.FRAME_T : c % A2.FRAME_T); }
+  floating() { const c = this.ct - 1 - this.frameT; return this.scanByte(c < 0 ? c + this.FT : c % this.FT); }
   // ---- the video generator (Sather chapter 8): one byte of picture per displayed cycle, 14 dots of 14M ----
   // TEXT: the byte addresses the text ROM with the row (VA-VC); bits 6-0 of the ROM are the seven dots, left to right,
   // two 14M periods each. DL7 high: normal; DL7 and DL6 low: inverse; DL7 low and DL6 high: flashing, inverse while
@@ -184,7 +232,7 @@ class AppleMachine {
     const s = this.sw, w = this.work, cg = this.chargen, cf = this.faulty && this.cgChip.faulty, cgB = this.banks[this.banks.length - 1];
     for (let c = this.vt; c < end; c++) {
       const l = (c / 65) | 0, h = c % 65;
-      if (l >= 192) { c = A2.FRAME_T; break; }
+      if (l >= 192) { c = this.FT; break; }
       if (h < 25) continue;
       this.burstW[l] = s.text ? 0 : 1;                            // the colour burst goes out in GRAPHICS mode only
       const col = h - 25, b = this.vByte(this.scanAddr(c, s)), o = l * A2.W + col * 14;
@@ -204,7 +252,7 @@ class AppleMachine {
         for (let k = 0; k < 7; k++) { const v = b >> k & 1, x = 2 * k + d; w[o + x] = v; if (x + 1 < 14) w[o + x + 1] = v; }
       }
     }
-    this.vt = Math.max(this.vt, Math.min(end, A2.FRAME_T));
+    this.vt = Math.max(this.vt, Math.min(end, this.FT));
   }
   // the picture as it stands now: the lines of this frame drawn so far over the last whole frame
   liveFrame() {
@@ -215,9 +263,9 @@ class AppleMachine {
   }
   catchUp() { const c = this.ct - this.frameT; if (c > this.vt) this.vidTo(c); }
   endFrame() {
-    this.vidTo(A2.FRAME_T);
+    this.vidTo(this.FT);
     this.fb.set(this.work); this.burst.set(this.burstW);
-    this.frames++; this.frameT += A2.FRAME_T; this.vt = 0;
+    this.frames++; this.frameT += this.FT; this.vt = 0;
     this.flash = (this.frames >> 4) & 1;                       // the 2 Hz flasher: inverse for 16 frames, normal for 16
   }
   // ---- memory ----
@@ -235,7 +283,11 @@ class AppleMachine {
       return this.faulty && this.ramRows[a >> 14].faulty ? memBankRead(this.ramRows[a >> 14], a & 0x3FFF, quiet) : this.ram[a];
     }
     if (a < 0xC100) return quiet ? this.peekIO(a) : this.io(a, false, 0);
-    if (a < 0xD000) return quiet ? 0xFF : this.floating();          // the slots: no cards
+    if (a < 0xD000) {                                              // the slots' ROMs: the Disk II's boot PROM in slot 6
+      if (this.diskOn && this.disk.rom && a >> 8 === 0xC0 + this.disk.slot) return this.disk.rom[a & 0xFF];
+      return quiet ? 0xFF : this.floating();
+    }
+    if (this.lc && this.lcRead) return this.lcRam[this.lcAddr(a)];   // the language card's RAM: INHIBIT' turns the ROMs off
     const i = (a - 0xD000) >> 11, c = this.romChips[i];
     if (!quiet) this.acc[3 + i]++;
     if (!this.fitted[c.id] || c.inhibited) return quiet ? 0xFF : this.floating();
@@ -255,6 +307,17 @@ class AppleMachine {
       return;
     }
     if (a < 0xC100) this.io(a, true, v);
+    else if (a >= 0xD000 && this.lc && this.lcWE) this.lcRam[this.lcAddr(a)] = v;
+  }
+  // the language card: D000h-DFFFh is one of two 4K banks, E000h-FFFFh is 8K (Apple's 16K RAM card)
+  lcAddr(a) { return a < 0xE000 ? (a & 0xFFF) | (this.lcBank2 ? 0x1000 : 0) : a - 0xE000 + 0x2000; }
+  // C080h-C08Fh (slot 0): bit 3 picks bank 1 (set) or 2; bits 0 and 1 both clear or both set read the RAM, else the
+  // ROMs; two reads in a row of an odd address enable writing to the RAM, an even address disables it
+  lcIO(a, wr) {
+    const x = a & 15;
+    this.lcBank2 = !(x & 8); this.lcRead = (x & 3) === 0 || (x & 3) === 3;
+    if (x & 1) { if (!wr) { if (this.lcPre) this.lcWE = true; this.lcPre = true; } else this.lcPre = false; }
+    else { this.lcWE = false; this.lcPre = false; }
   }
   // ---- I/O: C000h-C0FFh. Any access acts, read or write (R/W' is not part of the decoding, Sather 7-8) ----
   io(a, wr, v) {
@@ -263,17 +326,22 @@ class AppleMachine {
     switch (r) {
       case 0: return this.kbd | this.strobe << 7;                              // the keyboard: 7-bit code and the strobe flip-flop
       case 1: this.strobe = 0; return fl();
-      case 2: this.casOut ^= 1; return fl();
+      case 2: this.casOut ^= 1; if (this.rec) this.rec.push(this.ct); return fl();
       case 3: this.spk ^= 1; this.speakerToggles++; this.audioEdge(); return fl();
       case 4: return fl();                                                       // C040 STROBE' to the game connector
       case 5: { this.catchUp(); const sw = A2_SWITCHES[a >> 1 & 7]; this.sw[sw[0]] = a & 1; return fl(); }
       case 6: {                                                                  // the serial input multiplexor on D7 only
         const n = a & 7, now = this.ct;
-        const bit = n === 0 ? this.tapeIn : n < 4 ? this.button[n - 1] : now < this.timerEnd[n - 4] ? 1 : 0;
+        const bit = n === 0 ? this.tapeLevel() : n < 4 ? this.button[n - 1] : now < this.timerEnd[n - 4] ? 1 : 0;
         return bit << 7 | fl() & 0x7F;
       }
       case 7: for (let n = 0; n < 4; n++) this.timerEnd[n] = this.ct + this.paddleCycles(n); return fl();
-      default: return fl();                                                      // C080h-C0FFh: the slots' device selects
+      default: {                                                                 // C080h-C0FFh: the slots' device selects
+        const slot = r - 8;
+        if (slot === 0 && this.lc) { this.lcIO(a, wr); return fl(); }
+        if (this.diskOn && slot === this.disk.slot) return this.disk.io(a, wr, v);
+        return fl();
+      }
     }
   }
   // the 558 timer's pulse is (R + 100) x 0.022 microseconds for a 150K paddle at resistance R (Sather 7-11)
@@ -281,9 +349,23 @@ class AppleMachine {
   peekIO(a) {
     const r = a >> 4 & 15;
     if (r === 0) return this.kbd | this.strobe << 7;
-    if (r === 6) { const n = a & 7; return (n === 0 ? this.tapeIn : n < 4 ? this.button[n - 1] : this.ct < this.timerEnd[n - 4] ? 1 : 0) << 7; }
+    if (r === 6) { const n = a & 7; return (n === 0 ? this.tapeLevel() : n < 4 ? this.button[n - 1] : this.ct < this.timerEnd[n - 4] ? 1 : 0) << 7; }
     return 0xFF;
   }
+  // ---- the cassette: a tape is the times (in cycles from its start) at which the signal changes polarity ----
+  // C060h bit 7 is the comparator on the cassette input: it follows the tape's polarity while the tape plays.
+  playTape(edges, label) { this.tape = { edges, at: this.ct, pos: 0, label: label || 'tape', len: edges.length ? edges[edges.length - 1] : 0 }; }
+  stopTape() { this.tape = null; }
+  tapeLevel() {
+    const t = this.tape; if (!t) return this.tapeIn;
+    const now = this.ct - t.at, e = t.edges;
+    while (t.pos < e.length && e[t.pos] <= now) t.pos++;
+    this.tapeIn = t.pos & 1; return this.tapeIn;
+  }
+  tapeDone() { return !!this.tape && this.ct - this.tape.at >= this.tape.len; }
+  // recording the cassette output: the cycle of every toggle of C020h
+  startRec() { this.rec = []; this.recAt = this.ct; }
+  stopRec() { const r = this.rec; this.rec = null; return (r || []).map(c => c - this.recAt); }
   // ---- keyboard: the AY-5-3600 encoder latches a 7-bit code and its strobe sets the flip-flop read on D7 ----
   // Typed text waits in a queue: the next key goes in once the program has cleared the strobe.
   key(code) { this.kbd = code & 0x7F; this.strobe = 1; this.keyAt = this.ct; }
@@ -298,7 +380,7 @@ class AppleMachine {
     if (this.cpu.lastEvent === 'IRQ') this.irqs = (this.irqs || 0) + 1;
     if (this.audioRate) { this.audioT += n * this.audioRate; while (this.audioT >= A2.CPU_HZ) { this.audioT -= A2.CPU_HZ; this.abuf[this.aw++ & 32767] = this.spk ? 0.25 : -0.25; } }
     if (this.typeQ.length && !this.strobe && this.ct - (this.keyAt || 0) > 2000) this.key(this.typeQ.shift());
-    while (this.ct - this.frameT >= A2.FRAME_T) this.endFrame();
+    while (this.ct - this.frameT >= this.FT) this.endFrame();
     return n;
   }
   get line() { return ((this.ct - this.frameT) / 65) | 0; }
@@ -355,4 +437,4 @@ class AppleMachine {
   }
 }
 Object.assign(AppleMachine.prototype, BOARD_FAULTS);
-if (typeof module !== 'undefined') module.exports = { AppleMachine, A2, A2_SOCKETS, A2_ROM_PARTS, A2_TOKENS, A2_SWITCHES, A2_PALETTE, a2Render };
+if (typeof module !== 'undefined') module.exports = { AppleMachine, A2, A2_SOCKETS, A2_ROM_PARTS, A2_TOKENS, A2_SWITCHES, A2_PALETTE, a2Render, a2TapeFromBytes, a2TapeFromSamples, a2WavFromTape };

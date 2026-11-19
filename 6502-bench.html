@@ -306,8 +306,14 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 .a2kb .krow { grid-template-columns: repeat(60, minmax(0, 1fr)); }
 .a2kb { background: linear-gradient(#cdc6b4, #bdb59f); }
 .a2kb .cap { min-height: 34px; }
+.a2tape .lbl, .a2drive .lbl { font-size: 12.5px; }
+.a2tinfo { font-size: 11.5px; color: var(--muted); }
+.a2drive { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.a2drive .led { width: 10px; height: 10px; border-radius: 50%; background: #4a2420; border: 1px solid #2a1210; }
+.a2drive .led.on { background: #ff3b2f; box-shadow: 0 0 6px #ff3b2f; }
+.a2drive .info { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
 .a2paste { flex: 1; min-width: 200px; font-size: 12.5px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); resize: vertical; min-height: 0; height: 3.4em; }
-#pScreen .row, #pScreen .msg, #pScreen .hint, .ptromlist { max-width: 860px; margin-left: auto; margin-right: auto; }
+#pScreen .row, #pScreen .msg, #pScreen .hint, .ptromlist, #a2Drives { max-width: 860px; margin-left: auto; margin-right: auto; }
 .ptromlist { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .ptsockets { max-width: 860px; margin: 10px auto 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
 @media (max-width: 760px) { .ptsockets { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
@@ -442,11 +448,25 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
           <label class="inline" for="a2BinAddr">at <input id="a2BinAddr" type="text" class="mono" value="0300" size="5" maxlength="4"></label>
           <button id="a2Listing" type="button">Listing (.txt)</button>
         </div>
+        <div class="row">
+          <label class="inline" for="a2Hz" title="The Eurapple jumpers: the vertical scanner presets to 011001000 for 312 lines, 50.32 frames a second">Scanning <select id="a2Hz"><option value="60" selected>60 Hz (USA)</option><option value="50">50 Hz (Eurapple)</option></select></label>
+          <label class="inline" title="Apple's 16K RAM card (the language card) in slot 0: 16K of RAM over the ROMs at D000h–FFFFh, switched at C080h–C08Fh"><input type="checkbox" id="a2Lc"> Language card (slot 0)</label>
+          <label class="inline" title="The Disk II controller card in slot 6, with two drives. It needs its boot PROM (P5, 341-0027): your own file, loaded with the ROM folder"><input type="checkbox" id="a2Dsk"> Disk II (slot 6)</label>
+        </div>
+        <div id="a2Drives" hidden></div>
+        <div class="row a2tape">
+          <b class="lbl">Cassette</b>
+          <button id="a2TapeIn" type="button" title="A recording of an Apple tape (WAV, MP3 or any audio file your browser can decode); it goes into the deck ready to play">Load tape…</button><input type="file" id="a2TapeFile" accept="audio/*,.wav" hidden>
+          <button id="a2TapeBin" type="button" title="Makes a tape in the Monitor's format from a binary file (header, sync bit, the bytes, the checksum), to be read with the Monitor's R command">Tape from binary…</button><input type="file" id="a2TapeBinFile" hidden>
+          <button id="a2Play" type="button">Play</button>
+          <button id="a2Rec" type="button" title="Records the cassette output (C020h) as a WAV file, for SAVE in BASIC or W in the Monitor">Record</button>
+          <span class="mono a2tinfo" id="a2TapeInfo">no tape</span>
+        </div>
         <div class="msg" id="a2Msg"></div>
         <div class="ptsockets" id="a2Sockets" aria-label="ROM sockets"></div>
         <div class="ptromlist mono" id="a2RomList"></div>
         <div class="ptkb a2kb" id="a2Kb" aria-label="Keyboard"></div>
-        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The ROMs are not included; your browser keeps them once loaded.</p>
+        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The cassette plays a recording of an Apple tape into the cassette input (C060h): type LOAD in BASIC, or the address range and R in the Monitor, then press Play; Tape from binary makes such a tape from a file, for the Monitor's R. Record catches the cassette output (C020h) while you SAVE or W, and gives it to you as a WAV file; the recording also stays in the deck to be played back. The language card puts 16K of RAM over the ROMs, as DOS 3.3 uses it for the other BASIC. The Disk II takes disk images (.dsk, .do, .po, .nib) in two drives; boot with PR#6 (or the Monitor's C600G), and Save writes the disk back as an image with what the program wrote to it. 50 Hz scanning is the Eurapple's: 312 lines a frame instead of 262. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
       <section class="panel" id="pMemChips">
         <h2>Memory and I/O chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
@@ -637,6 +657,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 <script src="src/m6502core.js"></script>
 <script src="src/m6502asm.js"></script>
 <script src="src/memchips.js"></script>
+<script src="src/a2disk.js"></script>
 <script src="src/apple2.js"></script>
 <script>
 (() => {
@@ -1770,17 +1791,19 @@ function drawA2() {
 let a2Sig = '';
 const a2Bits = (v, n) => v.toString(2).padStart(n || 8, '0');
 function renderA2State() {
-  const s = ap.sw, c = ap.frameCycle() % A2.FRAME_T, H = ap.hState(c), V = ap.vState(c), sa = ap.scanAddr(c, s), on = v => `<b>${v}</b>`;
+  const s = ap.sw, c = ap.frameCycle() % ap.FT, H = ap.hState(c), V = ap.vState(c), sa = ap.scanAddr(c, s), on = v => `<b>${v}</b>`;
   const kc = ap.kbd, kch = kc >= 32 && kc < 127 ? '“' + String.fromCharCode(kc) + '”' : kc === 13 ? 'RETURN' : kc === 8 ? '←' : kc === 0x15 ? '→' : kc === 0x1B ? 'ESC' : kc < 32 ? 'CTRL-' + String.fromCharCode(kc + 64) : '';
   const pdl = n => { const left = ap.timerEnd[n] - ap.ct; return `PDL ${n} ${Math.round(ap.paddle[n] * 255)} (${Math.round(ap.paddleCycles(n) / A2.CPU_HZ * 1e6)} µs)${left > 0 ? ' · timing' : ''}`; };
   const html = `<div class="blk"><div class="hd">Soft switches · C050h–C05Fh (74LS259 at F14)</div><div class="kv">${on(s.text ? 'TEXT' : 'GRAPHICS')} · ${on(s.mixed ? 'MIX' : 'NOMIX')} · ${on(s.page2 ? 'PAGE 2' : 'PAGE 1')} · ${on(s.hires ? 'HIRES' : 'LORES')}<br>Annunciators AN0 <b>${s.an0}</b> AN1 <b>${s.an1}</b> AN2 <b>${s.an2}</b> AN3 <b>${s.an3}</b></div></div>
     <div class="blk"><div class="hd">Keyboard · C000h</div><div class="kv">Latched code <b>${h2(kc)}</b> ${esc(kch)} · strobe <b>${ap.strobe}</b> (C000h reads <b>${h2(kc | ap.strobe << 7)}</b>)${ap.typeQ.length ? ` · <b>${ap.typeQ.length}</b> keys waiting to be typed` : ''}</div></div>
     <div class="blk"><div class="hd">Speaker, cassette and game I/O</div><div class="kv">Speaker <b>${ap.spk}</b> (toggled <b>${ap.speakerToggles.toLocaleString('en-AU')}</b> times) · cassette out <b>${ap.casOut}</b> · cassette in <b>${ap.tapeIn}</b><br>${pdl(0)} · ${pdl(1)}<br>Push buttons PB0 <b>${ap.button[0]}</b> PB1 <b>${ap.button[1]}</b> PB2 <b>${ap.button[2]}</b></div></div>
-    <div class="blk"><div class="hd">Video scanner</div><div class="kv">Frame cycle <b>${c.toLocaleString('en-AU')}</b> of ${A2.FRAME_T.toLocaleString('en-AU')} · line <b>${(c / 65) | 0}</b> · cycle <b>${c % 65}</b> of 65${c % 65 === 0 ? ' (the long cycle)' : ''}<br>Horizontal <b>${a2Bits(H, 7)}</b> · vertical <b>${a2Bits(V, 9)}</b> · ${H < 0x58 || ((c / 65) | 0) >= 192 ? 'blanking' : 'picture, column <b>' + (H - 0x58) + '</b>'}<br>Scanner address <b>${h4(sa)}h</b> · floating bus <b>${h2(ap.vByte(sa))}h</b></div></div>
-    <div class="blk"><div class="hd">Machine</div><div class="kv">Apple II Plus (RFI board) · <b>${ap.ramSize / 1024}K</b> RAM · ROMs fitted: <b>${A2_SOCKETS.filter(x => ap.fitted[x[0]]).map(x => x[0]).join(' ') || 'none'}</b>${ap.hasChargen ? ' · text ROM' : ''} · frames <b>${ap.frames.toLocaleString('en-AU')}</b></div></div>`;
+    <div class="blk"><div class="hd">Video scanner</div><div class="kv">Frame cycle <b>${c.toLocaleString('en-AU')}</b> of ${ap.FT.toLocaleString('en-AU')} · line <b>${(c / 65) | 0}</b> · cycle <b>${c % 65}</b> of 65${c % 65 === 0 ? ' (the long cycle)' : ''}<br>Horizontal <b>${a2Bits(H, 7)}</b> · vertical <b>${a2Bits(V, 9)}</b> · ${H < 0x58 || ((c / 65) | 0) >= 192 ? 'blanking' : 'picture, column <b>' + (H - 0x58) + '</b>'}<br>Scanner address <b>${h4(sa)}h</b> · floating bus <b>${h2(ap.vByte(sa))}h</b></div></div>
+    ${ap.lc ? `<div class="blk"><div class="hd">Language card · slot 0, C080h–C08Fh</div><div class="kv">Reads <b>${ap.lcRead ? 'its RAM' : 'the ROMs'}</b> · D000h bank <b>${ap.lcBank2 ? 2 : 1}</b> · writes <b>${ap.lcWE ? 'enabled' : 'protected'}</b>${ap.lcPre ? ' (one odd read: another enables writing)' : ''}</div></div>` : ''}
+    ${ap.diskOn ? (k => `<div class="blk"><div class="hd">Disk II · slot 6, C0E0h–C0EFh</div><div class="kv">Drive <b>${k.drive + 1}</b> · motor <b>${k.motor ? 'on' : k.spinning() ? 'running on' : 'off'}</b> · phases <b>${a2Bits(k.phases, 4)}</b> · head on track <b>${k.cur().ht >> 1}${k.cur().ht & 1 ? '.5' : ''}</b><br>Q6 <b>${k.q6}</b> Q7 <b>${k.q7}</b> (${k.q7 ? (k.q6 ? 'load' : 'write') : k.q6 ? 'sense write protect' : 'read'}) · data register <b>${h2(k.latch)}</b> · boot PROM ${k.rom ? '<b>fitted</b>' : '<b>missing</b>'}${k.writes ? ` · <b>${k.writes.toLocaleString('en-AU')}</b> nibbles written` : ''}</div></div>`)(ap.disk) : ''}
+    <div class="blk"><div class="hd">Machine</div><div class="kv">Apple II Plus (RFI board) · <b>${ap.euro ? '50 Hz Eurapple' : '60 Hz'}</b> · <b>${ap.ramSize / 1024}K</b> RAM · ROMs fitted: <b>${A2_SOCKETS.filter(x => ap.fitted[x[0]]).map(x => x[0]).join(' ') || 'none'}</b>${ap.hasChargen ? ' · text ROM' : ''} · frames <b>${ap.frames.toLocaleString('en-AU')}</b></div></div>`;
   if (html !== a2Sig) { a2Sig = html; $('a2State').innerHTML = html; }
 }
-function renderPt() { drawA2(); renderA2State(); }
+function renderPt() { drawA2(); renderA2State(); a2DriveShow(); a2TapeShow(); }
 // ---- keyboard ----
 // The Apple II Plus keyboard (Sather figure 7.8): an AY-5-3600 encoder sends a 7-bit code and a strobe for each key.
 // Letters are upper case with or without SHIFT, except N, M and P, which give ^, ] and @ with SHIFT. CTRL with a key
@@ -1857,9 +1880,11 @@ const A2_ROLES = {
   E8: { name: 'Applesoft BASIC E800h (341-0014)', addr: 0xE800, crc: ['5719871A'] },
   F0: { name: 'Applesoft BASIC F000h (341-0015)', addr: 0xF000, crc: ['9A04EECF'] },
   F8: { name: 'Autostart Monitor F800h (341-0020)', addr: 0xF800, crc: ['079589C4'] },
-  A5: { name: 'text ROM (341-0036)', addr: -1, crc: ['64F415C6'] }
+  A5: { name: 'text ROM (341-0036)', addr: -1, crc: ['64F415C6'] },
+  P5: { name: 'Disk II boot PROM (341-0027)', addr: -2, crc: [], size: 256 }
 };
-const A2_SOCK = [['D0', 0xD000, 'BASIC'], ['D8', 0xD800, 'BASIC'], ['E0', 0xE000, 'BASIC'], ['E8', 0xE800, 'BASIC'], ['F0', 0xF000, 'BASIC'], ['F8', 0xF800, 'Monitor'], ['A5', -1, 'text ROM']];
+const A2_BOARD = ['D0', 'D8', 'E0', 'E8', 'F0', 'F8', 'A5'];      // the main board's seven; P5 is on the Disk II card
+const A2_SOCK = [['D0', 0xD000, 'BASIC'], ['D8', 0xD800, 'BASIC'], ['E0', 0xE000, 'BASIC'], ['E8', 0xE800, 'BASIC'], ['F0', 0xF000, 'BASIC'], ['F8', 0xF800, 'Monitor'], ['A5', -1, 'text ROM'], ['P5', -2, 'Disk II boot']];
 const a2Roms = {}, a2Names = {}, a2Custom = {};
 function a2Crc(b) { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; } return (~c >>> 0).toString(16).toUpperCase().padStart(8, '0'); }
 const a2B64 = bytes => { let s = ''; for (const x of bytes) s += String.fromCharCode(x); return btoa(s); };
@@ -1867,6 +1892,8 @@ const a2Un64 = s => { s = atob(s); const b = new Uint8Array(s.length); for (let 
 // which ROMs a file holds: [[role, bytes], ...]
 function a2Identify(name, bytes) {
   const crc = a2Crc(bytes);
+  // the Disk II's 16-sector boot PROM: 256 bytes that start LDX #20h, LDY #0, LDX #3 (the boot code finding its slot)
+  if (bytes.length === 256 && bytes[0] === 0xA2 && bytes[1] === 0x20 && bytes[2] === 0xA0 && bytes[3] === 0x00) return { list: [['P5', bytes]], crc };
   if (bytes.length === 2048) { for (const [r, d] of Object.entries(A2_ROLES)) if (d.crc.includes(crc)) return { list: [[r, bytes]], crc }; return { list: [], crc }; }
   if (bytes.length === 12288 || bytes.length === 16384 || bytes.length === 20480) {      // D000h-FFFFh, C000h-FFFFh, or C000h-FFFFh with... (the last 12K is the ROM space)
     const base = bytes.length - 12288, out = [];
@@ -1881,18 +1908,19 @@ function a2SockShow() {
   $('a2Sockets').innerHTML = A2_SOCK.map(([s, addr, what]) => {
     const c = a2Custom[s], std = a2Roms[s], cls = c ? 'custom' : std ? 'fitted' : 'missing';
     const part = A2_ROLES[s].name.replace(/^.*\(/, '').replace(')', ''), file = c ? c.name : std ? part : 'needs ' + part;
-    const tip = `${s}: ${what}${addr >= 0 ? ' at ' + h4(addr) + 'h–' + h4(addr + 0x7FF) + 'h' : ', not on the CPU bus'}, 2K. ` + (c ? 'Fitted with your own ROM ' + c.name + '.' : std ? 'Fitted with the standard ' + A2_ROLES[s].name + (a2Names[s] ? ', from ' + a2Names[s] : '') + '.' : 'Empty: the standard ROM here is ' + A2_ROLES[s].name + '.') + ' Click to fit a ROM file of your own.';
-    return `<div class="sock ${cls}"><button type="button" class="chipbtn" data-s="${s}" title="${q(tip)}"><b>${s}</b><span class="what">${what}${addr >= 0 ? ' · ' + h4(addr) + 'h' : ''}</span><span class="file">${esc(file)}</span><span class="tag">${c ? 'your ROM' : std ? 'standard' : 'missing'}</span></button>${c ? `<button type="button" class="unfit" data-u="${s}" title="Take your ROM out of ${s} and go back to the standard one">remove</button>` : ''}</div>`;
+    const tip = `${s}: ${what}${addr >= 0 ? ' at ' + h4(addr) + 'h–' + h4(addr + 0x7FF) + 'h, 2K' : addr === -2 ? ' on the Disk II controller card, at C600h–C6FFh in slot 6, 256 bytes' : ', not on the CPU bus, 2K'}. ` + (c ? 'Fitted with your own ROM ' + c.name + '.' : std ? 'Fitted with the standard ' + A2_ROLES[s].name + (a2Names[s] ? ', from ' + a2Names[s] : '') + '.' : 'Empty: the standard ROM here is ' + A2_ROLES[s].name + '.') + ' Click to fit a ROM file of your own.';
+    return `<div class="sock ${cls}"><button type="button" class="chipbtn" data-s="${s}" title="${q(tip)}"><b>${s}</b><span class="what">${what}${addr >= 0 ? ' · ' + h4(addr) + 'h' : addr === -2 ? ' · C600h' : ''}</span><span class="file">${esc(file)}</span><span class="tag">${c ? 'your ROM' : std ? 'standard' : 'missing'}</span></button>${c ? `<button type="button" class="unfit" data-u="${s}" title="Take your ROM out of ${s} and go back to the standard one">remove</button>` : ''}</div>`;
   }).join('');
 }
 function a2RomShow() {
-  const miss = Object.keys(A2_ROLES).filter(r => !a2Roms[r]);
-  $('a2RomList').textContent = 'Apple II Plus standard ROMs: ' + (miss.length ? (miss.length === 7 ? 'none loaded' : 'missing ' + miss.map(r => A2_ROLES[r].name).join(', ')) : 'complete');
+  const miss = A2_BOARD.filter(r => !a2Roms[r]);
+  $('a2RomList').textContent = 'Apple II Plus standard ROMs: ' + (miss.length ? (miss.length === 7 ? 'none loaded' : 'missing ' + miss.map(r => A2_ROLES[r].name).join(', ')) : 'complete') + ' · Disk II boot PROM: ' + (a2Roms.P5 || a2Custom.P5 ? 'loaded' : 'not loaded (needed to boot disks)');
   a2SockShow();
 }
 function a2Fit() {      // the standard ROMs into their sockets, then any ROMs of the user's own on top
   ap.fitted = {}; ap.rom.fill(0); ap.hasChargen = false;
-  const place = (s, bytes) => { const d = A2_SOCK.find(x => x[0] === s); if (d[1] < 0) { ap.chargen.set(bytes); ap.hasChargen = true; } else ap.loadRom(d[1], bytes); };
+  ap.disk.rom = null;
+  const place = (s, bytes) => { const d = A2_SOCK.find(x => x[0] === s); if (d[1] === -2) ap.disk.rom = bytes.slice(0, 256); else if (d[1] < 0) { ap.chargen.set(bytes); ap.hasChargen = true; } else ap.loadRom(d[1], bytes); };
   for (const [s] of A2_SOCK) if (a2Roms[s]) place(s, a2Roms[s]);
   for (const [s, c] of Object.entries(a2Custom)) place(s, c.bytes);
   disDirty = true; return apOn();
@@ -1902,6 +1930,7 @@ function a2PowerOn() {
   a2Latched.clear(); a2Show();
   try { localStorage.setItem(A2_LS + 'ram', $('a2Ram').value); } catch (e) {}
   a2RomShow();
+  a2CardsFromUi(); a2Recording = false; ap.rec = null; ap.stopTape();
   ap.setRam(+$('a2Ram').value); ap.ram.fill(0); ap.reset(true);
   if (!a2Fit()) { resetCPU(true); $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The Apple cannot start: the Monitor ROM (F8) is missing. Load the ROM folder, or click a socket to fit a ROM of your own.'; a2NoRom(); render(); return; }
   if (!ap.hasChargen) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The text ROM (A5) is missing: the machine runs, but the text screen shows nothing. Load the 341-0036 ROM.'; }
@@ -1913,7 +1942,7 @@ if (!a2DirOk) $('a2LoadRom').textContent = 'Load ROM files…';      // this bro
 $('a2LoadRom').onclick = () => $(a2DirOk ? 'a2RomDir' : 'a2RomFile').click();
 function a2TakeFiles(input) {
   const all = [...input.files]; input.value = ''; if (!all.length) return;
-  const fs = all.filter(f => [2048, 12288, 16384, 20480].includes(f.size)), other = all.length - fs.length;
+  const fs = all.filter(f => [256, 2048, 12288, 16384, 20480].includes(f.size)), other = all.length - fs.length;
   Promise.all(fs.map(f => f.arrayBuffer().then(b => [f.name, new Uint8Array(b)]))).then(list => {
     const used = [], skipped = [];
     for (const [name, bytes] of list) {
@@ -1921,9 +1950,9 @@ function a2TakeFiles(input) {
       for (const [r, b] of id.list) { a2Roms[r] = b; a2Names[r] = name; try { localStorage.setItem(A2_LS + 'rom.' + r, a2B64(b)); localStorage.setItem(A2_LS + 'name.' + r, name); } catch (e) {} }
       used.push(name);
     }
-    const msg = $('a2Msg'), complete = Object.keys(A2_ROLES).every(r => a2Roms[r]);
+    const msg = $('a2Msg'), complete = A2_BOARD.every(r => a2Roms[r]);
     msg.className = used.length ? 'msg ok' : 'msg err';
-    msg.textContent = (used.length ? `Loaded ${used.length} ROM file${used.length === 1 ? '' : 's'}. ` + (complete ? 'All seven Apple II Plus ROMs are in.' : 'Some sockets are still empty: the row below shows which.') : `No Apple II Plus ROM was found among ${all.length} file${all.length === 1 ? '' : 's'}: the ROMs are recognised by their contents (2K files, or one 12K file of D000h–FFFFh).`)
+    msg.textContent = (used.length ? `Loaded ${used.length} ROM file${used.length === 1 ? '' : 's'}. ` + (complete ? 'All seven Apple II Plus ROMs are in' + (a2Roms.P5 ? ', and the Disk II boot PROM.' : '.') : 'Some sockets are still empty: the row below shows which.') : `No Apple II Plus ROM was found among ${all.length} file${all.length === 1 ? '' : 's'}: the ROMs are recognised by their contents (2K files, or one 12K file of D000h–FFFFh).`)
       + (used.length && skipped.length ? ` Not recognised: ${skipped.join(', ')}.` : '') + (used.length && other ? ` ${other} other file${other === 1 ? '' : 's'} ignored.` : '');
     if (used.length) a2PowerOn(); else { a2RomShow(); render(); }
   });
@@ -1941,8 +1970,9 @@ $('a2SockFile').onchange = () => {
   const f = $('a2SockFile').files[0], s = a2SockTarget; $('a2SockFile').value = ''; if (!f || !s) return;
   f.arrayBuffer().then(buf => {
     const src = new Uint8Array(buf), msg = $('a2Msg');
-    if (!src.length || src.length > 2048) { msg.className = 'msg err'; msg.textContent = `${f.name} is ${src.length.toLocaleString('en-AU')} bytes: socket ${s} takes a 2K ROM (a 2316B or a 2716 EPROM).`; return; }
-    const bytes = new Uint8Array(2048); for (let i = 0; i < 2048; i++) bytes[i] = src[i % src.length];
+    const size = A2_ROLES[s].size || 2048;
+    if (!src.length || src.length > size) { msg.className = 'msg err'; msg.textContent = `${f.name} is ${src.length.toLocaleString('en-AU')} bytes: socket ${s} takes ${size === 256 ? 'a 256-byte PROM' : 'a 2K ROM (a 2316B or a 2716 EPROM)'}.`; return; }
+    const bytes = new Uint8Array(size); for (let i = 0; i < size; i++) bytes[i] = src[i % src.length];
     a2Custom[s] = { name: f.name, bytes };
     try { localStorage.setItem(A2_LS + 'custom.' + s, JSON.stringify({ name: f.name, data: a2B64(bytes) })); } catch (e) {}
     msg.className = 'msg ok'; msg.textContent = `${f.name} fitted in ${s} (CRC ${a2Crc(src)})${src.length < 2048 ? ', repeated to fill the socket' : ''}. It stays there until you remove it.`;
@@ -2049,16 +2079,118 @@ function mmDraw(force) {
   const info = `${total.toLocaleString('en-AU')} bytes in ${mmBands.length} band${mmBands.length === 1 ? '' : 's'}`; if ($('mmInfo').textContent !== info) $('mmInfo').textContent = info;
 }
 
+// ---- cards and scanning: changing them switches the Apple off and on, as fitting a card would ----
+function a2CardsFromUi() {
+  ap.lc = $('a2Lc').checked; ap.diskOn = $('a2Dsk').checked; ap.setEuro($('a2Hz').value === '50');
+  $('a2Drives').hidden = !ap.diskOn;
+}
+for (const id of ['a2Lc', 'a2Dsk', 'a2Hz']) $(id).onchange = () => {
+  try { localStorage.setItem(A2_LS + 'cards', JSON.stringify({ lc: $('a2Lc').checked, disk: $('a2Dsk').checked, hz: $('a2Hz').value })); } catch (e) {}
+  if (id === 'a2Dsk' && $('a2Dsk').checked && !ap.disk.rom) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The Disk II card is fitted, but without its boot PROM (P5, 341-0027) it cannot boot a disk: load your P5 file with the ROM folder, or click the P5 socket.'; }
+  a2PowerOn();
+};
+// ---- the Disk II's two drives ----
+let a2DiskTarget = 0;
+function a2DrivesBuild() {
+  $('a2Drives').innerHTML = [0, 1].map(n => `<div class="a2drive" data-d="${n}"><b class="lbl">Drive ${n + 1}</b><span class="led" title="IN USE: the drive is selected and its motor runs"></span>
+    <button type="button" class="ins">Insert disk…</button><button type="button" class="ej">Eject</button><button type="button" class="sv" title="Writes the disk as an image file, with what programs wrote to it">Save image</button>
+    <label class="inline"><input type="checkbox" class="wp"> Write-protect</label><span class="info"></span></div>`).join('') + '<input type="file" id="a2DiskFile" accept=".dsk,.do,.po,.nib" hidden>';
+  for (const row of document.querySelectorAll('#a2Drives .a2drive')) {
+    const n = +row.dataset.d, d = ap.disk.drives[n];
+    row.querySelector('.ins').onclick = () => { a2DiskTarget = n; $('a2DiskFile').click(); };
+    row.querySelector('.ej').onclick = () => { if (d.dirty && !a2EjectOk[n]) { a2EjectOk[n] = true; $('a2Msg').className = 'msg err'; $('a2Msg').textContent = `The disk in drive ${n + 1} has been written to: Save image first to keep the changes, or click Eject again to throw them away.`; return; } a2EjectOk[n] = false; ap.disk.eject(n); a2DriveShow(); };
+    row.querySelector('.sv').onclick = () => {
+      if (!d.disk) return; const kind = /\.po$/i.test(d.name) || d.disk.kind === 'po' ? 'po' : 'dsk', out = a2dSave(d.disk, kind), base = (d.name || 'disk').replace(/\.\w+$/, '');
+      a2Saved(benchDownload(`${base}.${kind}`, out.bytes, 'application/octet-stream'), f => { d.dirty = false; return `Disk saved as ${f}` + (out.bad.length ? ` (${out.bad.length} sector${out.bad.length === 1 ? '' : 's'} could not be read back and are zeros: ${out.bad.slice(0, 3).join(', ')}${out.bad.length > 3 ? '…' : ''}).` : '.'); });
+    };
+    row.querySelector('.wp').onchange = e => { d.wp = e.target.checked; a2DriveShow(); };
+  }
+  $('a2DiskFile').onchange = () => {
+    const f = $('a2DiskFile').files[0], n = a2DiskTarget; $('a2DiskFile').value = ''; if (!f) return;
+    f.arrayBuffer().then(buf => {
+      const msg = $('a2Msg');
+      try { const d = ap.disk.insert(n, f.name, new Uint8Array(buf)); a2EjectOk[n] = false; msg.className = 'msg ok'; msg.textContent = `${f.name} is in drive ${n + 1} (${d.kind === 'nib' ? 'nibbles' : d.kind === 'po' ? 'ProDOS order' : 'DOS 3.3 order'}).` + (ap.disk.rom ? ' Boot it with PR#6, or C600G in the Monitor.' : ' To boot it, the card needs its boot PROM (P5).'); }
+      catch (e) { msg.className = 'msg err'; msg.textContent = `${f.name} is not a disk image this drive can take: ${e.message}.`; }
+      a2DriveShow(); ascr.focus();
+    });
+  };
+}
+const a2EjectOk = [false, false];
+let a2DrvSig = '';
+function a2DriveShow() {
+  if (!ap.diskOn) return;
+  const k = ap.disk, sig = [0, 1].map(n => { const d = k.drives[n]; return [d.name, d.wp, d.ht, d.dirty, k.drive === n && k.spinning()].join('|'); }).join(';');
+  if (sig === a2DrvSig) return; a2DrvSig = sig;
+  for (const row of document.querySelectorAll('#a2Drives .a2drive')) {
+    const n = +row.dataset.d, d = k.drives[n];
+    row.querySelector('.led').classList.toggle('on', k.drive === n && k.spinning());
+    row.querySelector('.wp').checked = d.wp;
+    row.querySelector('.ej').disabled = row.querySelector('.sv').disabled = !d.disk;
+    row.querySelector('.info').textContent = d.disk ? `${d.name} · track ${d.ht >> 1}${d.ht & 1 ? '.5' : ''}${d.dirty ? ' · written to' : ''}` : 'empty';
+  }
+}
+a2DrivesBuild();
+// ---- the cassette deck ----
+let a2Tape = null, a2TapeName = '', a2Recording = false;
+function a2TapeShow() {
+  const t = ap.tape, secs = c => (c / A2.CPU_HZ).toFixed(1) + ' s';
+  if (t && ap.tapeDone()) { ap.stopTape(); a2TapeMsg = a2TapeName + ' played to the end'; }
+  const playing = !!ap.tape;
+  $('a2Play').textContent = playing ? 'Stop' : 'Play'; $('a2Play').disabled = !a2Tape || a2Recording;
+  $('a2Rec').textContent = a2Recording ? 'Stop recording' : 'Record'; $('a2Rec').disabled = playing;
+  $('a2TapeInfo').textContent = a2Recording ? `recording · ${secs(ap.ct - ap.recAt)} · ${ap.rec.length.toLocaleString('en-AU')} changes` : playing ? `playing ${a2TapeName} · ${secs(ap.ct - t.at)} of ${secs(t.len)}` : a2Tape ? `${a2TapeMsg || a2TapeName + ' in the deck'} · ${secs(a2Tape[a2Tape.length - 1] || 0)}` : 'no tape';
+}
+let a2TapeMsg = '';
+function a2Insert(edges, name, how) { a2Tape = edges; a2TapeName = name; a2TapeMsg = ''; if (ap.tape) ap.stopTape(); $('a2Msg').className = 'msg ok'; $('a2Msg').textContent = how; a2TapeShow(); }
+$('a2TapeIn').onclick = () => $('a2TapeFile').click();
+$('a2TapeFile').onchange = () => {
+  const f = $('a2TapeFile').files[0]; $('a2TapeFile').value = ''; if (!f) return;
+  f.arrayBuffer().then(buf => {
+    const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!AC) throw new Error('this browser cannot decode audio');
+    return new AC(1, 1, 44100).decodeAudioData(buf);
+  }).then(ab => {
+    const edges = a2TapeFromSamples(ab.getChannelData(0), ab.sampleRate);
+    if (edges.length < 100) throw new Error('there is no signal in it');
+    a2Insert(edges, f.name, `${f.name} is in the deck (${ab.duration.toFixed(1)} s). Type LOAD in BASIC, or the address range and R in the Monitor (CALL -151), then press Play.`);
+  }).catch(e => { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = `${f.name} could not be played: ${e && e.message ? e.message : 'not an audio file this browser can decode'}.`; });
+};
+$('a2TapeBin').onclick = () => $('a2TapeBinFile').click();
+$('a2TapeBinFile').onchange = () => {
+  const f = $('a2TapeBinFile').files[0]; $('a2TapeBinFile').value = ''; if (!f) return;
+  f.arrayBuffer().then(buf => {
+    const bytes = new Uint8Array(buf), addr = parseInt($('a2BinAddr').value, 16), msg = $('a2Msg');
+    if (!(addr >= 0 && addr < 0xC000) || !bytes.length || addr + bytes.length > 0xC000) { msg.className = 'msg err'; msg.textContent = 'Set the address it loads at (the "at" box: hexadecimal, in RAM) and keep the file within RAM.'; return; }
+    const end = addr + bytes.length - 1;
+    a2Insert(a2TapeFromBytes(bytes, 10), f.name, `A tape of ${f.name} is in the deck (${bytes.length.toLocaleString('en-AU')} bytes). In the Monitor (CALL -151) type ${h4(addr)}.${h4(end)}R, press RETURN, then Play.`);
+  });
+};
+$('a2Play').onclick = () => {
+  if (ap.tape) { ap.stopTape(); a2TapeMsg = a2TapeName + ' stopped'; }
+  else if (a2Tape) { ap.playTape(a2Tape, a2TapeName); a2TapeMsg = ''; if (!running) startRun(); ascr.focus(); }
+  a2TapeShow();
+};
+$('a2Rec').onclick = () => {
+  if (!a2Recording) { ap.startRec(); a2Recording = true; if (!running) startRun(); ascr.focus(); $('a2Msg').className = 'msg'; $('a2Msg').textContent = 'Recording the cassette output: type SAVE in BASIC, or the address range and W in the Monitor, then Stop recording when it has finished.'; a2TapeShow(); return; }
+  const edges = a2Recording ? ap.stopRec() : null; a2Recording = false;
+  if (!edges || edges.length < 100) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'Nothing was recorded: the cassette output did not change.'; a2TapeShow(); return; }
+  const fe = Float64Array.from(edges.map(c => c - edges[0])), name = `apple2-tape-${benchStamp()}.wav`;
+  a2Insert(fe, name, '');
+  a2Saved(benchDownload(name, a2WavFromTape(fe), 'audio/wav'), n => `Recording saved as ${n} (${(fe[fe.length - 1] / A2.CPU_HZ).toFixed(1)} s); it is also in the deck, ready to play back.`);
+};
+a2TapeShow();
 // what the Apple memory bitmap shows: RAM, each ROM that is fitted and the text ROM, tinted by use
 const MM = {
   legend: {
     zp: ['zero page', '#8e6bbf'], stack: ['stack', '#d0483f'], sys: ['input buffer and vectors (pages 2 and 3)', '#1fa3a3'], text1: ['text/LORES page 1', '#2e9e5b'], text2: ['text/LORES page 2', '#6cbf3a'],
-    hgr1: ['HIRES page 1', '#d0a020'], hgr2: ['HIRES page 2', '#b98a1a'], prog: ['BASIC program', '#3f7fd0'], vars: ['variables and arrays', '#e07b39'], str: ['strings', '#c7559a'], ram: ['RAM', '#8a8f98'], cg: ['text ROM: 8 bytes per character', '#e6c229']
+    hgr1: ['HIRES page 1', '#d0a020'], hgr2: ['HIRES page 2', '#b98a1a'], prog: ['BASIC program', '#3f7fd0'], vars: ['variables and arrays', '#e07b39'], str: ['strings', '#c7559a'], ram: ['RAM', '#8a8f98'], cg: ['text ROM: 8 bytes per character', '#e6c229'], lc: ['language card RAM', '#5aa0a8']
   },
   bands() {
     const out = [];
     for (let a = 0; a < ap.ramSize; a += 0x2000) out.push({ label: `RAM ${h4(a)}h-${h4(a + 0x1FFF)}h`, base: a, bytes: 0x2000, read: x => ap.ram[x], cpu: true });
     for (const [name, a] of A2_SOCKETS) if (ap.fitted[name]) out.push({ label: `${name} ROM ${h4(a)}h-${h4(a + 0x7FF)}h`, base: a, bytes: 0x800, read: x => ap.rom[x], cpu: true });
+    if (ap.diskOn && ap.disk.rom) out.push({ label: 'P5 Disk II boot PROM C600h-C6FFh', base: 0xC600, bytes: 0x100, read: x => ap.disk.rom[x - 0xC600], cpu: true });
+    if (ap.lc) out.push({ label: 'language card RAM: D000h bank 1, bank 2, E000h-FFFFh', base: 0, bytes: 0x4000, read: x => ap.lcRam[x], cpu: false, space: 'l', key: 'lc' });
     if (ap.hasChargen) out.push({ label: 'A5 text ROM (not on the CPU bus)', base: 0, bytes: 0x800, read: x => ap.chargen[x], cpu: false, space: 'c', key: 'cg' });
     return out;
   },
@@ -2114,7 +2246,7 @@ const MC = {
   acc(i) { return i < 24 ? (i >> 3) : i < 30 ? 3 + (i - 24) : 9; },
   bus() {
     const T = curT, A = T.a === null || T.a === 'z' || T.a === undefined ? null : ap.busA(T.a), D = T.d === null || T.d === undefined || T.d === 'z' ? null : T.d;
-    const c = ap.frameCycle() % A2.FRAME_T, sa = ap.scanAddr(c, ap.sw);
+    const c = ap.frameCycle() % ap.FT, sa = ap.scanAddr(c, ap.sw);
     return { A, D, rd: A !== null && T.rw === 1, wr: A !== null && T.rw === 0, sa, row: (c / 65 | 0) & 7 };
   },
   net(c, i, name, B) {
@@ -2303,8 +2435,10 @@ $('hexIn').value = savedHex || SAMPLE;
 $('asmIn').value = savedAsm || SAMPLE_ASM;
 setMode(savedMode === 'hex' ? 'hex' : 'asm');
 { const ls = k => { try { return localStorage.getItem(A2_LS + k); } catch (e) { return null; } };
-  for (const r of Object.keys(A2_ROLES)) { const d = ls('rom.' + r); if (!d) continue; try { const b = a2Un64(d); if (b.length === 2048) { a2Roms[r] = b; const n = ls('name.' + r); if (n) a2Names[r] = n; } } catch (e) {} }
-  for (const [s] of A2_SOCK) { const d = ls('custom.' + s); if (!d) continue; try { const o = JSON.parse(d), b = a2Un64(o.data); if (b.length === 2048) a2Custom[s] = { name: String(o.name), bytes: b }; } catch (e) {} }
+  for (const r of Object.keys(A2_ROLES)) { const d = ls('rom.' + r); if (!d) continue; try { const b = a2Un64(d); if (b.length === (A2_ROLES[r].size || 2048)) { a2Roms[r] = b; const n = ls('name.' + r); if (n) a2Names[r] = n; } } catch (e) {} }
+  for (const [s] of A2_SOCK) { const d = ls('custom.' + s); if (!d) continue; try { const o = JSON.parse(d), b = a2Un64(o.data); if (b.length === (A2_ROLES[s].size || 2048)) a2Custom[s] = { name: String(o.name), bytes: b }; } catch (e) {} }
+  { try { const c = JSON.parse(ls('cards') || '{}'); $('a2Lc').checked = !!c.lc; $('a2Dsk').checked = !!c.disk; if (c.hz === '50') $('a2Hz').value = '50'; } catch (e) {} }
+  a2CardsFromUi();
   { const k = ls('ram'), mo = ls('mon'); if (['16', '32', '48'].includes(k)) $('a2Ram').value = k; if (['colour', 'white', 'green', 'amber'].includes(mo)) $('a2Mon').value = mo; }
   window.a2Bench = { ap };      // for testing from the browser console
   a2RomShow();
