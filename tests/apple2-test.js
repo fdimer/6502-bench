@@ -275,6 +275,22 @@ msg:    .byte $8D, $C2, $CF, $CF, $D4, $C5, $C4, $A0, $CF, $CB, $8D, 0
     a = apple(); a.disk.rom = p5.bytes; a.diskOn = true; a.reset(true); a.run(A2.FRAME_T * 60 * 2);
     const spin = a.disk.spinning(); a.reset(false); a.run(A2.FRAME_T * 60);
     ok(spin && a.screenText().some(l => l.startsWith(']')), 'with no disk the boot waits with the motor running, and CTRL-RESET gives Applesoft');
+    // a DOS 3.3 disk, if one is in the folder: it boots, catalogues, saves and loads
+    const dosf = files.find(n => /DOS.*3\.3.*\.(dsk|do)$/i.test(n));
+    if (dosf) {
+      a = apple(); a.disk.rom = p5.bytes; a.diskOn = true; a.lc = true; a.disk.insert(0, dosf, new Uint8Array(fs.readFileSync(path.join(R, dosf))));
+      const sec = n => a.run(A2.FRAME_T * 60 * n), has = t => a.screenText().some(l => l.includes(t));
+      a.reset(true); sec(15);
+      ok(has('DOS VERSION 3.3'), 'DOS 3.3 boots from ' + dosf + ' and runs its greeting program');
+      a.type('HOME\nCATALOG\n'); sec(4); a.type(' '); sec(3);
+      ok(has('DISK VOLUME') || has(' A ') || has('*A '), 'CATALOG lists the disk');
+      a.type('NEW\n10 PRINT "SAVED ON DISK"\n'); sec(2); a.type('SAVE TESTPROG\n'); sec(6); a.type('NEW\nLOAD TESTPROG\n'); sec(5); a.type('RUN\n'); sec(1);
+      ok(a.screenText().filter(l => l.trim() === 'SAVED ON DISK').length === 1 && !has('ERROR'), 'SAVE, NEW, LOAD and RUN through DOS');
+      const sv = T.a2dSave(a.disk.drives[0].disk);
+      const b = apple(); b.disk.rom = p5.bytes; b.diskOn = true; b.disk.insert(0, 'saved.dsk', sv.bytes); b.reset(true); b.run(A2.FRAME_T * 60 * 15);
+      b.type('RUN TESTPROG\n'); b.run(A2.FRAME_T * 60 * 4);
+      ok(!sv.bad.length && b.screenText().some(l => l.trim() === 'SAVED ON DISK'), 'the disk saved as an image boots on a machine without the language card and runs the saved program');
+    } else console.log('(no DOS 3.3 .dsk in A2_ROMS: DOS was not checked)');
   } else console.log('(no 341-0027 boot PROM in A2_ROMS: the disk boot was not checked)');
 } else console.log('(A2_ROMS not set: the checks with the ROMs were skipped)');
 console.log(fails ? fails + ' failed' : 'all passed'); process.exit(fails ? 1 : 0);
