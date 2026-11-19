@@ -1,17 +1,18 @@
-# 6502 Bench: PET branch (Commodore PET 2001-N / CBM 3000 series)
+# 6502 Bench: Apple II branch (Apple II Plus, RFI main board)
 
-This branch turns 6502 Bench into a Commodore PET with the "Dynamic PET" main board (assembly 320351): the 6502 with its pinout, bus timing, disassembly and debug points, wired to the PET's interface chips.
+This branch turns 6502 Bench into an Apple II Plus with the RFI revision of the main board (820-0044): the 6502 with its pinout, bus timing, disassembly and debug points, wired to the Apple's memory, video and I/O. It was built from Jim Sather's *Understanding the Apple II* (1983), the *Apple II Reference Manual* (1979) and the main logic board schematic in Apple's addendum for the RFI board. It branches from the PET branch, whose files (`src/pet.js`, `src/m6821.js`, `src/m6522.js`, `tests/pet-test.js`) are still here but not used by the page.
 
-- **Machine**: 8K, 16K or 32K of RAM, the 1K screen at 8000h, ROM sockets UD3 to UD9, two 6520 PIAs (E810h, E820h) and a 6522 VIA (E840h). BASIC 2 or BASIC 4, graphic keyboard.
-- **Video**: functional. The 40 x 25 picture is drawn from the screen RAM through the character ROM once per frame; the VIDEO ON signal is timed from the line counter and drives the 60 Hz interrupt through PIA 1 CB1.
-- **Keyboard**: the graphic keyboard matrix, from the PC keyboard by character or the on-screen keyboard.
-- **Programs**: load a `.prg` file straight into memory, save the BASIC program as a `.prg`.
-- **Sound**: the VIA's shift register on CB2, as used by PET sound add-ons.
-- **Memory and I/O chips, with faults**: every memory chip and the three interface chips (UC7 PIA 1, UC6 PIA 2, UC5 VIA) have live pins wired as on the 320349 logic diagram; click a pin to hold its line high or low or to disconnect it. Faults on the interface chips' clock, chip selects, R/W, register selects, data, RESET, IRQ and port lines act as on the board.
-- **Debugging**: memory bitmap of RAM, screen, ROMs and the character ROM, tinted by BASIC's use of memory; a PET hardware panel (both PIAs, the VIA, video and interrupt state); a log of every access to the interface chips; a text listing with the BASIC program.
-- **Not yet**: cassette, IEEE-488 devices (disk drives), the business keyboard, circuit-level video.
+- **Machine**: 16K, 32K or 48K of RAM in rows C, D and E; the six 2K ROMs D0-F8 (Applesoft BASIC and the Autostart Monitor); the I/O strobes at C000h-C0FFh. No peripheral cards: C080h-CFFFh float.
+- **Timing**: 65 cycles a line, the first one long (16 periods of 14.31818 MHz instead of 14), 262 lines a frame, 17,030 cycles; 1,020,484 cycles a second on average.
+- **Video**: generated cycle by cycle from the video scanner's own addresses (the 4-bit adder of H3-H5 with V3 and V4, Sather table 5.1), so a mode switch or a write to screen memory in the middle of a frame shows where it happens. TEXT through the text ROM (DL6 and DL7 on its A9 and A10, normal, inverse and flashing), LORES (each nibble circulated at 14M), HIRES (bit 7 delays the byte by one 14M period), MIXED, PAGE 1 and 2. The picture is 560 dots of 14M a line; on a colour monitor each dot takes the colour of the four around it (one cycle of the colour reference), and TEXT lines are white because the colour killer removes the burst.
+- **The floating bus**: an address nothing answers reads the byte the scanner drove out of RAM in the same cycle; so do bits 0-6 of the serial inputs.
+- **Keyboard**: the II Plus encoder's codes (upper case, SHIFT-N ^, SHIFT-M ], SHIFT-P @, CTRL), CTRL-RESET, REPT; from the PC keyboard or the on-screen keys. Text can be typed in from a box (BASIC programs, Monitor commands).
+- **Game I/O**: two paddles on the 558 timers ((R + 100) x 0.022 microseconds), three push buttons, the four annunciators; the speaker (C030h), with sound; the cassette output toggle.
+- **Memory chips, with faults**: the 24 4116s (the chip in column 3 of a row holds bit 0, column 10 bit 7; the 6502's address goes to RA0-RA6 as A7/A10, A2/A4, A0/A5, A8/A11, A3/A9, A1/A6, A12/A13), the six ROMs and the text ROM, with live pins; click a pin to hold its line or disconnect it. RAM faults show in the picture too, since the scanner reads the same chips.
+- **Debugging**: memory bitmap tinted by the screen pages and Applesoft's use of memory, an Apple II hardware panel (soft switches, keyboard latch, speaker, paddles, the scanner's position, address and floating-bus byte), a log of the C000h-C0FFh accesses, and a text listing with the BASIC program.
+- **Not yet**: the cassette input (loading from tape), peripheral cards (the Disk II, the language card), 50 Hz (Eurapple) scanning.
 
-**ROMs are not included.** Load your own with the Load ROM folder button, which takes the folder holding the files under their standard names; click a socket in the row under the screen to fit any other ROM there: `basic-2-c000`, `basic-2-d000`, `edit-2-n`, `kernal-2` and `characters-2` for BASIC 2; `basic-4-b000`, `basic-4-c000`, `basic-4-d000`, `edit-4-n` and `kernal-4` for BASIC 4. Open `6502-bench.html` from this folder. The chips are `src/m6821.js` and `src/m6522.js`, the machine is `src/pet.js`; `node tests/pet-test.js` checks them with a small synthetic ROM.
+**ROMs are not included.** Load your own with the Load ROM folder button: the six system ROMs (341-0011 to 341-0015 and 341-0020) and the text ROM (341-0036), as 2K files, or the system ROMs as one 12K file of D000h-FFFFh. They are recognised by their contents. Open `6502-bench.html` from this folder. The machine is `src/apple2.js`; `node tests/apple2-test.js` checks it with a small synthetic ROM, and with `A2_ROMS` set to a folder of the ROM images it also boots Applesoft and runs BASIC.
 
 The rest of this file describes the 6502 Bench base.
 
