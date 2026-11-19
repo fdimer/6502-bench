@@ -94,6 +94,20 @@ function a2dSave(disk, kind) {
   });
   return { bytes: img, bad };
 }
+// The 16-sector boot PROM (P5, 341-0027) as the 6502 reads it: 256 bytes that start LDX #20h, LDY #0 (the boot code
+// finding its slot). Some files of it hold the chip as it is wired on the card instead: there address lines A5 and A7
+// are swapped and data bits 4-7 are in reverse order, relative to what the 6502 sees. Undoing that gives the same
+// code. Returns the bytes as the 6502 reads them, with raw true for such a file, or null if it is not the boot PROM.
+function a2dBootProm(bytes) {
+  if (!bytes || bytes.length !== 256) return null;
+  const ok = b => b[0] === 0xA2 && b[1] === 0x20 && b[2] === 0xA0 && b[3] === 0x00;
+  if (ok(bytes)) return { bytes: Uint8Array.from(bytes), raw: false };
+  const hi = n => ((n & 1) << 3) | ((n & 2) << 1) | ((n & 4) >> 1) | ((n & 8) >> 3);
+  const out = new Uint8Array(256);
+  for (let a = 0; a < 256; a++) { const b = bytes[(a & 0x5F) | ((a >> 2) & 0x20) | ((a << 2) & 0x80)]; out[a] = (hi(b >> 4) << 4) | (b & 15); }
+  return ok(out) ? { bytes: out, raw: true } : null;
+}
+
 class DiskII {
   constructor(m, slot) {
     this.m = m; this.slot = slot || 6; this.rom = null;            // the P5 boot PROM (256 bytes), the user's file
@@ -141,4 +155,4 @@ class DiskII {
     return nib & 0x7F;
   }
 }
-if (typeof module !== 'undefined') module.exports = { DiskII, a2dLoad, a2dSave, a2dEncode62, a2dDecode62, A2D_DOS, A2D_PRODOS };
+if (typeof module !== 'undefined') module.exports = { DiskII, a2dBootProm, a2dLoad, a2dSave, a2dEncode62, a2dDecode62, A2D_DOS, A2D_PRODOS };

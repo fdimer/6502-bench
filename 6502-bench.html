@@ -466,10 +466,10 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <div class="ptsockets" id="a2Sockets" aria-label="ROM sockets"></div>
         <div class="ptromlist mono" id="a2RomList"></div>
         <div class="ptkb a2kb" id="a2Kb" aria-label="Keyboard"></div>
-        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The cassette plays a recording of an Apple tape into the cassette input (C060h): type LOAD in BASIC, or the address range and R in the Monitor, then press Play; Tape from binary makes such a tape from a file, for the Monitor's R. Record catches the cassette output (C020h) while you SAVE or W, and gives it to you as a WAV file; the recording also stays in the deck to be played back. The language card puts 16K of RAM over the ROMs, as DOS 3.3 uses it for the other BASIC. The Disk II takes disk images (.dsk, .do, .po, .nib) in two drives; boot with PR#6 (or the Monitor's C600G), and Save writes the disk back as an image with what the program wrote to it. 50 Hz scanning is the Eurapple's: 312 lines a frame instead of 262. The ROMs are not included; your browser keeps them once loaded.</p>
+        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The cassette plays a recording of an Apple tape into the cassette input (C060h): type LOAD in BASIC, or the address range and R in the Monitor, then press Play; Tape from binary makes such a tape from a file, for the Monitor's R. Record catches the cassette output (C020h) while you SAVE or W, and gives it to you as a WAV file; the recording also stays in the deck to be played back. The language card puts 16K of RAM over the ROMs, as DOS 3.3 uses it for the other BASIC. The Disk II takes disk images (.dsk, .do, .po, .nib) in two drives. With the card fitted, the Apple boots drive 1 at power on, as the real one does, and waits there until a disk goes in (CTRL-RESET gives BASIC instead); boot again with PR#6 (or the Monitor's C600G), and Save writes the disk back as an image with what the program wrote to it. 50 Hz scanning is the Eurapple's: 312 lines a frame instead of 262. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
       <section class="panel" id="pMemChips">
-        <h2>Memory and I/O chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
+        <h2>Memory chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
         <div class="mcwrap">
           <div class="mctiles" id="mcTiles"></div>
           <figure class="mcfig" id="mcFig">
@@ -1881,7 +1881,7 @@ const A2_ROLES = {
   F0: { name: 'Applesoft BASIC F000h (341-0015)', addr: 0xF000, crc: ['9A04EECF'] },
   F8: { name: 'Autostart Monitor F800h (341-0020)', addr: 0xF800, crc: ['079589C4'] },
   A5: { name: 'text ROM (341-0036)', addr: -1, crc: ['64F415C6'] },
-  P5: { name: 'Disk II boot PROM (341-0027)', addr: -2, crc: [], size: 256 }
+  P5: { name: 'Disk II boot PROM (341-0027)', addr: -2, crc: ['CE7144F6'], size: 256 }
 };
 const A2_BOARD = ['D0', 'D8', 'E0', 'E8', 'F0', 'F8', 'A5'];      // the main board's seven; P5 is on the Disk II card
 const A2_SOCK = [['D0', 0xD000, 'BASIC'], ['D8', 0xD800, 'BASIC'], ['E0', 0xE000, 'BASIC'], ['E8', 0xE800, 'BASIC'], ['F0', 0xF000, 'BASIC'], ['F8', 0xF800, 'Monitor'], ['A5', -1, 'text ROM'], ['P5', -2, 'Disk II boot']];
@@ -1892,8 +1892,8 @@ const a2Un64 = s => { s = atob(s); const b = new Uint8Array(s.length); for (let 
 // which ROMs a file holds: [[role, bytes], ...]
 function a2Identify(name, bytes) {
   const crc = a2Crc(bytes);
-  // the Disk II's 16-sector boot PROM: 256 bytes that start LDX #20h, LDY #0, LDX #3 (the boot code finding its slot)
-  if (bytes.length === 256 && bytes[0] === 0xA2 && bytes[1] === 0x20 && bytes[2] === 0xA0 && bytes[3] === 0x00) return { list: [['P5', bytes]], crc };
+  // the Disk II's 16-sector boot PROM, as the 6502 reads it or as the chip is wired on the card
+  const p5 = a2dBootProm(bytes); if (p5) return { list: [['P5', p5.bytes]], crc, raw: p5.raw };
   if (bytes.length === 2048) { for (const [r, d] of Object.entries(A2_ROLES)) if (d.crc.includes(crc)) return { list: [[r, bytes]], crc }; return { list: [], crc }; }
   if (bytes.length === 12288 || bytes.length === 16384 || bytes.length === 20480) {      // D000h-FFFFh, C000h-FFFFh, or C000h-FFFFh with... (the last 12K is the ROM space)
     const base = bytes.length - 12288, out = [];
@@ -1935,6 +1935,8 @@ function a2PowerOn() {
   if (!a2Fit()) { resetCPU(true); $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The Apple cannot start: the Monitor ROM (F8) is missing. Load the ROM folder, or click a socket to fit a ROM of your own.'; a2NoRom(); render(); return; }
   if (!ap.hasChargen) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The text ROM (A5) is missing: the machine runs, but the text screen shows nothing. Load the 341-0036 ROM.'; }
   resetCPU(true); $('speed').value = 'real'; runRate = 'real'; startRun(); ascr.focus();
+  // with the Disk II card and its PROM, the Autostart ROM boots slot 6 at power on and waits there for a disk
+  if (ap.diskOn && ap.disk.rom && !ap.disk.drives[0].disk) { const m = $('a2Msg'); m.textContent = (m.textContent ? m.textContent + ' ' : '') + 'The Disk II card is fitted, so the Apple tries to boot drive 1, as the real one does at power on: insert a disk and it boots, or press CTRL-RESET for BASIC.'; if (!m.className.includes('err')) m.className = 'msg'; }
 }
 function a2NoRom() { setStatus('Load the Apple II Plus ROMs to switch on'); }
 const a2DirOk = 'webkitdirectory' in HTMLInputElement.prototype;
@@ -1944,15 +1946,17 @@ function a2TakeFiles(input) {
   const all = [...input.files]; input.value = ''; if (!all.length) return;
   const fs = all.filter(f => [256, 2048, 12288, 16384, 20480].includes(f.size)), other = all.length - fs.length;
   Promise.all(fs.map(f => f.arrayBuffer().then(b => [f.name, new Uint8Array(b)]))).then(list => {
-    const used = [], skipped = [];
+    const used = [], skipped = []; let rawP5 = false;
     for (const [name, bytes] of list) {
       const id = a2Identify(name, bytes); if (!id.list.length) { skipped.push(name); continue; }
+      if (id.raw) rawP5 = true;
       for (const [r, b] of id.list) { a2Roms[r] = b; a2Names[r] = name; try { localStorage.setItem(A2_LS + 'rom.' + r, a2B64(b)); localStorage.setItem(A2_LS + 'name.' + r, name); } catch (e) {} }
       used.push(name);
     }
     const msg = $('a2Msg'), complete = A2_BOARD.every(r => a2Roms[r]);
     msg.className = used.length ? 'msg ok' : 'msg err';
     msg.textContent = (used.length ? `Loaded ${used.length} ROM file${used.length === 1 ? '' : 's'}. ` + (complete ? 'All seven Apple II Plus ROMs are in' + (a2Roms.P5 ? ', and the Disk II boot PROM.' : '.') : 'Some sockets are still empty: the row below shows which.') : `No Apple II Plus ROM was found among ${all.length} file${all.length === 1 ? '' : 's'}: the ROMs are recognised by their contents (2K files, or one 12K file of D000h–FFFFh).`)
+      + (rawP5 ? ' The boot PROM file holds the chip as it is wired on the card (address lines A5 and A7 swapped, data bits 4–7 reversed): it was rearranged into the order the 6502 reads.' : '')
       + (used.length && skipped.length ? ` Not recognised: ${skipped.join(', ')}.` : '') + (used.length && other ? ` ${other} other file${other === 1 ? '' : 's'} ignored.` : '');
     if (used.length) a2PowerOn(); else { a2RomShow(); render(); }
   });
@@ -1972,10 +1976,12 @@ $('a2SockFile').onchange = () => {
     const src = new Uint8Array(buf), msg = $('a2Msg');
     const size = A2_ROLES[s].size || 2048;
     if (!src.length || src.length > size) { msg.className = 'msg err'; msg.textContent = `${f.name} is ${src.length.toLocaleString('en-AU')} bytes: socket ${s} takes ${size === 256 ? 'a 256-byte PROM' : 'a 2K ROM (a 2316B or a 2716 EPROM)'}.`; return; }
-    const bytes = new Uint8Array(size); for (let i = 0; i < size; i++) bytes[i] = src[i % src.length];
+    let bytes = new Uint8Array(size); for (let i = 0; i < size; i++) bytes[i] = src[i % src.length];
+    const p5 = s === 'P5' && src.length === 256 ? a2dBootProm(src) : null, rawNote = p5 && p5.raw ? ' It holds the chip as wired on the card, so it was rearranged into the order the 6502 reads (A5 and A7 swapped, data bits 4–7 reversed).' : '';
+    if (p5) bytes = p5.bytes;
     a2Custom[s] = { name: f.name, bytes };
     try { localStorage.setItem(A2_LS + 'custom.' + s, JSON.stringify({ name: f.name, data: a2B64(bytes) })); } catch (e) {}
-    msg.className = 'msg ok'; msg.textContent = `${f.name} fitted in ${s} (CRC ${a2Crc(src)})${src.length < 2048 ? ', repeated to fill the socket' : ''}. It stays there until you remove it.`;
+    msg.className = 'msg ok'; msg.textContent = `${f.name} fitted in ${s} (CRC ${a2Crc(src)})${src.length < size ? ', repeated to fill the socket' : ''}. It stays there until you remove it.${rawNote}`;
     a2PowerOn();
   });
 };
@@ -2087,6 +2093,7 @@ function a2CardsFromUi() {
 for (const id of ['a2Lc', 'a2Dsk', 'a2Hz']) $(id).onchange = () => {
   try { localStorage.setItem(A2_LS + 'cards', JSON.stringify({ lc: $('a2Lc').checked, disk: $('a2Dsk').checked, hz: $('a2Hz').value })); } catch (e) {}
   if (id === 'a2Dsk' && $('a2Dsk').checked && !ap.disk.rom) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The Disk II card is fitted, but without its boot PROM (P5, 341-0027) it cannot boot a disk: load your P5 file with the ROM folder, or click the P5 socket.'; }
+  else { $('a2Msg').className = 'msg'; $('a2Msg').textContent = ''; }
   a2PowerOn();
 };
 // ---- the Disk II's two drives ----

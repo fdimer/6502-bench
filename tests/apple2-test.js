@@ -2,7 +2,7 @@
 // With A2_ROMS set to a folder of the Apple II Plus ROM images, it also boots the real ROMs and runs BASIC.
 const fs = require('fs'), path = require('path');
 const src = f => fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8').replace(/if \(typeof module[^\n]*/, '');
-const T = {}; eval(['m6502core.js', 'm6502asm.js', 'memchips.js', 'a2disk.js', 'apple2.js'].map(src).join('\n') + '\nObject.assign(T, { assemble, AppleMachine, A2, A2_SOCKETS, a2Render, a2TapeFromBytes, a2TapeFromSamples, a2WavFromTape, a2dLoad, a2dSave, a2dEncode62, a2dDecode62 });');
+const T = {}; eval(['m6502core.js', 'm6502asm.js', 'memchips.js', 'a2disk.js', 'apple2.js'].map(src).join('\n') + '\nObject.assign(T, { assemble, a2dBootProm, AppleMachine, A2, A2_SOCKETS, a2Render, a2TapeFromBytes, a2TapeFromSamples, a2WavFromTape, a2dLoad, a2dSave, a2dEncode62, a2dDecode62 });');
 let fails = 0; const ok = (c, m) => { if (!c) { fails++; console.log('FAIL', m); } else console.log('ok  ', m); };
 const A2 = T.A2, m = new T.AppleMachine();
 // ---- the video scanner's addresses (Sather figures 5.5, 5.6 and 5.8) ----
@@ -212,9 +212,13 @@ nib:    lda $C0EC
 // ---- the real ROMs, if they are here ----
 const R = process.env.A2_ROMS;
 if (R) {
-  const files = fs.readdirSync(R), a = new T.AppleMachine();
-  for (const [s, addr] of T.A2_SOCKETS) { const f = files.find(n => new RegExp('Pages_' + s).test(n)); if (f) a.loadRom(addr, fs.readFileSync(path.join(R, f))); }
-  const cg = files.find(n => /Video/i.test(n)); if (cg) { a.chargen.set(fs.readFileSync(path.join(R, cg))); a.hasChargen = true; }
+  const files = fs.readdirSync(R), apple = () => {
+    const a = new T.AppleMachine();
+    for (const [s, addr] of T.A2_SOCKETS) { const f = files.find(n => new RegExp('Pages_' + s).test(n)); if (f) a.loadRom(addr, fs.readFileSync(path.join(R, f))); }
+    const cg = files.find(n => /Video/i.test(n)); if (cg) { a.chargen.set(fs.readFileSync(path.join(R, cg))); a.hasChargen = true; }
+    return a;
+  };
+  let a = apple();
   a.reset(true); a.run(A2.FRAME_T * 60);
   ok(a.screenText()[0].trim() === 'APPLE ][' && a.screenText()[2].startsWith(']'), 'the Autostart ROM starts Applesoft: APPLE ][ and the ] prompt');
   a.type('PRINT 6*7\n'); a.run(A2.FRAME_T * 60);
@@ -235,5 +239,42 @@ if (R) {
   a.type('\x03\nNEW\n10 PRINT "TAPE"\n'); sec(1); a.startRec(); a.type('SAVE\n'); sec(25); const bas = a.stopRec();
   a.type('NEW\n'); sec(0.5); a.type('LOAD\n'); sec(0.3); a.playTape(bas); sec(25); a.type('LIST\n'); sec(1);
   ok(a.basicListing()[0] === '10 PRINT "TAPE"', 'Applesoft SAVE, then NEW and LOAD from the recording: ' + (a.basicListing()[0] || 'nothing'));
+  // the Disk II's boot PROM (P5, 341-0027), if it is in the folder: PR#6 boots a disk made here
+  const p5f = files.find(n => /341-0027|_P5\b|P5_/i.test(n));
+  if (p5f) {
+    const p5 = T.a2dBootProm(fs.readFileSync(path.join(R, p5f)));
+    ok(p5 && T.a2dBootProm(p5.bytes).bytes.every((v, i) => v === p5.bytes[i]), 'the boot PROM file is recognised' + (p5 && p5.raw ? ' (as wired on the card, rearranged)' : ''));
+    const boot = T.assemble(`
+  .org $0800
+        .byte 3             ; the boot PROM reads physical sectors 0, 1 and 2 into 0800h, 0900h and 0A00h
+        jsr $FE93           ; SETVID and SETKBD, as DOS does: output no longer goes to C600h
+        jsr $FE89
+        ldx #0
+pr:     lda msg,x
+        beq dn
+        jsr $FDED
+        inx
+        bne pr
+dn:     lda $C0E8           ; motor off
+        inc $06             ; count the boots (06h is free for programs)
+        jmp $FF69           ; the Monitor
+msg:    .byte $8D, $C2, $CF, $CF, $D4, $C5, $C4, $A0, $CF, $CB, $8D, 0
+`);
+    const dsk = new Uint8Array(143360); for (const c of boot.chunks) dsk.set(c.bytes, c.addr - 0x800);
+    dsk.fill(0xA7, 7 * 256, 8 * 256); dsk.fill(0xAE, 14 * 256, 15 * 256);      // DOS sectors 7 and 14 are physical 1 and 2
+    const bootFrom = (name, bytes) => {
+      a = apple(); a.disk.rom = p5.bytes; a.diskOn = true; a.disk.insert(0, name, bytes);
+      a.reset(true); a.run(A2.FRAME_T * 60 * 5);      // the Autostart ROM finds the card in slot 6 and boots it
+      const first = a.ram[6] === 1 && a.screenText().some(l => l.trim() === 'BOOTED OK') && a.ram[0x900] === 0xA7 && a.ram[0xAFF] === 0xAE;      // 
+      a.type('C600G\n'); a.run(A2.FRAME_T * 60 * 3);
+      return first && a.ram[6] === 2;
+    };
+    ok(bootFrom('boot.dsk', dsk), 'with the real boot PROM, the Autostart ROM boots a .dsk at power on (three sectors in DOS 3.3 skew, run at 0801h), and C600G in the Monitor boots it again');
+    const po = T.a2dSave(a.disk.drives[0].disk, 'po').bytes;
+    ok(bootFrom('boot.po', po), 'the same disk saved in ProDOS order (.po) boots too');
+    a = apple(); a.disk.rom = p5.bytes; a.diskOn = true; a.reset(true); a.run(A2.FRAME_T * 60 * 2);
+    const spin = a.disk.spinning(); a.reset(false); a.run(A2.FRAME_T * 60);
+    ok(spin && a.screenText().some(l => l.startsWith(']')), 'with no disk the boot waits with the motor running, and CTRL-RESET gives Applesoft');
+  } else console.log('(no 341-0027 boot PROM in A2_ROMS: the disk boot was not checked)');
 } else console.log('(A2_ROMS not set: the checks with the ROMs were skipped)');
 console.log(fails ? fails + ' failed' : 'all passed'); process.exit(fails ? 1 : 0);
