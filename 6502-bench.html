@@ -425,7 +425,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <h2>Screen <span class="aside" id="a2ScrInfo"></span></h2>
         <canvas id="a2Screen" class="ptscreen a2scr" width="560" height="192" tabindex="0" aria-label="Apple II screen: click it and type to use the keyboard"></canvas>
         <div class="row">
-          <button id="a2LoadRom" class="primary" type="button" title="Choose the folder that holds your Apple II Plus ROM files: the six 2K system ROMs (341-0011 to 341-0015 and 341-0020) and the 2K text ROM (341-0036), or one 12K file of D000h-FFFFh.">Load ROM folder…</button><input type="file" id="a2RomDir" webkitdirectory multiple hidden><input type="file" id="a2RomFile" multiple hidden><input type="file" id="a2SockFile" hidden>
+          <button id="a2LoadRom" class="primary" type="button" title="Choose the folder that holds your Apple II Plus ROM files: the six 2K system ROMs (341-0011 to 341-0015 and 341-0020) and the 2K text ROM (341-0036), or one 12K file of D000h-FFFFh.">Load ROM folder…</button><button id="a2LoadFiles" type="button" title="Choose the ROM files themselves: select them all at once (Ctrl-A or Cmd-A in the file box). Use this if your browser will not let you pick a folder, or on an iPad or a phone.">ROM files…</button><input type="file" id="a2RomDir" webkitdirectory multiple hidden><input type="file" id="a2RomFile" multiple hidden><input type="file" id="a2SockFile" hidden>
           <button id="a2Restart" type="button" title="Switch the Apple off and on: RAM is cleared and the Autostart ROM starts from cold">Power on / restart</button>
           <button id="a2Reset" type="button" title="CTRL-RESET: pulls the RESET line low, as the keyboard's RESET key does (with CTRL, as the II Plus keyboard's switch is normally set)">CTRL-RESET</button>
           <label class="inline" for="a2Ram">RAM <select id="a2Ram"><option value="16">16K</option><option value="32">32K</option><option value="48" selected>48K</option></select></label>
@@ -466,7 +466,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <div class="ptsockets" id="a2Sockets" aria-label="ROM sockets"></div>
         <div class="ptromlist mono" id="a2RomList"></div>
         <div class="ptkb a2kb" id="a2Kb" aria-label="Keyboard"></div>
-        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The cassette plays a recording of an Apple tape into the cassette input (C060h): type LOAD in BASIC, or the address range and R in the Monitor, then press Play; Tape from binary makes such a tape from a file, for the Monitor's R. Record catches the cassette output (C020h) while you SAVE or W, and gives it to you as a WAV file; the recording also stays in the deck to be played back. The language card puts 16K of RAM over the ROMs, as DOS 3.3 uses it for the other BASIC. The Disk II takes disk images (.dsk, .do, .po, .nib) in two drives. With the card fitted, the Apple boots drive 1 at power on, as the real one does, and waits there until a disk goes in (CTRL-RESET gives BASIC instead); boot again with PR#6 (or the Monitor's C600G), and Save writes the disk back as an image with what the program wrote to it. 50 Hz scanning is the Eurapple's: 312 lines a frame instead of 262. The ROMs are not included; your browser keeps them once loaded.</p>
+        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files (ROM files… takes the files themselves, selected all at once, and you can also drop them on this panel) and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The cassette plays a recording of an Apple tape into the cassette input (C060h): type LOAD in BASIC, or the address range and R in the Monitor, then press Play; Tape from binary makes such a tape from a file, for the Monitor's R. Record catches the cassette output (C020h) while you SAVE or W, and gives it to you as a WAV file; the recording also stays in the deck to be played back. The language card puts 16K of RAM over the ROMs, as DOS 3.3 uses it for the other BASIC. The Disk II takes disk images (.dsk, .do, .po, .nib) in two drives. With the card fitted, the Apple boots drive 1 at power on, as the real one does, and waits there until a disk goes in (CTRL-RESET gives BASIC instead); boot again with PR#6 (or the Monitor's C600G), and Save writes the disk back as an image with what the program wrote to it. 50 Hz scanning is the Eurapple's: 312 lines a frame instead of 262. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
       <section class="panel" id="pMemChips">
         <h2>Memory chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
@@ -1939,11 +1939,16 @@ function a2PowerOn() {
   if (ap.diskOn && ap.disk.rom && !ap.disk.drives[0].disk) { const m = $('a2Msg'); m.textContent = (m.textContent ? m.textContent + ' ' : '') + 'The Disk II card is fitted, so the Apple tries to boot drive 1, as the real one does at power on: insert a disk and it boots, or press CTRL-RESET for BASIC.'; if (!m.className.includes('err')) m.className = 'msg'; }
 }
 function a2NoRom() { setStatus('Load the Apple II Plus ROMs to switch on'); }
-const a2DirOk = 'webkitdirectory' in HTMLInputElement.prototype;
-if (!a2DirOk) $('a2LoadRom').textContent = 'Load ROM files…';      // this browser cannot pick a folder: pick all the files instead
+// Picking a folder: Chrome, Edge, Firefox and Safari on a computer. iPhones and iPads report webkitdirectory but cannot
+// pick a folder, so there (and wherever it is missing) the main button picks files; ROM files… always picks files.
+const a2Ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const a2DirOk = 'webkitdirectory' in HTMLInputElement.prototype && !a2Ios;
+if (!a2DirOk) { $('a2LoadRom').textContent = 'Load ROM files…'; $('a2LoadFiles').hidden = true; }
+$('a2LoadFiles').onclick = () => $('a2RomFile').click();
 $('a2LoadRom').onclick = () => $(a2DirOk ? 'a2RomDir' : 'a2RomFile').click();
-function a2TakeFiles(input) {
-  const all = [...input.files]; input.value = ''; if (!all.length) return;
+function a2TakeFiles(input) { const all = [...input.files]; input.value = ''; a2TakeList(all); }
+function a2TakeList(all) {
+  if (!all.length) return;
   const fs = all.filter(f => [256, 2048, 12288, 16384, 20480].includes(f.size)), other = all.length - fs.length;
   Promise.all(fs.map(f => f.arrayBuffer().then(b => [f.name, new Uint8Array(b)]))).then(list => {
     const used = [], skipped = []; let rawP5 = false;
@@ -1963,6 +1968,10 @@ function a2TakeFiles(input) {
 }
 $('a2RomDir').onchange = () => a2TakeFiles($('a2RomDir'));
 $('a2RomFile').onchange = () => a2TakeFiles($('a2RomFile'));
+// ROM files dropped on the screen panel are taken too (disk images and tapes have their own buttons)
+{ const pan = $('a2LoadRom').closest('section');
+  pan.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  pan.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); a2TakeList([...e.dataTransfer.files]); }); }
 // a ROM of the user's own in one socket
 let a2SockTarget = null;
 $('a2Sockets').addEventListener('click', e => {
