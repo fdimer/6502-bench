@@ -481,7 +481,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         </div>
         <div class="msg" id="syMsg"></div>
         <div class="ptsockets sysockets" id="sySockets" aria-label="ROM sockets"></div>
-        <p class="hint">The keypad is the SYM-1's own: click a key, or click the keypad and type (0–9 and A–F, Enter for CR, minus, the right arrow for →, Shift for SHIFT, and G, R, M, L and S for GO, REG, MEM, LD 2 and SAV 2). Hold SHIFT and press a key for its upper legend. RST resets the board; DEBUG ON makes every instruction outside SUPERMON stop with an NMI, so each GO runs one instruction. After RST, SUPERMON beeps and waits: press a key to use the keypad, or type Q in the terminal to log on to it (SUPERMON measures the baud rate from the Q). The terminal is the SYM-1's CRT port (RS-232 on connector C): type into it, or paste text and Send. With a real SYM-1 wired to a serial port of this computer (a USB serial adapter and an RS-232 cable to connector C), choose "a real SYM-1" and Connect: the terminal then talks to your board at the baud rate chosen (Chrome or Edge). The cassette plays a recording into the cassette input (VIA 1 PB6): type L1 or L2 and the ID, then Play. Record catches the cassette output while you S1 or S2 and gives it to you as a WAV file. Load ROM folder recognises SUPERMON 1.1 and the RAE ROMs by their contents; other ROMs go where their file names say (…_C000.BIN). Click a socket to fit a ROM of your own there. The ROMs are not included; your browser keeps them once loaded.</p>
+        <p class="hint">The keypad is the SYM-1's own: click a key, or click the keypad and type (0–9 and A–F, Enter for CR, minus, the right arrow for →, Shift for SHIFT, and G, R, M, L and S for GO, REG, MEM, LD 2 and SAV 2). Hold SHIFT and press a key for its upper legend. RST resets the board; DEBUG ON makes every instruction outside SUPERMON stop with an NMI, so each GO runs one instruction. After RST, SUPERMON beeps and waits: press a key to use the keypad, or type Q in the terminal to log on to it (SUPERMON measures the baud rate from the Q). The terminal is the SYM-1's CRT port (RS-232 on connector T): type into it, or paste text and Send. With a real SYM-1 wired to a serial port of this computer (a USB serial adapter wired to the terminal connector T: pin 2 RS-232 in, pin 3 RS-232 out, pin 1 ground), choose "a real SYM-1" and Connect: the terminal then talks to your board at the baud rate chosen (Chrome or Edge). The cassette plays a recording into the cassette input (VIA 1 PB6): type L1 or L2 and the ID, then Play. Record catches the cassette output while you S1 or S2 and gives it to you as a WAV file. Load ROM folder recognises SUPERMON 1.1 and the RAE ROMs by their contents; other ROMs go where their file names say (…_C000.BIN). Click a socket to fit a ROM of your own there. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
 
       <section class="panel" id="pMemChips">
@@ -1945,7 +1945,7 @@ $('syBaud').onchange = () => {
   syMsg(`Terminal at ${b} baud. SUPERMON measures the rate when you log on, so press RST and type Q.`); syTermInfo();
 };
 // ---- a real SYM-1 on a serial port (Web Serial: Chrome and Edge) ----
-// RS-232 from connector C: 8 data bits, no parity, 2 stop bits, as SUPERMON sends them; no handshake lines.
+// RS-232 from connector T (pin 2 in, pin 3 out, pin 1 ground): 8 data bits, no parity, 2 stop bits, as SUPERMON sends them; no handshake lines.
 async function syRealOpen() {
   if (!('serial' in navigator)) { syMsg('This browser cannot reach serial ports: use Chrome or Edge on a computer, and open the emulator from its web address (not inside a preview).', 'err'); return; }
   try {
@@ -1979,7 +1979,7 @@ $('syLink').onchange = () => {
   const real = $('syLink').value === 'real';
   if (!real) { syRealClose(); syReal = null; } else syReal = syReal || { port: null };
   $('syConnect').hidden = !real; syLines = ['']; syCol = 0; syTermDirty = true; syTermInfo();
-  syMsg(real ? 'The terminal now talks to a real SYM-1: wire connector C to a serial port of this computer (a USB serial adapter and an RS-232 cable), choose the baud rate, then Connect.' : 'The terminal talks to the emulated SYM-1 again.');
+  syMsg(real ? 'The terminal now talks to a real SYM-1: wire the terminal connector T to a serial port of this computer (pin 2 RS-232 in, pin 3 RS-232 out, pin 1 ground; a USB serial adapter will do), choose the baud rate, then Connect.' : 'The terminal talks to the emulated SYM-1 again.');
 };
 $('syConnect').onclick = () => { if (syReal && syReal.port) syRealClose(); else syRealOpen(); };
 // ---- ROMs: SUPERMON goes in P0; others by their contents or the address in their file names ----
