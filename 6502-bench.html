@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Apple II Plus Bench</title>
+<title>SYM-1 Bench</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -298,22 +298,32 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 .mm-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 .mm-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .mm-legend i { width: 12px; height: 12px; border-radius: 2px; border: 1px solid var(--line); display: inline-block; }
-/* Apple II screen, keyboard and machine panel */
-.toprows { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
-.ptscreen { display: block; width: 100%; max-width: 860px; margin: 0 auto; aspect-ratio: 352 / 264; background: #06160c; border-radius: 6px; image-rendering: pixelated; outline: none; border: 2px solid #33443a; cursor: text; }
-.ptscreen:focus { border-color: var(--sel); }
-.ptscreen.a2scr { aspect-ratio: 560 / 384; background: #000; border-color: #333; }
-.a2kb .krow { grid-template-columns: repeat(60, minmax(0, 1fr)); }
-.a2kb { background: linear-gradient(#cdc6b4, #bdb59f); }
-.a2kb .cap { min-height: 34px; }
-.a2tape .lbl, .a2drive .lbl { font-size: 12.5px; }
-.a2tinfo { font-size: 11.5px; color: var(--muted); }
-.a2drive { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
-.a2drive .led { width: 10px; height: 10px; border-radius: 50%; background: #4a2420; border: 1px solid #2a1210; }
-.a2drive .led.on { background: #ff3b2f; box-shadow: 0 0 6px #ff3b2f; }
-.a2drive .info { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+/* SYM-1: LED display, keypad, terminal */
+#pScreen .row, #pScreen .msg, #pScreen .hint { max-width: 860px; margin-left: auto; margin-right: auto; }
+.symboard { max-width: 860px; margin: 0 auto 10px; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; padding: 14px; background: #1d3b2a; border-radius: 8px; border: 1px solid #10261a; }
+.symleft { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.symdisp { display: flex; gap: 4px; padding: 12px 14px; background: #1a0606; border-radius: 6px; border: 2px solid #050101; box-shadow: inset 0 0 12px #000; justify-content: center; }
+.symdisp .dig { width: 15%; max-width: 64px; height: auto; }
+.symdisp .dig path, .symdisp .dig circle { fill: #ff2a1a; opacity: 0.12; transition: none; }
+.symdisp .dig .on { filter: drop-shadow(0 0 3px rgba(255, 60, 30, 0.8)); }
+.symbtns { margin: 0 !important; }
+.symbtns, .symbtns .inline { color: #e7efe9; }
+.symkp { flex: 0 1 300px; min-width: 220px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 10px; background: #0d0d0d; border-radius: 6px; outline: none; border: 2px solid #0d0d0d; }
+.symkp:focus { border-color: var(--sel); }
+.symkp .sk { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; padding: 2px 1px; border: 0; border-radius: 6px; background: #f4f1e6; color: #111; font-weight: 700; font-size: clamp(11px, 2.2vw, 15px); line-height: 1.05; box-shadow: 0 2px 0 #777; cursor: pointer; touch-action: manipulation; font-family: var(--font-sans, inherit); min-width: 0; }
+.symkp .sk small { font-size: clamp(7px, 1.3vw, 9.5px); font-weight: 600; letter-spacing: 0.02em; padding: 0 3px; margin-bottom: 3px; border-bottom: 1px solid #555; white-space: nowrap; }
+.symkp .sk.hex small { background: #d8d0b8; border-radius: 2px; border: 0; }
+.symkp .sk.hw { background: #fbfaf5; }
+.symkp .sk.down { transform: translateY(2px); box-shadow: 0 0 0 #777; background: var(--sel); color: #fff; }
+.symterm-bar .lbl, .a2tape .lbl { font-size: 12.5px; }
+.syterminfo, .a2tinfo { font-size: 11.5px; color: var(--muted); }
+.symterm { max-width: 860px; margin: 6px auto; height: 24.5em; overflow: auto; padding: 8px 10px; background: #0b130e; color: #8fe6a0; border-radius: 6px; border: 2px solid #33443a; font-size: 12.5px; line-height: 1.25; white-space: pre; outline: none; cursor: text; }
+.symterm:focus { border-color: var(--sel); }
+.symterm .cur { background: #8fe6a0; color: #0b130e; }
+.symterm:not(:focus) .cur { background: transparent; color: inherit; outline: 1px solid #8fe6a0; }
 .a2paste { flex: 1; min-width: 200px; font-size: 12.5px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--ink); resize: vertical; min-height: 0; height: 3.4em; }
-#pScreen .row, #pScreen .msg, #pScreen .hint, .ptromlist, #a2Drives { max-width: 860px; margin-left: auto; margin-right: auto; }
+.ptsockets.sysockets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.toprows { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
 .ptromlist { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .ptsockets { max-width: 860px; margin: 10px auto 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
 @media (max-width: 760px) { .ptsockets { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
@@ -392,7 +402,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 
 <div class="wrap">
   <header class="top">
-    <h1>Apple II Plus <span>on 6502 Bench · RFI main board 820-0044</span></h1>
+    <h1>SYM-1 <span>on 6502 Bench · Synertek Systems single board computer</span></h1>
     <div id="status" class="status">Ready</div>
     <div class="counters">
       <span>Cycles <b id="cntT">0</b></span>
@@ -414,7 +424,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <option value="1000">Clock 1 kHz</option>
         <option value="5000">Clock 5 kHz</option>
         <option value="10000">Clock 10 kHz</option>
-        <option value="real" selected>Real time (1.02 MHz)</option>
+        <option value="real" selected>Real time (1 MHz)</option>
         <option value="max">Full speed</option>
       </select>
     </label>
@@ -422,52 +432,58 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 
   <div class="toprows">
       <section class="panel" id="pScreen">
-        <h2>Screen <span class="aside" id="a2ScrInfo"></span></h2>
-        <canvas id="a2Screen" class="ptscreen a2scr" width="560" height="192" tabindex="0" aria-label="Apple II screen: click it and type to use the keyboard"></canvas>
+        <h2>SYM-1 <span class="aside" id="syInfo"></span></h2>
+        <div class="symboard">
+          <div class="symleft">
+            <div class="symdisp" id="syDisp" role="img" aria-label="Six-digit LED display"></div>
+            <div class="row symbtns">
+              <button id="syLoadRom" class="primary" type="button" title="Choose the folder that holds your SYM-1 ROM files: SUPERMON (a 4K ROM for socket P0 at 8000h) and any others (RAE, BASIC…). They are recognised by their contents, or placed by the address in their names (for example RAE1_B000.BIN).">Load ROM folder…</button><button id="syLoadFiles" type="button" title="Choose the ROM files themselves: select them all at once (Ctrl-A or Cmd-A in the file box). Use this if your browser will not let you pick a folder, or on an iPad or a phone.">ROM files…</button><input type="file" id="syRomDir" webkitdirectory multiple hidden><input type="file" id="syRomFile" multiple hidden><input type="file" id="sySockFile" hidden>
+              <button id="syRestart" type="button" title="Switch the SYM-1 off and on: RAM and System RAM are cleared and SUPERMON starts from cold">Power on / restart</button>
+              <label class="inline" for="syRam" title="On-board RAM: one to four pairs of 2114s (1K comes fitted)">RAM <select id="syRam"><option value="1">1K</option><option value="2">2K</option><option value="3">3K</option><option value="4" selected>4K</option></select></label>
+              <label class="inline" for="sySound" title="The speaker, on output 6 of the 74145 at U37: SUPERMON beeps on every key"><input type="checkbox" id="sySound" checked> Sound</label>
+            </div>
+          </div>
+          <div class="symkp" id="syKp" tabindex="0" aria-label="SYM-1 keypad: click the keys, or click here and type"></div>
+        </div>
+        <div class="row symterm-bar">
+          <b class="lbl">Terminal</b>
+          <label class="inline" for="syLink" title="What the terminal talks to: the emulated SYM-1's CRT port, or a real SYM-1 on one of this computer's serial ports (Chrome and Edge)">to <select id="syLink"><option value="emu" selected>the emulated SYM-1</option><option value="real">a real SYM-1 (serial port)</option></select></label>
+          <label class="inline" for="syBaud">baud <select id="syBaud"><option>110</option><option>300</option><option>600</option><option>1200</option><option>2400</option><option selected>4800</option></select></label>
+          <label class="inline" title="Send letters as capitals, as the terminals of the time did: SUPERMON's commands are upper case"><input type="checkbox" id="syCaps" checked> Capitals</label>
+          <button id="syConnect" type="button" hidden>Connect…</button>
+          <button id="syClear" type="button">Clear</button>
+          <span class="mono syterminfo" id="syTermInfo"></span>
+        </div>
+        <pre class="symterm mono" id="syTerm" tabindex="0" aria-label="Terminal: click it and type"></pre>
         <div class="row">
-          <button id="a2LoadRom" class="primary" type="button" title="Choose the folder that holds your Apple II Plus ROM files: the six 2K system ROMs (341-0011 to 341-0015 and 341-0020) and the 2K text ROM (341-0036), or one 12K file of D000h-FFFFh.">Load ROM folder…</button><button id="a2LoadFiles" type="button" title="Choose the ROM files themselves: select them all at once (Ctrl-A or Cmd-A in the file box). Use this if your browser will not let you pick a folder, or on an iPad or a phone.">ROM files…</button><input type="file" id="a2RomDir" webkitdirectory multiple hidden><input type="file" id="a2RomFile" multiple hidden><input type="file" id="a2SockFile" hidden>
-          <button id="a2Restart" type="button" title="Switch the Apple off and on: RAM is cleared and the Autostart ROM starts from cold">Power on / restart</button>
-          <button id="a2Reset" type="button" title="CTRL-RESET: pulls the RESET line low, as the keyboard's RESET key does (with CTRL, as the II Plus keyboard's switch is normally set)">CTRL-RESET</button>
-          <label class="inline" for="a2Ram">RAM <select id="a2Ram"><option value="16">16K</option><option value="32">32K</option><option value="48" selected>48K</option></select></label>
-          <label class="inline" for="a2Mon">Monitor <select id="a2Mon"><option value="colour" selected>Colour</option><option value="white">Black and white</option><option value="green">Green</option><option value="amber">Amber</option></select></label>
-          <label class="inline" for="a2Sound" title="The speaker, toggled by every access to C030h"><input type="checkbox" id="a2Sound" checked> Sound</label>
+          <textarea id="syPaste" class="mono a2paste" rows="2" spellcheck="false" placeholder="Text to send through the terminal: monitor commands, a program in hex…"></textarea>
+          <button id="sySend" type="button" title="Sends the text through the terminal, one character at a time as SUPERMON asks for each">Send</button>
         </div>
         <div class="row">
-          <label class="inline" for="a2Pdl0" title="Paddle 0: a 150K potentiometer on the 558 timer read at C064h">PDL 0 <input type="range" id="a2Pdl0" min="0" max="255" value="128"></label>
-          <label class="inline" for="a2Pdl1" title="Paddle 1, read at C065h">PDL 1 <input type="range" id="a2Pdl1" min="0" max="255" value="128"></label>
-          <label class="inline" title="Push button 0, read on D7 at C061h"><input type="checkbox" id="a2Pb0"> PB0</label>
-          <label class="inline" title="Push button 1, read at C062h"><input type="checkbox" id="a2Pb1"> PB1</label>
-          <label class="inline" title="Push button 2, read at C063h"><input type="checkbox" id="a2Pb2"> PB2</label>
+          <button id="syBinIn" type="button">Load binary file…</button><input type="file" id="syBinFile" hidden>
+          <label class="inline" for="syBinAddr">at <input id="syBinAddr" type="text" class="mono" value="0200" size="5" maxlength="4"></label>
+          <button id="syListing" type="button">Listing (.txt)</button>
         </div>
-        <div class="row">
-          <textarea id="a2Paste" class="mono a2paste" rows="2" spellcheck="false" placeholder="Text to type into the Apple: a BASIC program, Monitor commands…"></textarea>
-          <button id="a2Type" type="button" title="Types the text into the keyboard, one key at a time, each as soon as the program has read the last">Type it</button>
-        </div>
-        <div class="row">
-          <button id="a2BinIn" type="button">Load binary file…</button><input type="file" id="a2BinFile" hidden>
-          <label class="inline" for="a2BinAddr">at <input id="a2BinAddr" type="text" class="mono" value="0300" size="5" maxlength="4"></label>
-          <button id="a2Listing" type="button">Listing (.txt)</button>
-        </div>
-        <div class="row">
-          <label class="inline" for="a2Hz" title="The Eurapple jumpers: the vertical scanner presets to 011001000 for 312 lines, 50.32 frames a second">Scanning <select id="a2Hz"><option value="60" selected>60 Hz (USA)</option><option value="50">50 Hz (Eurapple)</option></select></label>
-          <label class="inline" title="Apple's 16K RAM card (the language card) in slot 0: 16K of RAM over the ROMs at D000h–FFFFh, switched at C080h–C08Fh"><input type="checkbox" id="a2Lc"> Language card (slot 0)</label>
-          <label class="inline" title="The Disk II controller card in slot 6, with two drives. It needs its boot PROM (P5, 341-0027): your own file, loaded with the ROM folder"><input type="checkbox" id="a2Dsk"> Disk II (slot 6)</label>
-        </div>
-        <div id="a2Drives" hidden></div>
         <div class="row a2tape">
           <b class="lbl">Cassette</b>
-          <button id="a2TapeIn" type="button" title="A recording of an Apple tape (WAV, MP3 or any audio file your browser can decode); it goes into the deck ready to play">Load tape…</button><input type="file" id="a2TapeFile" accept="audio/*,.wav" hidden>
-          <button id="a2TapeBin" type="button" title="Makes a tape in the Monitor's format from a binary file (header, sync bit, the bytes, the checksum), to be read with the Monitor's R command">Tape from binary…</button><input type="file" id="a2TapeBinFile" hidden>
-          <button id="a2Play" type="button">Play</button>
-          <button id="a2Rec" type="button" title="Records the cassette output (C020h) as a WAV file, for SAVE in BASIC or W in the Monitor">Record</button>
-          <span class="mono a2tinfo" id="a2TapeInfo">no tape</span>
+          <button id="syTapeIn" type="button" title="A recording of a SYM-1 tape, in either format (WAV, MP3 or any audio file your browser can decode); it goes into the deck ready to play">Load tape…</button><input type="file" id="syTapeFile" accept="audio/*,.wav" hidden>
+          <button id="syTapeBin" type="button" title="Makes a tape in SUPERMON's high-speed format from a binary file, with ID 01, to be read with L2 01">Tape from binary…</button><input type="file" id="syTapeBinFile" hidden>
+          <button id="syPlay" type="button">Play</button>
+          <button id="syRec" type="button" title="Records the cassette output (output 7 of U37) as a WAV file, for S1 or S2">Record</button>
+          <span class="mono a2tinfo" id="syTapeInfo">no tape</span>
         </div>
-        <div class="msg" id="a2Msg"></div>
-        <div class="ptsockets" id="a2Sockets" aria-label="ROM sockets"></div>
-        <div class="ptromlist mono" id="a2RomList"></div>
-        <div class="ptkb a2kb" id="a2Kb" aria-label="Keyboard"></div>
-        <p class="hint">Click the picture and type. Your keyboard's letters, digits and symbols go in as the Apple II Plus encoder sends them: upper case only, so lower case letters are typed as capitals. Enter is RETURN, Backspace and the left arrow are ←, the right arrow is →, Esc is ESC, and Ctrl with a letter gives the control code. The keys drawn above are the II Plus keyboard: CTRL and SHIFT stay down for the next key, and RESET works with CTRL, as the keyboard's switch is normally set (so it resets the machine only after CTRL). Holding a key does not repeat it unless REPT is down, as on the real keyboard. Load ROM folder asks for the folder that holds your ROM files (ROM files… takes the files themselves, selected all at once, and you can also drop them on this panel) and recognises the Apple II Plus ROMs by their contents; the row of sockets shows which file sits in each socket on the board, and clicking a socket fits a ROM of your own there instead. Type it sends text through the keyboard, so BASIC programs and Monitor commands can be pasted in. Load binary file puts a file into RAM at the address given (start it from BASIC with CALL and the address in decimal, or from the Monitor with the address and G). The cassette plays a recording of an Apple tape into the cassette input (C060h): type LOAD in BASIC, or the address range and R in the Monitor, then press Play; Tape from binary makes such a tape from a file, for the Monitor's R. Record catches the cassette output (C020h) while you SAVE or W, and gives it to you as a WAV file; the recording also stays in the deck to be played back. The language card puts 16K of RAM over the ROMs, as DOS 3.3 uses it for the other BASIC. The Disk II takes disk images (.dsk, .do, .po, .nib) in two drives. With the card fitted, the Apple boots drive 1 at power on, as the real one does, and waits there until a disk goes in (CTRL-RESET gives BASIC instead); boot again with PR#6 (or the Monitor's C600G), and Save writes the disk back as an image with what the program wrote to it. 50 Hz scanning is the Eurapple's: 312 lines a frame instead of 262. The ROMs are not included; your browser keeps them once loaded.</p>
+        <div class="row">
+          <b class="lbl">Jumpers</b>
+          <label class="inline" title="Jumper MM: VIA 3 PA0 write protects System RAM (fitted as delivered; SUPERMON unprotects it when it needs to write)"><input type="checkbox" id="syJMM" checked> MM</label>
+          <label class="inline" title="Jumpers W24 and X25: VIA 3 PA4 and PA5 turn DEBUG on and off, so programs can (Reference Manual 9.6; not fitted as delivered)"><input type="checkbox" id="syJWX"> W24 X25</label>
+          <label class="inline" title="Jumpers JJ, KK and LL: VIA 3 PA1-PA3 write protect the second, third and fourth 1K of RAM"><input type="checkbox" id="syJWP"> JJ KK LL</label>
+          <label class="inline" title="A 6522 in socket U28 (VIA 2, A800h): the user's own, empty as delivered"><input type="checkbox" id="syVia2"> VIA 2 (U28)</label>
+        </div>
+        <div class="msg" id="syMsg"></div>
+        <div class="ptsockets sysockets" id="sySockets" aria-label="ROM sockets"></div>
+        <p class="hint">The keypad is the SYM-1's own: click a key, or click the keypad and type (0–9 and A–F, Enter for CR, minus, the right arrow for →, Shift for SHIFT, and G, R, M, L and S for GO, REG, MEM, LD 2 and SAV 2). Hold SHIFT and press a key for its upper legend. RST resets the board; DEBUG ON makes every instruction outside SUPERMON stop with an NMI, so each GO runs one instruction. After RST, SUPERMON beeps and waits: press a key to use the keypad, or type Q in the terminal to log on to it (SUPERMON measures the baud rate from the Q). The terminal is the SYM-1's CRT port (RS-232 on connector C): type into it, or paste text and Send. With a real SYM-1 wired to a serial port of this computer (a USB serial adapter and an RS-232 cable to connector C), choose "a real SYM-1" and Connect: the terminal then talks to your board at the baud rate chosen (Chrome or Edge). The cassette plays a recording into the cassette input (VIA 1 PB6): type L1 or L2 and the ID, then Play. Record catches the cassette output while you S1 or S2 and gives it to you as a WAV file. Load ROM folder recognises SUPERMON 1.1 and the RAE ROMs by their contents; other ROMs go where their file names say (…_C000.BIN). Click a socket to fit a ROM of your own there. The ROMs are not included; your browser keeps them once loaded.</p>
       </section>
+
       <section class="panel" id="pMemChips">
         <h2>Memory chips <span class="aside" id="mcInfo">live pins · click a pin for its fault menu</span></h2>
         <div class="mcwrap">
@@ -479,8 +495,8 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
             <div class="row mcbtns"><button id="mcClear" type="button">Clear this chip's faults</button><button id="mcClearAll" type="button">Clear all faults</button></div>
           </figure>
         </div>
-        <p class="hint">Every memory chip on the main board, from the RFI board's schematic: the 24 4116 dynamic RAMs in rows C (0000h–3FFFh), D (4000h–7FFFh) and E (8000h–BFFFh), one per data bit (the chip in column 3 holds bit 0 and the one in column 10 bit 7), the six 2316B ROMs D0–F8 and the text ROM at A5. A tile's dot lights while its chip is being accessed. Click a tile to see that chip's pins, which follow the bus on every clock. The RAMs are addressed twice in every cycle: by the video scanner while φ0 is low and by the 6502 while it is high, through the 74LS153 multiplexers (the 6502's address goes to RA0–RA6 as A7/A10, A2/A4, A0/A5, A8/A11, A3/A9, A1/A6 and A12/A13, row then column); the pins show the 6502's access.</p>
-        <p class="hint">To simulate a fault, click a pin for its menu. A pin on a line shared with other chips gets a tick box: without it, the buttons hold the whole line high or low, and every pin on that line, on every chip, sees the level; with it ("Disconnected from the line"), the fault is on this chip's pin alone. A pin with a line of its own has the plain choices: Disconnected (an input then floats high), High or Low. An address pin fault makes the chip use the wrong cell; a data pin fault changes that bit on reads and writes; a fault on RAS or CAS takes a RAM out of circuit (its bit reads 1); a ROM's chip select held high switches it off and INHIBIT' (CS2) held low switches all six off. A RAM fault shows in the picture too, because the video scanner reads the same chips. Faults are listed in the Debug pane and stay until cleared there, here, or by Master reset.</p>
+        <p class="hint">Every memory chip on the board, from Peck's SYM-1 Hardware Theory of Operations: the 2114 static RAMs in pairs, one pair for each 1K (U12 and U13 at 0000h hold bits 0–3 and 4–7; U14/U15, U16/U17 and U18/U19 are the three sockets for more), and the four ROM sockets P0–P3 (U20–U23). A tile's dot lights while its chip is being accessed. Click a tile to see that chip's pins, which follow the bus on every clock.</p>
+        <p class="hint">To simulate a fault, click a pin for its menu. A pin on a line shared with other chips gets a tick box: without it, the buttons hold the whole line high or low, and every pin on that line, on every chip, sees the level; with it ("Disconnected from the line"), the fault is on this chip's pin alone. A pin with a line of its own has the plain choices: Disconnected (an input then floats high), High or Low. An address pin fault makes the chip use the wrong cell; a data pin fault changes that bit on reads and writes; a 2114's CS' held high takes it out of circuit (its four bits read 1); a ROM's chip select held high switches it off. A fault in the first 1K (U12, U13) is soon fatal: SUPERMON's zero page and the stack are there. Faults are listed in the Debug pane and stay until cleared there, here, or by Master reset.</p>
       </section>
   </div>
   <div class="grid">
@@ -496,7 +512,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
           <dt>Address bus</dt><dd id="brAddr">–</dd>
           <dt>Data bus</dt><dd id="brData">–</dd>
         </dl>
-        <p class="hint">Clicking φ0 pulses one clock; right-click it for its fault menu. Every other ringed pin opens the fault menu: each of the 6502's pins is on a line of its own, because on the Apple II board the processor (H7/8) reaches the system bus through the 8T97 address buffers (H3–H5) and the 8T28 data transceivers (H10, H11). A pin can be disconnected (it then floats high) or held high or low. Faults are listed in the Debug pane and stay until cleared there, in the Memory chips panel, or by Master reset.</p>
+        <p class="hint">Clicking φ0 pulses one clock; right-click it for its fault menu. Every other ringed pin opens the fault menu: each of the 6502's pins (U5) is treated as a line of its own. A pin can be disconnected (it then floats high) or held high or low. Faults are listed in the Debug pane and stay until cleared there, in the Memory chips panel, or by Master reset.</p>
       </section>
 
       <section class="panel">
@@ -507,7 +523,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <textarea id="asmIn" spellcheck="false" aria-label="6502 assembly source"></textarea>
         <textarea id="hexIn" spellcheck="false" aria-label="Hexadecimal machine code" hidden></textarea>
         <div class="row">
-          <label class="inline" for="loadAddr" id="loadAddrWrap" title="Where the code goes in memory. Set this to the start of ROM in your system's memory map.">Load at <input id="loadAddr" type="text" class="mono" value="033A" size="5" maxlength="4">h</label>
+          <label class="inline" for="loadAddr" id="loadAddrWrap" title="Where the code goes in memory: the SYM-1's RAM is 0000h-0FFFh, and 0200h is the usual place for a program">Load at <input id="loadAddr" type="text" class="mono" value="0200" size="5" maxlength="4">h</label>
           <label class="inline"><input type="checkbox" id="clearFirst"> Clear RAM first</label>
           <label class="inline"><input type="checkbox" id="resetAfter"> Reset CPU after loading</label>
         </div>
@@ -558,7 +574,7 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
         <div class="mmbands" id="mmBands"></div>
         <div class="mm-legend" id="mmLegend"></div>
         <div class="mm-read" id="mmRead">Point at the bitmap to read a byte; click to show it in Memory.</div>
-        <p class="hint">Every bit of memory is one pixel. Each byte is a row of 8 pixels (bit 7 on the left) and each strip is one 256-byte page, read top to bottom. The background colour shows what each part of RAM is used for, read from BASIC's own pointers, so you can watch a program, its variables and its strings grow. The character ROM is shown too: every character is 8 bytes, so its shapes are visible. The red mark is the program counter and the blue mark the stack pointer.</p>
+        <p class="hint">Every bit of memory is one pixel. Each byte is a row of 8 pixels (bit 7 on the left) and each strip is one 256-byte page, read top to bottom. The bands are the RAM, the 128 bytes of System RAM in the 6532 (SUPERMON's vectors, variables and display buffer) and each ROM that is fitted; the background colour shows what each part is for. The red mark is the program counter and the blue mark the stack pointer.</p>
       </section>
     </div>
 
@@ -606,9 +622,9 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
       </section>
 
       <section class="panel" id="pMach">
-        <h2>Apple II hardware<button class="fold" type="button" aria-expanded="true" title="Collapse">»</button> <span class="aside">soft switches · keyboard · video scanner</span></h2>
-        <div class="ptstate" id="a2State"></div>
-        <p class="hint">The Apple II has no interface chips: the 74LS138s at F12, F13, H12 and H2 decode C000h–C0FFh into strobes, and any access to an address acts, read or write. C000h reads the keyboard (bit 7 is the strobe flip-flop) and C010h clears the strobe; C020h toggles the cassette output and C030h the speaker; C050h–C05Fh set the eight soft switches in the 74LS259 at F14; C061h–C067h read the push buttons and the paddle timers on bit 7, and C070h starts the timers. The video scanner counts 65 states in a line (the first is the long cycle) and 262 lines in a frame; its address and the byte it drives out of RAM are what the 6502 reads at any address nothing answers (the floating bus).</p>
+        <h2>SYM-1 hardware<button class="fold" type="button" aria-expanded="true" title="Collapse">»</button> <span class="aside">6532 · VIAs · serial · debug</span></h2>
+        <div class="ptstate" id="syState"></div>
+        <p class="hint">The SYM-1's I/O is in three chips. The 6532 RIOT (U27, A400h) runs the keypad and display: port A drives the segments of all six digits through the 7416 at U30 and reads the keypad's seven columns; PB0–PB3 go to the 74145 at U37, whose outputs 0–5 light one digit each, 6 the speaker and 7 the cassette output, and PB0–PB2 with PA7 are the keypad's four rows. PB4 and PB7 are the CRT (RS-232) port and PB5 and PB6 the TTY loop: SUPERMON sends and receives them a bit at a time. Its 128 bytes of RAM (A600h) are System RAM, echoed at F800h–FFFFh, so the 6502's vectors come from there. VIA 1 (U25, A000h) reads the cassette (PB6), runs the tape remote (CB2) and holds the power-on reset (CA2): until SUPERMON writes its PCR, P0 answers at every address outside A000h–A7FFh. VIA 3 (U29, AC00h) write protects System RAM (PA0) and, with jumpers, the RAM above 0400h and the debug switch.</p>
       </section>
       <section class="panel" id="pSystem" hidden>
         <h2>System <button class="fold" type="button" aria-expanded="true" title="Collapse">»</button><span class="aside">memory map</span></h2>
@@ -657,59 +673,99 @@ table.mem td.b.mw { box-shadow: inset 0 0 0 1.5px var(--warn); }
 <script src="src/m6502core.js"></script>
 <script src="src/m6502asm.js"></script>
 <script src="src/memchips.js"></script>
-<script src="src/a2disk.js"></script>
-<script src="src/apple2.js"></script>
+<script src="src/m6522.js"></script>
+<script src="src/m6532.js"></script>
+<script src="src/sym1.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
-const SAMPLE_ASM = `; Sample program: fills the top line of the text
-; screen with inverse stars, then returns.
-; Load it (leave "Reset CPU after loading" unticked)
-; and type  CALL 768  at the ] prompt
-; (or 300G in the Monitor).
-LINE1   = $0400         ; first line of text page 1
-        .org $0300
-start:  ldx #39
-        lda #$2A        ; '*' in inverse (00-3F)
-loop:   sta LINE1,x
+const SAMPLE_ASM = `; Sample program: counts on the display.
+; Load it, then on the keypad press  GO 2 0 0 CR
+; (or type  G200  in the terminal). RST stops it.
+; It uses SUPERMON's own routines: SCAND lights the
+; display once from DISBUF (A640h-A645h, left to
+; right), and SEGS (8C29h) holds the segment patterns
+; of the hex digits. SCAND uses X and Y, so the count
+; and the timer are kept in zero page.
+SCAND   = $8906
+DISBUF  = $A640
+SEGS    = $8C29
+ACCESS  = $8B86         ; unprotect System RAM
+TIMER   = $00
+COUNT   = $01
+        .org $0200
+start:  jsr ACCESS
+        ldx #5
+        lda #0
+clr:    sta DISBUF,x
         dex
-        bpl loop
-        rts
+        bpl clr
+        sta COUNT
+loop:   lda COUNT
+        lsr a
+        lsr a
+        lsr a
+        lsr a
+        tax
+        lda SEGS,x
+        sta DISBUF+4    ; high digit
+        lda COUNT
+        and #$0F
+        tax
+        lda SEGS,x
+        sta DISBUF+5    ; low digit
+        lda #80
+        sta TIMER
+show:   jsr SCAND       ; show it for a while
+        dec TIMER
+        bne show
+        inc COUNT
+        jmp loop
 `;
-const SAMPLE = `; Sample program: fills the top line with inverse stars. Type CALL 768.
-0300:
-A2 27      ; LDX #39
-A9 2A      ; LDA #$2A
-9D 00 04   ; loop: STA $0400,X
-CA         ; DEX
-10 FA      ; BPL loop
-60         ; RTS
+const SAMPLE = `; Sample program: counts on the display. GO 200 CR on the keypad, or G200 in the terminal.
+0200:
+20 86 8B A2 05 A9 00 9D
+40 A6 CA 10 FA 85 01 A5
+01 4A 4A 4A 4A AA BD 29
+8C 8D 44 A6 A5 01 29 0F
+AA BD 29 8C 8D 45 A6 A9
+50 85 00 20 06 89 C6 00
+D0 F9 E6 01 4C 0F 02
 `;
-const LS = 'a2bench.';
-// ---------- system: the Apple II Plus ----------
-const ap = new AppleMachine();
+const LS = 'symbench.';
+// ---------- system: the SYM-1 ----------
+const ap = new SymMachine();
 const mem = ap.ram;                        // RAM, for the parts of the page that poke memory directly
 let romWrites = 0, ramSize = 0, romStart = 0, ioDefault = 0xFF, lastData = 0xFF;      // the last four belong to the generic bench's hidden System panel
 const openBus = true;
 const ioIn = new Map(), ioOut = new Map(), ioLog = [];
 let lastWrites = new Set();
-const ioBase = 0xC000;
+const ioBase = 0xA000;
 function region(a) {
-  if (a < 0xC000) return a < ap.ramSize ? 'ram' : 'none';
-  if (a < 0xC080) return 'io';
-  if (a < 0xD000) return 'none';
-  return ap.fitted[ap.socketAt(a)] ? 'rom' : 'none';
+  if (a < 0x2000) return a < ap.ramKB * 1024 ? 'ram' : 'none';
+  if (a >= 0xA000 && a < 0xA800) return (a & 0x600) === 0x600 ? 'ram' : 'io';
+  if (a >= 0xA800 && a < 0xB000) return a & 0x400 || ap.via2Fitted ? 'io' : 'none';
+  if (a >= 0xF800 && ap.jumpers.U22) return 'ram';
+  return ap.socketAt(a) ? 'rom' : 'none';
 }
-const A2_IO_NAMES = ['keyboard', 'clear keyboard strobe', 'cassette output toggle', 'speaker toggle', 'C040 strobe (game connector)', '', 'serial inputs', 'paddle timer trigger'];
-const ioName = a => { const r = a >> 4 & 15; if (r === 5) { const s = A2_SWITCHES[a >> 1 & 7]; return 'soft switch: ' + s[3 + (a & 1)]; } if (r === 6) return ['cassette input', 'push button 0', 'push button 1', 'push button 2', 'paddle 0 timer', 'paddle 1 timer', 'paddle 2 timer', 'paddle 3 timer'][a & 7] + ' (bit 7)'; return r < 8 ? A2_IO_NAMES[r] : 'slot ' + (r - 8) + ' device select (no card)'; };
+const SY_VIA_REGS = ['ORB/IRB', 'ORA/IRA', 'DDRB', 'DDRA', 'T1C-L', 'T1C-H', 'T1L-L', 'T1L-H', 'T2C-L', 'T2C-H', 'SR', 'ACR', 'PCR', 'IFR', 'IER', 'ORA (no handshake)'];
+const ioName = a => {
+  if (a >= 0xA000 && a < 0xA400) return 'VIA 1 ' + SY_VIA_REGS[a & 15] + ' (U25: tape, power-on reset)';
+  if (a >= 0xA400 && a < 0xA600) { if (!(a & 4)) return '6532 ' + ['port A (keypad columns, segments)', 'DDRA', 'port B (digit select, serial)', 'DDRB'][a & 3]; return '6532 ' + (a & 0x10 ? 'timer ÷' + [1, 8, 64, 1024][a & 3] : a & 1 ? 'interrupt flags / edge detect' : 'timer / edge detect'); }
+  if (a >= 0xA600 && a < 0xA800) return 'System RAM';
+  if (a >= 0xA800 && a < 0xAC00) return 'VIA 2 ' + SY_VIA_REGS[a & 15] + ' (U28)';
+  if (a >= 0xAC00 && a < 0xB000) return 'VIA 3 ' + SY_VIA_REGS[a & 15] + ' (U29: write protect, debug, user port)';
+  return '';
+};
 const bus = {   // the panes' view of memory (the CPU itself uses ap.bus)
   read: a => ap.peek(a & 0xFFFF), peek: a => ap.peek(a & 0xFFFF),
   write: (a, v) => { disDirty = true; ap.write(a & 0xFFFF, v & 0xFF); }
 };
 { const or = ap.read.bind(ap), ow = ap.write.bind(ap);
-  // the keyboard (C000h) is read thousands of times a second while a program waits for a key: only the other accesses are logged
-  ap.read = a => { const v = or(a); if (a >= 0xC010 && a < 0xC100) { ioLog.push({ dir: 'RD', a, v, t: tTotal }); trimLog(); } return v; };
-  ap.write = (a, v) => { if (a < 0xC000) disDirty = true; else if (a < 0xC100) { ioOut.set(a, v); ioLog.push({ dir: 'WR', a, v, t: tTotal }); trimLog(); } else if (a >= 0xD000) romWrites++; ow(a, v); };
+  // the keypad and display ports (A400h-A403h) are used thousands of times a second: only the other accesses are logged
+  const quiet = a => a >= 0xA400 && a < 0xA600 && !(a & 0x1C);
+  ap.read = a => { const v = or(a); if (a >= 0xA000 && a < 0xB000 && !quiet(a) && (a & 0x600) !== 0x600) { ioLog.push({ dir: 'RD', a, v, t: tTotal }); trimLog(); } return v; };
+  ap.write = (a, v) => { if (a < 0x2000) disDirty = true; else if (a >= 0xA000 && a < 0xB000 && (a & 0x600) !== 0x600) { ioOut.set(a, v); if (!quiet(a)) { ioLog.push({ dir: 'WR', a, v, t: tTotal }); trimLog(); } } else if (a >= 0x8000 && region(a) === 'rom') romWrites++; ow(a, v); };
 }
 function trimLog() { if (ioLog.length > 60) ioLog.splice(0, ioLog.length - 60); }
 const cpu = ap.cpu;
@@ -921,9 +977,9 @@ function frame(now) {
     requestAnimationFrame(frame);
     return;
   }
-  // full speed, or real time: as many cycles as the Apple's 1.02 MHz clock makes in the time since the last frame
+  // full speed, or real time: as many cycles as the SYM-1's 1 MHz clock makes in the time since the last frame
   const t0 = performance.now(), real = runRate === 'real';
-  if (real) { acc += dt * A2.CPU_HZ / 1000; if (acc > A2.CPU_HZ / 5) acc = A2.CPU_HZ / 5; }
+  if (real) { acc += dt * SYM.CPU_HZ / 1000; if (acc > SYM.CPU_HZ / 5) acc = SYM.CPU_HZ / 5; }
   const budget = real ? acc : Infinity; let spent = 0;
   let last = null, stall = null;
   while (performance.now() - t0 < 12 && spent < budget) {
@@ -951,7 +1007,7 @@ function frame(now) {
   }
   if (last) finishFast(last, last.pc);
   if (real) acc -= spent;
-  if (stall) stalledMsg(stall); else setStatus(real ? 'Running in real time (1.02 MHz)' : 'Running at full speed', false, true);
+  if (stall) stalledMsg(stall); else setStatus(real ? 'Running in real time (1 MHz)' : 'Running at full speed', false, true);
   render();
   requestAnimationFrame(frame);
 }
@@ -981,7 +1037,7 @@ let disStart = 0, memFrom = 0;
 function regsView() { return midInstruction() && pre ? pre : cpu; }
 function pinValue(name) {
   const T = curT;
-  { const zf = ap.chipById['H7'].f; if (name in zf) return zf[name]; }
+  { const zf = ap.chipById['U5'].f; if (name in zf) return zf[name]; }
   switch (name) {
     case 'VCC': return 'p';
     case 'VSS1': case 'VSS2': return 'g';
@@ -1145,13 +1201,13 @@ function renderMem(focus) {
   }
   const tab = $('mem'); tab.style.top = first * MEM_ROW + 'px'; tab.innerHTML = html;
   if (document.activeElement !== $('memFrom')) $('memFrom').value = h4(Math.floor(view.scrollTop / MEM_ROW) * 16);
-  const parts = ['RAM ' + (ap.ramSize / 1024) + 'K', 'text 0400h', 'I/O C000h', 'ROM ' + (A2_SOCKETS.filter(s => ap.fitted[s[0]]).map(s => s[0]).join(' ') || 'none')];
+  const parts = ['RAM ' + ap.ramKB + 'K', 'I/O A000h–AFFFh', 'System RAM A600h', 'ROM ' + (ap.sockets.filter(s => s.fitted).map(s => s.name + ' ' + h4(s.addr) + 'h').join(' ') || 'none')];
   $('memInfo').textContent = parts.join(' · ') + (romWrites ? ` · last instruction tried to write ROM (ignored)` : '');
 }
 function renderIO() {
-  $('ioInfo').textContent = 'C000h–C0FFh · last value written';
+  $('ioInfo').textContent = 'A000h–AFFFh · last value written';
   const lat = $('latches');
-  if (!ioOut.size) lat.innerHTML = '<div class="empty">No writes to C000h–C0FFh yet.</div>';
+  if (!ioOut.size) lat.innerHTML = '<div class="empty">No writes to A000h–AFFFh yet.</div>';
   else lat.innerHTML = [...ioOut.entries()].sort((a, b) => a[0] - b[0]).map(([a, v]) => {
     let leds = ''; for (let b = 7; b >= 0; b--) leds += `<span class="led${(v >> b) & 1 ? ' on' : ''}" title="bit ${b}"></span>`;
     return `<div class="latch" title="${ioName(a)}"><span>${h4(a)}h</span><span class="leds">${leds}</span><span>${h2(v)}h  ${v.toString(2).padStart(8, '0')}b</span></div>`;
@@ -1302,7 +1358,7 @@ function loadChunks(chunks, note, tail) {
   for (const c of chunks) {
     c.bytes.forEach((v, i) => {
       const a = (c.addr + i) & 0xFFFF; const r = region(a);
-      if (a < ap.ramSize) ap.ram[a] = v; else outside++;
+      if (a < ap.ramKB * 1024) ap.ram[a] = v; else outside++;
     });
     total += c.bytes.length; ranges.push(h4(c.addr) + '–' + h4((c.addr + c.bytes.length - 1) & 0xFFFF));
   }
@@ -1316,7 +1372,7 @@ function loadChunks(chunks, note, tail) {
   }
   ioOut.clear(); ioLog.length = 0;
   msg.className = outside ? 'msg err' : 'msg ok';
-  msg.textContent = (note || '') + `Loaded ${total} byte${total === 1 ? '' : 's'} at ${ranges.join(', ')}.` + (outside ? ` ${outside} byte(s) fall outside RAM and ROM and were not loaded; check the address in the System panel.` : '') + pcNote + (tail || '');
+  msg.textContent = (note || '') + `Loaded ${total} byte${total === 1 ? '' : 's'} at ${ranges.join(', ')}.` + (outside ? ` ${outside} byte(s) fall outside the ${ap.ramKB}K of RAM (0000h–${h4(ap.ramKB * 1024 - 1)}h) and were not loaded.` : '') + pcNote + (tail || '');
   render();
 }
 let importedName = null;
@@ -1749,22 +1805,20 @@ function memDumpDone(p, what) {
   p.then(n => { if (n) { m.className = 'msg ok'; m.textContent = `${what} saved as ${n} (look in your downloads).`; } else { m.className = 'msg'; m.textContent = 'Not saved: the download was declined.'; } })
    .catch(e => { m.className = 'msg err'; m.textContent = 'Could not save the file' + (e && e.message ? ': ' + e.message : '.'); });
 }
-$('memDumpBin').onclick = () => memDumpDone(benchDownload(`apple2-memory-${benchStamp()}.bin`, memSnapshot(), 'application/octet-stream'), 'Memory (65,536 bytes, byte 0 is address 0000h)');
-$('memDumpTxt').onclick = () => memDumpDone(benchDownload(`apple2-memory-${benchStamp()}.txt`, memListing(memSnapshot()), 'text/plain;charset=utf-8'), 'Memory listing');
+$('memDumpBin').onclick = () => memDumpDone(benchDownload(`sym1-memory-${benchStamp()}.bin`, memSnapshot(), 'application/octet-stream'), 'Memory (65,536 bytes, byte 0 is address 0000h)');
+$('memDumpTxt').onclick = () => memDumpDone(benchDownload(`sym1-memory-${benchStamp()}.txt`, memListing(memSnapshot()), 'text/plain;charset=utf-8'), 'Memory listing');
 // ---------- master reset: memory, ROMs, every debug point and the input pins ----------
 function masterReset() {
   if (running) stopRun();
   $('dbgClear').onclick();
   for (const k of Object.keys(pins)) pins[k] = 1;
   cpu.nmiPending = false;
-  for (const a of [ap.ram, ap.rom, ap.chargen]) a.fill(0);
-  ap.fitted = {}; ap.hasChargen = false;
-  for (const r of Object.keys(A2_ROLES)) { delete a2Roms[r]; delete a2Names[r]; try { localStorage.removeItem(A2_LS + 'rom.' + r); localStorage.removeItem(A2_LS + 'name.' + r); } catch (e) {} }
-  for (const s of Object.keys(a2Custom)) { delete a2Custom[s]; try { localStorage.removeItem(A2_LS + 'custom.' + s); } catch (e) {} }
-  a2Latched.clear(); a2Show(); a2RomShow(); $('a2Msg').className = 'msg'; $('a2Msg').textContent = '';
+  ap.ram.fill(0); ap.rom.fill(0); ap.riot.ram.fill(0);
+  for (const s of Object.keys(syRoms)) { delete syRoms[s]; syStore(s); }
+  syFit(); syMsg('');
   resetCPU(true);
   if (typeof disDirty !== 'undefined') disDirty = true;
-  setStatus('Master reset: ROMs forgotten (load them again to switch on), RAM and screen cleared; all breakpoints and stops removed; input pins released');
+  setStatus('Master reset: ROMs forgotten (load them again to switch on), RAM cleared; all breakpoints and stops removed; input pins released');
   render();
 }
 let masterArm = null;
@@ -1775,251 +1829,299 @@ $('btnMaster').onclick = () => {
 };
 dbgFields();
 
-// ---------- Apple II Plus: picture, keyboard, ROMs, programs, hardware panel ----------
-const A2_LS = 'a2bench.';
-const ascr = $('a2Screen'), actx = ascr.getContext('2d'), aimg = actx.createImageData(A2.W, A2.H), aimg32 = new Uint32Array(aimg.data.buffer);
+// ---------- SYM-1: display, keypad, terminal, ROMs, programs, hardware panel ----------
+const SY_LS = 'symbench.';
 const apOn = () => ap.ready();
-const A2_TINT = { white: 0xFFFFFF, green: 0x41FF6E, amber: 0xFFB33C };
-function drawA2() {
-  const mon = $('a2Mon').value, pic = running ? { fb: ap.fb, burst: ap.burst } : ap.liveFrame();     // paused: the lines drawn so far this frame too
-  a2Render(pic.fb, pic.burst, aimg32, mon === 'colour' ? 'colour' : 'mono', A2_TINT[mon]);
-  actx.putImageData(aimg, 0, 0);
-  if (!apOn()) { actx.fillStyle = '#8fe6a0'; actx.font = '16px "IBM Plex Mono", monospace'; actx.textAlign = 'center'; actx.fillText('Load the Apple II Plus ROMs to switch on', A2.W / 2, A2.H / 2 - 8); actx.font = '12px "IBM Plex Mono", monospace'; actx.fillText('Applesoft, Autostart Monitor and text ROMs: not included', A2.W / 2, A2.H / 2 + 14); }
-  const s = ap.sw;
-  $('a2ScrInfo').textContent = apOn() ? `${s.text ? 'TEXT' : (s.hires ? 'HIRES' : 'LORES') + (s.mixed ? ' + TEXT' : '')} · page ${s.page2 ? 2 : 1} · line ${ap.line} · frame ${ap.frames}` : 'no ROM';
+const syMsg = (text, cls) => { const m = $('syMsg'); m.className = 'msg' + (cls ? ' ' + cls : ''); m.textContent = text; };
+// ---- the display: six seven-segment digits, lit for the share of the time the scan lights each segment ----
+// segments a-g and the decimal point, as polygons in a 40 x 64 box
+const SY_SEGS = ['M8,3 L32,3 L28,8 L12,8 Z', 'M33,4 L35,30 L30,28 L29,9 Z', 'M35,34 L33,60 L29,55 L30,36 Z', 'M8,61 L32,61 L28,56 L12,56 Z', 'M7,60 L5,34 L10,36 L11,55 Z', 'M5,30 L7,4 L11,9 L10,28 Z', 'M7,32 L12,29 L28,29 L33,32 L28,35 L12,35 Z'];
+let syDispEls = [], syLastF = null, syLastCt = -1; const syGlow = new Float32Array(48);
+function syBuildDisp() {
+  let h = '';
+  for (let d = 0; d < 6; d++) h += `<svg viewBox="0 0 44 66" class="dig" aria-hidden="true">${SY_SEGS.map((p, k) => `<path d="${p}" data-s="${d * 8 + k}"/>`).join('')}<circle cx="40" cy="61" r="2.6" data-s="${d * 8 + 7}"/></svg>`;
+  $('syDisp').innerHTML = h; syDispEls = [...$('syDisp').querySelectorAll('[data-s]')].sort((a, b) => a.dataset.s - b.dataset.s);
 }
-let a2Sig = '';
-const a2Bits = (v, n) => v.toString(2).padStart(n || 8, '0');
-function renderA2State() {
-  const s = ap.sw, c = ap.frameCycle() % ap.FT, H = ap.hState(c), V = ap.vState(c), sa = ap.scanAddr(c, s), on = v => `<b>${v}</b>`;
-  const kc = ap.kbd, kch = kc >= 32 && kc < 127 ? '“' + String.fromCharCode(kc) + '”' : kc === 13 ? 'RETURN' : kc === 8 ? '←' : kc === 0x15 ? '→' : kc === 0x1B ? 'ESC' : kc < 32 ? 'CTRL-' + String.fromCharCode(kc + 64) : '';
-  const pdl = n => { const left = ap.timerEnd[n] - ap.ct; return `PDL ${n} ${Math.round(ap.paddle[n] * 255)} (${Math.round(ap.paddleCycles(n) / A2.CPU_HZ * 1e6)} µs)${left > 0 ? ' · timing' : ''}`; };
-  const html = `<div class="blk"><div class="hd">Soft switches · C050h–C05Fh (74LS259 at F14)</div><div class="kv">${on(s.text ? 'TEXT' : 'GRAPHICS')} · ${on(s.mixed ? 'MIX' : 'NOMIX')} · ${on(s.page2 ? 'PAGE 2' : 'PAGE 1')} · ${on(s.hires ? 'HIRES' : 'LORES')}<br>Annunciators AN0 <b>${s.an0}</b> AN1 <b>${s.an1}</b> AN2 <b>${s.an2}</b> AN3 <b>${s.an3}</b></div></div>
-    <div class="blk"><div class="hd">Keyboard · C000h</div><div class="kv">Latched code <b>${h2(kc)}</b> ${esc(kch)} · strobe <b>${ap.strobe}</b> (C000h reads <b>${h2(kc | ap.strobe << 7)}</b>)${ap.typeQ.length ? ` · <b>${ap.typeQ.length}</b> keys waiting to be typed` : ''}</div></div>
-    <div class="blk"><div class="hd">Speaker, cassette and game I/O</div><div class="kv">Speaker <b>${ap.spk}</b> (toggled <b>${ap.speakerToggles.toLocaleString('en-AU')}</b> times) · cassette out <b>${ap.casOut}</b> · cassette in <b>${ap.tapeIn}</b><br>${pdl(0)} · ${pdl(1)}<br>Push buttons PB0 <b>${ap.button[0]}</b> PB1 <b>${ap.button[1]}</b> PB2 <b>${ap.button[2]}</b></div></div>
-    <div class="blk"><div class="hd">Video scanner</div><div class="kv">Frame cycle <b>${c.toLocaleString('en-AU')}</b> of ${ap.FT.toLocaleString('en-AU')} · line <b>${(c / 65) | 0}</b> · cycle <b>${c % 65}</b> of 65${c % 65 === 0 ? ' (the long cycle)' : ''}<br>Horizontal <b>${a2Bits(H, 7)}</b> · vertical <b>${a2Bits(V, 9)}</b> · ${H < 0x58 || ((c / 65) | 0) >= 192 ? 'blanking' : 'picture, column <b>' + (H - 0x58) + '</b>'}<br>Scanner address <b>${h4(sa)}h</b> · floating bus <b>${h2(ap.vByte(sa))}h</b></div></div>
-    ${ap.lc ? `<div class="blk"><div class="hd">Language card · slot 0, C080h–C08Fh</div><div class="kv">Reads <b>${ap.lcRead ? 'its RAM' : 'the ROMs'}</b> · D000h bank <b>${ap.lcBank2 ? 2 : 1}</b> · writes <b>${ap.lcWE ? 'enabled' : 'protected'}</b>${ap.lcPre ? ' (one odd read: another enables writing)' : ''}</div></div>` : ''}
-    ${ap.diskOn ? (k => `<div class="blk"><div class="hd">Disk II · slot 6, C0E0h–C0EFh</div><div class="kv">Drive <b>${k.drive + 1}</b> · motor <b>${k.motor ? 'on' : k.spinning() ? 'running on' : 'off'}</b> · phases <b>${a2Bits(k.phases, 4)}</b> · head on track <b>${k.cur().ht >> 1}${k.cur().ht & 1 ? '.5' : ''}</b><br>Q6 <b>${k.q6}</b> Q7 <b>${k.q7}</b> (${k.q7 ? (k.q6 ? 'load' : 'write') : k.q6 ? 'sense write protect' : 'read'}) · data register <b>${h2(k.latch)}</b> · boot PROM ${k.rom ? '<b>fitted</b>' : '<b>missing</b>'}${k.writes ? ` · <b>${k.writes.toLocaleString('en-AU')}</b> nibbles written` : ''}</div></div>`)(ap.disk) : ''}
-    <div class="blk"><div class="hd">Machine</div><div class="kv">Apple II Plus (RFI board) · <b>${ap.euro ? '50 Hz Eurapple' : '60 Hz'}</b> · <b>${ap.ramSize / 1024}K</b> RAM · ROMs fitted: <b>${A2_SOCKETS.filter(x => ap.fitted[x[0]]).map(x => x[0]).join(' ') || 'none'}</b>${ap.hasChargen ? ' · text ROM' : ''} · frames <b>${ap.frames.toLocaleString('en-AU')}</b></div></div>`;
-  if (html !== a2Sig) { a2Sig = html; $('a2State').innerHTML = html; }
+function syDrawDisp() {
+  if (ap.ct !== syLastCt) { syLastF = ap.displayFrame(); syLastCt = ap.ct; }
+  const f = syLastF || new Float32Array(48); let max = 0; for (const v of f) max = Math.max(max, v);
+  // each segment's share of the scan, smoothed over a few frames as the eye does; a segment lit for most of its
+  // digit's time shows at full brightness
+  for (let i = 0; i < 48; i++) {
+    const b = max > 0.005 ? Math.min(1, f[i] / max) : 0; syGlow[i] += (b - syGlow[i]) * (running ? 0.45 : 1);
+    const v = Math.min(1, syGlow[i] * 1.6); syDispEls[i].style.opacity = (0.12 + 0.88 * v).toFixed(2); syDispEls[i].classList.toggle('on', v > 0.5);
+  }
+  $('syInfo').textContent = apOn() ? `${ap.debug ? 'DEBUG ON · ' : ''}${ap.ramKB}K RAM · ${ap.sockets.filter(s => s.fitted).map(s => s.name).join(' ')}` : 'no ROM';
 }
-function renderPt() { drawA2(); renderA2State(); a2DriveShow(); a2TapeShow(); }
-// ---- keyboard ----
-// The Apple II Plus keyboard (Sather figure 7.8): an AY-5-3600 encoder sends a 7-bit code and a strobe for each key.
-// Letters are upper case with or without SHIFT, except N, M and P, which give ^, ] and @ with SHIFT. CTRL with a key
-// whose code is 40h-5Fh gives that code less 40h. RESET pulls the RESET line low (here, with CTRL, as the encoder
-// board's switch is normally set); REPT held with a key repeats it ten times a second.
-// Each key: [name, legend, code, code with SHIFT, width in quarter keys]; a number alone is a gap.
-const A2_LAYOUT = [
-  [['ESC', 'ESC', 0x1B], ['1', '1', 0x31, 0x21, 4, '!'], ['2', '2', 0x32, 0x22, 4, '"'], ['3', '3', 0x33, 0x23, 4, '#'], ['4', '4', 0x34, 0x24, 4, '$'], ['5', '5', 0x35, 0x25, 4, '%'], ['6', '6', 0x36, 0x26, 4, '&'], ['7', '7', 0x37, 0x27, 4, "'"], ['8', '8', 0x38, 0x28, 4, '('], ['9', '9', 0x39, 0x29, 4, ')'], ['0', '0', 0x30, 0x30], [':', ':', 0x3A, 0x2A, 4, '*'], ['-', '-', 0x2D, 0x3D, 4, '='], ['RESET', 'RESET', -1, -1, 6]],
-  [['CTRL', 'CTRL', -1, -1, 6], ...'QWERTYUIO'.split('').map(k => [k, k, k.charCodeAt(0)]), ['P', 'P', 0x50, 0x40, 4, '@'], ['REPT', 'REPT', -1], ['RETURN', 'RETURN', 0x0D, 0x0D, 6]],
-  [2, ...'ASDFGHJKL'.split('').map(k => [k, k, k.charCodeAt(0)]), [';', ';', 0x3B, 0x2B, 4, '+'], ['LEFT', '←', 0x08], ['RIGHT', '→', 0x15], 4],
-  [['SHIFT', 'SHIFT', -1, -1, 8], ...'ZXCVB'.split('').map(k => [k, k, k.charCodeAt(0)]), ['N', 'N', 0x4E, 0x5E, 4, '^'], ['M', 'M', 0x4D, 0x5D, 4, ']'], [',', ',', 0x2C, 0x3C, 4, '<'], ['.', '.', 0x2E, 0x3E, 4, '>'], ['/', '/', 0x2F, 0x3F, 4, '?'], ['SHIFT2', 'SHIFT', -1, -1, 8]],
-  [12, ['SPACE', '', 0x20, 0x20, 36], 12]
-];
-const A2_KEY = {}; for (const row of A2_LAYOUT) for (const k of row) if (typeof k !== 'number') A2_KEY[k[0]] = k;
-const A2_LATCH = new Set(['CTRL', 'SHIFT', 'SHIFT2', 'REPT']);
-const a2Latched = new Set(); let a2Held = null, a2RepTimer = null;
-function a2Show() {
-  for (const b of document.querySelectorAll('#a2Kb button')) { b.classList.toggle('latched', a2Latched.has(b.dataset.k)); b.classList.toggle('down', a2Held === b.dataset.k); }
+syBuildDisp();
+// ---- the keypad ----
+const syHeld = new Map();      // key -> what pressed it (a pointer or a PC key), so a key is released once
+function syKeyDown(k, who) {
+  if (!apOn()) { syNoRom(); return; }
+  syAudioStart();
+  if (syHeld.has(k)) return; syHeld.set(k, who);
+  if (k === 'RST') { if (running) stopRun(); ap.keyDown('RST'); resetCPU(true); setStatus('RST: the 6502, the VIAs and the 6532 are reset; SUPERMON starts from the reset vector'); startRun(); }
+  else ap.keyDown(k);
+  if (!running) startRun();
+  sySyncKeys();
 }
-// the code the encoder sends for a key with the modifiers now down, or -1
-function a2Code(k, shift, ctrl) {
-  const d = A2_KEY[k]; if (!d || d[2] < 0) return -1;
-  let c = shift && d[3] !== undefined ? d[3] : d[2];
-  if (ctrl && c >= 0x40 && c < 0x60) c -= 0x40;
-  return c;
-}
-function a2Press(code) { if (code < 0) return; a2AudioStart(); ap.key(code); }
-function a2Reset() { if (running) stopRun(); ap.reset(false); resetCPU(true); setStatus('RESET: the 6502 restarts from the reset vector at FFFCh'); startRun(); ascr.focus(); }
-function a2RenderKb() {
+function syKeyUp(k) { if (!syHeld.has(k)) return; syHeld.delete(k); ap.keyUp(k); sySyncKeys(); }
+function sySyncKeys() { for (const b of document.querySelectorAll('#syKp button')) b.classList.toggle('down', syHeld.has(b.dataset.k)); }
+function syRenderKp() {
   const q = t => esc(t).replace(/"/g, '&quot;');
-  $('a2Kb').innerHTML = A2_LAYOUT.map(row => '<div class="krow">' + row.map(k => {
-    if (typeof k === 'number') return `<span style="grid-column: span ${k}"></span>`;
-    const [name, legend, , , w, top] = k;
-    return `<button type="button" data-k="${q(name)}" style="grid-column: span ${w || 4}" title="${q(name === 'RESET' ? 'RESET: with CTRL down, resets the machine' : legend || 'SPACE')}"><span class="cap${legend.length > 1 ? ' word' : ''}">${top ? '<small>' + esc(top) + '</small>' : ''}${esc(legend) || '&nbsp;'}</span></button>`;
-  }).join('') + '</div>').join('');
-  for (const b of document.querySelectorAll('#a2Kb button')) {
+  $('syKp').innerHTML = SYM_LAYOUT.map(row => row.map(([k, low]) => {
+    const up = k === 'DEBUG ON' ? '' : SYM_SHIFTED[k] || '', hw = k === 'RST' || k.startsWith('DEBUG'), cls = hw || k === 'SHIFT' ? ' hw' : /^[0-9A-F]$/.test(k) ? ' hex' : '';
+    const tip = k === 'RST' ? 'RST: resets the board' : k === 'DEBUG ON' ? 'DEBUG ON: an NMI after every instruction outside SUPERMON' : k === 'DEBUG OFF' ? 'DEBUG OFF' : k === 'SHIFT' ? 'SHIFT: press, release, then press a key for its upper legend' : `${low}${up ? ' (shifted: ' + up + ')' : ''}`;
+    return `<button type="button" class="sk${cls}" data-k="${q(k)}" title="${q(tip)}">${up ? `<small>${esc(up)}</small>` : k === 'DEBUG ON' ? '<small>DEBUG</small>' : ''}<span>${esc(low)}</span></button>`;
+  }).join('')).join('');
+  for (const b of document.querySelectorAll('#syKp button')) {
     const k = b.dataset.k;
-    if (A2_LATCH.has(k)) { b.addEventListener('click', () => { if (a2Latched.has(k)) a2Latched.delete(k); else a2Latched.add(k); a2Show(); }); continue; }
-    b.addEventListener('pointerdown', e => {
-      e.preventDefault(); a2Held = k;
-      if (k === 'RESET') { if (a2Latched.has('CTRL')) { a2Latched.clear(); a2Reset(); } else setStatus('RESET does nothing without CTRL: click CTRL first'); a2Show(); return; }
-      const shift = a2Latched.has('SHIFT') || a2Latched.has('SHIFT2'), ctrl = a2Latched.has('CTRL'), code = a2Code(k, shift, ctrl);
-      a2Press(code);
-      if (a2Latched.has('REPT')) { clearInterval(a2RepTimer); a2RepTimer = setInterval(() => a2Press(code), 100); }
-      for (const m of ['CTRL', 'SHIFT', 'SHIFT2']) a2Latched.delete(m); a2Show();
-    });
-    const up = () => { if (a2Held !== k) return; a2Held = null; clearInterval(a2RepTimer); a2RepTimer = null; a2Show(); };
-    b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (err) {} syKeyDown(k, 'ptr'); $('syKp').focus({ preventScroll: true }); });
+    const up = () => syKeyUp(k);
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
   }
-  a2Show();
 }
-a2RenderKb();
-// PC keyboard: by character, since the Apple's shifted symbols differ from a PC's
-const A2_PC = { Enter: 0x0D, NumpadEnter: 0x0D, Backspace: 0x08, ArrowLeft: 0x08, ArrowRight: 0x15, Escape: 0x1B, Space: 0x20 };
-ascr.addEventListener('keydown', e => {
-  e.stopPropagation();      // keep the page's own shortcuts (C, S, R) away from what is typed into the Apple
-  if (e.metaKey || e.altKey) return;
-  let code = A2_PC[e.code];
-  if (code === undefined) {
-    const ch = e.key; if (!ch || ch.length !== 1) return;
-    code = ch.toUpperCase().charCodeAt(0);
-    if (e.ctrlKey) { if (code >= 0x40 && code < 0x60) code -= 0x40; else return; }
-    if (code < 0x20 && !e.ctrlKey || code > 0x5F) return;
-  }
-  e.preventDefault();
-  if (e.repeat && !a2Latched.has('REPT')) return;
-  a2Press(code);
+syRenderKp();
+// the PC keyboard on the keypad: hex digits, Enter, minus, the right arrow, Shift, and letters for the command keys
+const SY_PCKEYS = { Enter: 'CR', NumpadEnter: 'CR', Minus: '-', NumpadSubtract: '-', ArrowRight: '→', ShiftLeft: 'SHIFT', ShiftRight: 'SHIFT', KeyG: 'GO', KeyR: 'REG', KeyM: 'MEM', KeyL: 'L2', KeyS: 'S2' };
+function syPcKey(e) {
+  if (SY_PCKEYS[e.code]) return SY_PCKEYS[e.code];
+  const ch = (e.key || '').toUpperCase(); return /^[0-9A-F]$/.test(ch) && !e.code.startsWith('Key') || /^[A-F]$/.test(ch) ? ch : null;
+}
+$('syKp').addEventListener('keydown', e => {
+  e.stopPropagation(); if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = syPcKey(e); if (!k) return; e.preventDefault(); if (!e.repeat) syKeyDown(k, e.code);
 });
-// ---- ROMs: each file is placed by its checksum (or a 12K or 16K file of the whole ROM space), kept by this browser ----
-const A2_ROLES = {
-  D0: { name: 'Applesoft BASIC D000h (341-0011)', addr: 0xD000, crc: ['6F05F949'] },
-  D8: { name: 'Applesoft BASIC D800h (341-0012)', addr: 0xD800, crc: ['1F08087C'] },
-  E0: { name: 'Applesoft BASIC E000h (341-0013)', addr: 0xE000, crc: ['2B8D9A89'] },
-  E8: { name: 'Applesoft BASIC E800h (341-0014)', addr: 0xE800, crc: ['5719871A'] },
-  F0: { name: 'Applesoft BASIC F000h (341-0015)', addr: 0xF000, crc: ['9A04EECF'] },
-  F8: { name: 'Autostart Monitor F800h (341-0020)', addr: 0xF800, crc: ['079589C4'] },
-  A5: { name: 'text ROM (341-0036)', addr: -1, crc: ['64F415C6'] },
-  P5: { name: 'Disk II boot PROM (341-0027)', addr: -2, crc: ['CE7144F6'], size: 256 }
-};
-const A2_BOARD = ['D0', 'D8', 'E0', 'E8', 'F0', 'F8', 'A5'];      // the main board's seven; P5 is on the Disk II card
-const A2_SOCK = [['D0', 0xD000, 'BASIC'], ['D8', 0xD800, 'BASIC'], ['E0', 0xE000, 'BASIC'], ['E8', 0xE800, 'BASIC'], ['F0', 0xF000, 'BASIC'], ['F8', 0xF800, 'Monitor'], ['A5', -1, 'text ROM'], ['P5', -2, 'Disk II boot']];
-const a2Roms = {}, a2Names = {}, a2Custom = {};
-function a2Crc(b) { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; } return (~c >>> 0).toString(16).toUpperCase().padStart(8, '0'); }
-const a2B64 = bytes => { let s = ''; for (const x of bytes) s += String.fromCharCode(x); return btoa(s); };
-const a2Un64 = s => { s = atob(s); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
-// which ROMs a file holds: [[role, bytes], ...]
-function a2Identify(name, bytes) {
-  const crc = a2Crc(bytes);
-  // the Disk II's 16-sector boot PROM, as the 6502 reads it or as the chip is wired on the card
-  const p5 = a2dBootProm(bytes); if (p5) return { list: [['P5', p5.bytes]], crc, raw: p5.raw };
-  if (bytes.length === 2048) { for (const [r, d] of Object.entries(A2_ROLES)) if (d.crc.includes(crc)) return { list: [[r, bytes]], crc }; return { list: [], crc }; }
-  if (bytes.length === 12288 || bytes.length === 16384 || bytes.length === 20480) {      // D000h-FFFFh, C000h-FFFFh, or C000h-FFFFh with... (the last 12K is the ROM space)
-    const base = bytes.length - 12288, out = [];
-    for (const [r, d] of Object.entries(A2_ROLES)) if (d.addr >= 0) { const part = bytes.slice(base + d.addr - 0xD000, base + d.addr - 0xD000 + 2048); if (d.crc.includes(a2Crc(part))) out.push([r, part]); }
-    return { list: out, crc };
+$('syKp').addEventListener('keyup', e => { const k = syPcKey(e); if (k) { e.stopPropagation(); syKeyUp(k); } });
+$('syKp').addEventListener('blur', () => { for (const k of [...syHeld.keys()]) syKeyUp(k); });
+// ---- the terminal: a screen of 24 lines, fed by the emulated SYM-1's CRT port or by a real one on a serial port ----
+const SY_COLS = 80, SY_ROWS = 24;
+let syLines = [''], syCol = 0, syTermDirty = true, syReal = null;
+function syPut(s) {
+  for (const ch of s) {
+    const c = ch.charCodeAt(0) & 0x7F;
+    if (c === 13) syCol = 0;
+    else if (c === 10) { syLines.push(''); syCol = 0; if (syLines.length > 400) syLines.splice(0, syLines.length - 400); }
+    else if (c === 8 || c === 0x7F) { if (syCol > 0) syCol--; }
+    else if (c === 7) syAudioBeep();
+    else if (c >= 32) {
+      let l = syLines[syLines.length - 1]; if (syCol >= SY_COLS) { syLines.push(''); syCol = 0; l = ''; }
+      l = l.padEnd(syCol, ' '); syLines[syLines.length - 1] = l.slice(0, syCol) + ch + l.slice(syCol + 1); syCol++;
+    }
   }
-  return { list: [], crc };
+  syTermDirty = true;
 }
-const a2Ready = () => ['F8'].every(r => a2Roms[r] || a2Custom[r]);
-function a2SockShow() {
+function syDrawTerm() {
+  if (ap.rxOut.length && !syReal) syPut(ap.takeOutput());
+  if (!syTermDirty) return; syTermDirty = false;
+  const t = $('syTerm'), last = syLines.length - 1, view = syLines.slice(-SY_ROWS);
+  t.innerHTML = view.map((l, i) => i === view.length - 1 && i + syLines.length - view.length === last ? esc(l.slice(0, syCol)) + `<span class="cur">${esc(l[syCol] || ' ')}</span>` + esc(l.slice(syCol + 1)) : esc(l)).join('\n');
+  t.scrollTop = t.scrollHeight;
+}
+function syTermInfo() {
+  $('syTermInfo').textContent = syReal ? (syReal.port ? `connected at ${$('syBaud').value} baud` : 'not connected') : ap.txQ.length ? `${ap.txQ.length} characters to send` : `CRT port · ${ap.baud} baud`;
+}
+// what the terminal sends: CR for Enter, BS for Backspace, control codes with Ctrl
+function sySendText(s) {
+  if ($('syCaps').checked) s = s.toUpperCase();
+  if (syReal) { syRealWrite(s); return; }
+  if (!apOn()) { syNoRom(); return; }
+  syAudioStart(); ap.send(s); if (!running) startRun();
+}
+$('syTerm').addEventListener('keydown', e => {
+  e.stopPropagation(); if (e.metaKey || e.altKey) return;
+  let s = null;
+  if (e.key === 'Enter') s = '\r'; else if (e.key === 'Backspace') s = '\b'; else if (e.key === 'Escape') s = '\x1B'; else if (e.key === 'Tab') s = '\t';
+  else if (e.ctrlKey) { const c = (e.key || '').toUpperCase().charCodeAt(0); if (e.key.length === 1 && c >= 0x40 && c < 0x60) s = String.fromCharCode(c - 0x40); }
+  else if (e.key && e.key.length === 1) s = e.key;
+  if (s === null) return; e.preventDefault(); sySendText(s);
+});
+$('syTerm').addEventListener('paste', e => { const t = e.clipboardData && e.clipboardData.getData('text'); if (t) { e.preventDefault(); sySendText(t.replace(/\r\n?|\n/g, '\r')); } });
+$('syClear').onclick = () => { syLines = ['']; syCol = 0; syTermDirty = true; syDrawTerm(); $('syTerm').focus(); };
+$('sySend').onclick = () => { const t = $('syPaste').value; if (!t) return; sySendText(t.replace(/\r\n?|\n/g, '\r') + (/[\r\n]$/.test(t) ? '' : '\r')); syMsg(`Sending ${t.length.toLocaleString('en-AU')} characters through the terminal${syReal ? '' : ', each as SUPERMON asks for it'}.`, 'ok'); $('syTerm').focus(); };
+$('syBaud').onchange = () => {
+  const b = +$('syBaud').value; ap.baud = b; try { localStorage.setItem(SY_LS + 'baud', String(b)); } catch (e) {}
+  if (syReal && syReal.port) { syRealClose().then(() => syMsg(`Baud rate set to ${b}: press Connect again.`)); return; }
+  syMsg(`Terminal at ${b} baud. SUPERMON measures the rate when you log on, so press RST and type Q.`); syTermInfo();
+};
+// ---- a real SYM-1 on a serial port (Web Serial: Chrome and Edge) ----
+// RS-232 from connector C: 8 data bits, no parity, 2 stop bits, as SUPERMON sends them; no handshake lines.
+async function syRealOpen() {
+  if (!('serial' in navigator)) { syMsg('This browser cannot reach serial ports: use Chrome or Edge on a computer, and open the emulator from its web address (not inside a preview).', 'err'); return; }
+  try {
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: +$('syBaud').value, dataBits: 8, stopBits: 2, parity: 'none', flowControl: 'none' });
+    syReal.port = port; syReal.writer = port.writable.getWriter(); syReal.reading = true;
+    syMsg(`Connected at ${$('syBaud').value} baud. Press RST on your SYM-1, then type Q here to log on.`, 'ok'); syTermInfo(); $('syConnect').textContent = 'Disconnect';
+    (async () => {
+      while (syReal && syReal.port === port && port.readable && syReal.reading) {
+        const r = port.readable.getReader(); syReal.reader = r;
+        try { for (;;) { const { value, done } = await r.read(); if (done) break; syPut(String.fromCharCode(...value)); syDrawTerm(); } }
+        catch (e) { if (syReal && syReal.reading) syMsg('The serial port stopped: ' + (e && e.message ? e.message : 'it was disconnected') + '.', 'err'); break; }
+        finally { r.releaseLock(); }
+      }
+    })();
+  } catch (e) { if (e && e.name !== 'NotFoundError') syMsg('Could not open the serial port: ' + (e && e.message ? e.message : e) + '.', 'err'); }
+}
+async function syRealClose() {
+  if (!syReal || !syReal.port) return;
+  const p = syReal.port; syReal.reading = false;
+  try { if (syReal.reader) await syReal.reader.cancel(); } catch (e) {}
+  try { if (syReal.writer) { syReal.writer.releaseLock(); } } catch (e) {}
+  try { await p.close(); } catch (e) {}
+  syReal.port = null; syReal.writer = null; syReal.reader = null; $('syConnect').textContent = 'Connect…'; syTermInfo();
+}
+function syRealWrite(s) {
+  if (!syReal.writer) { syMsg('Not connected: press Connect… and choose the serial port your SYM-1 is on.', 'err'); return; }
+  syReal.writer.write(Uint8Array.from([...s].map(c => c.charCodeAt(0) & 0x7F))).catch(e => syMsg('Could not send: ' + (e && e.message ? e.message : e), 'err'));
+}
+$('syLink').onchange = () => {
+  const real = $('syLink').value === 'real';
+  if (!real) { syRealClose(); syReal = null; } else syReal = syReal || { port: null };
+  $('syConnect').hidden = !real; syLines = ['']; syCol = 0; syTermDirty = true; syTermInfo();
+  syMsg(real ? 'The terminal now talks to a real SYM-1: wire connector C to a serial port of this computer (a USB serial adapter and an RS-232 cable), choose the baud rate, then Connect.' : 'The terminal talks to the emulated SYM-1 again.');
+};
+$('syConnect').onclick = () => { if (syReal && syReal.port) syRealClose(); else syRealOpen(); };
+// ---- ROMs: SUPERMON goes in P0; others by their contents or the address in their file names ----
+const SY_KNOWN = {
+  '7A4B1E12': { label: 'SUPERMON 1.1', addr: 0x8000, socket: 'P0' },
+  'F9243C95': { label: 'RAE-1 (Resident Assembler/Editor, part 1)', addr: 0xB000 },
+  '0F57ABC6': { label: 'RAE-1 (part 2)', addr: 0xE000 }
+};
+const syRoms = {};      // socket -> { name, label, addr, bytes }
+function syCrc(b) { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1; } return (~c >>> 0).toString(16).toUpperCase().padStart(8, '0'); }
+const syB64 = bytes => { let s = ''; for (const x of bytes) s += String.fromCharCode(x); return btoa(s); };
+const syUn64 = s => { s = atob(s); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
+// where a ROM may go: a 2K block from 8000h up that no device on the board answers (not A000h-AFFFh or F800h-FFFFh)
+const syAddrOk = (a, size) => a >= 0x8000 && !(a < 0xB000 && a + size > 0xA000) && a + size <= 0xF800 && a % 0x800 === 0;
+function syPlaceOf(name, bytes) {
+  const crc = syCrc(bytes), k = SY_KNOWN[crc];
+  if (k) return { addr: k.addr, label: k.label, socket: k.socket, crc };
+  const m = /(?:^|[^0-9A-F])([89A-F][0-9A-F]00)(?:[^0-9A-F]|$)/i.exec(name.replace(/\.\w+$/, ''));
+  if (m) { const a = parseInt(m[1], 16); if (syAddrOk(a, bytes.length)) return { addr: a, label: name, crc }; }
+  return { addr: -1, label: name, crc };
+}
+function syStore(s) { try { if (syRoms[s]) localStorage.setItem(SY_LS + 'rom.' + s, JSON.stringify({ name: syRoms[s].name, label: syRoms[s].label, addr: syRoms[s].addr, data: syB64(syRoms[s].bytes) })); else localStorage.removeItem(SY_LS + 'rom.' + s); } catch (e) {} }
+function sySockShow() {
   const q = t => esc(t).replace(/"/g, '&quot;');
-  $('a2Sockets').innerHTML = A2_SOCK.map(([s, addr, what]) => {
-    const c = a2Custom[s], std = a2Roms[s], cls = c ? 'custom' : std ? 'fitted' : 'missing';
-    const part = A2_ROLES[s].name.replace(/^.*\(/, '').replace(')', ''), file = c ? c.name : std ? part : 'needs ' + part;
-    const tip = `${s}: ${what}${addr >= 0 ? ' at ' + h4(addr) + 'h–' + h4(addr + 0x7FF) + 'h, 2K' : addr === -2 ? ' on the Disk II controller card, at C600h–C6FFh in slot 6, 256 bytes' : ', not on the CPU bus, 2K'}. ` + (c ? 'Fitted with your own ROM ' + c.name + '.' : std ? 'Fitted with the standard ' + A2_ROLES[s].name + (a2Names[s] ? ', from ' + a2Names[s] : '') + '.' : 'Empty: the standard ROM here is ' + A2_ROLES[s].name + '.') + ' Click to fit a ROM file of your own.';
-    return `<div class="sock ${cls}"><button type="button" class="chipbtn" data-s="${s}" title="${q(tip)}"><b>${s}</b><span class="what">${what}${addr >= 0 ? ' · ' + h4(addr) + 'h' : addr === -2 ? ' · C600h' : ''}</span><span class="file">${esc(file)}</span><span class="tag">${c ? 'your ROM' : std ? 'standard' : 'missing'}</span></button>${c ? `<button type="button" class="unfit" data-u="${s}" title="Take your ROM out of ${s} and go back to the standard one">remove</button>` : ''}</div>`;
+  $('sySockets').innerHTML = ap.sockets.map(s => {
+    const r = syRoms[s.name], cls = r ? 'fitted' : s.name === 'P0' ? 'missing' : 'empty';
+    const tip = `${s.name} (${s.u}): ${r ? r.label + ' at ' + h4(r.addr) + 'h–' + h4(r.addr + r.bytes.length - 1) + 'h, from ' + r.name : s.name === 'P0' ? 'empty: SUPERMON goes here, at 8000h' : 'empty'}. Click to fit a ROM file of your own (2K or 4K); it goes at the address in its name (…_C000.BIN), or at ${h4(s.addr)}h.`;
+    return `<div class="sock ${cls}"><button type="button" class="chipbtn" data-s="${s.name}" title="${q(tip)}"><b>${s.name}</b><span class="what">${s.u}${r ? ' · ' + h4(r.addr) + 'h' : ''}</span><span class="file">${esc(r ? r.label : s.name === 'P0' ? 'needs SUPERMON' : '2K or 4K ROM')}</span><span class="tag">${r ? (r.bytes.length / 1024) + 'K' : s.name === 'P0' ? 'missing' : 'empty'}</span></button>${r ? `<button type="button" class="unfit" data-u="${s.name}" title="Take this ROM out of ${s.name}">remove</button>` : ''}</div>`;
   }).join('');
 }
-function a2RomShow() {
-  const miss = A2_BOARD.filter(r => !a2Roms[r]);
-  $('a2RomList').textContent = 'Apple II Plus standard ROMs: ' + (miss.length ? (miss.length === 7 ? 'none loaded' : 'missing ' + miss.map(r => A2_ROLES[r].name).join(', ')) : 'complete') + ' · Disk II boot PROM: ' + (a2Roms.P5 || a2Custom.P5 ? 'loaded' : 'not loaded (needed to boot disks)');
-  a2SockShow();
+function syFit() {
+  ap.rom.fill(0);
+  for (const s of ap.sockets) { s.fitted = false; s.label = ''; }
+  for (const [s, r] of Object.entries(syRoms)) ap.fitRom(s, r.addr, r.bytes, r.label);
+  ap.buildRomChips(); disDirty = true; sySockShow(); return apOn();
 }
-function a2Fit() {      // the standard ROMs into their sockets, then any ROMs of the user's own on top
-  ap.fitted = {}; ap.rom.fill(0); ap.hasChargen = false;
-  ap.disk.rom = null;
-  const place = (s, bytes) => { const d = A2_SOCK.find(x => x[0] === s); if (d[1] === -2) ap.disk.rom = bytes.slice(0, 256); else if (d[1] < 0) { ap.chargen.set(bytes); ap.hasChargen = true; } else ap.loadRom(d[1], bytes); };
-  for (const [s] of A2_SOCK) if (a2Roms[s]) place(s, a2Roms[s]);
-  for (const [s, c] of Object.entries(a2Custom)) place(s, c.bytes);
-  disDirty = true; return apOn();
-}
-function a2PowerOn() {
+function syNoRom() { setStatus('Load the SYM-1 ROMs to switch on'); syMsg('The SYM-1 needs SUPERMON in socket P0: load your ROM folder (symon1_1.bin, a 4K ROM), or click P0 to fit it.', 'err'); }
+function syPowerOn() {
   if (running) stopRun();
-  a2Latched.clear(); a2Show();
-  try { localStorage.setItem(A2_LS + 'ram', $('a2Ram').value); } catch (e) {}
-  a2RomShow();
-  a2CardsFromUi(); a2Recording = false; ap.rec = null; ap.stopTape();
-  ap.setRam(+$('a2Ram').value); ap.ram.fill(0); ap.reset(true);
-  if (!a2Fit()) { resetCPU(true); $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The Apple cannot start: the Monitor ROM (F8) is missing. Load the ROM folder, or click a socket to fit a ROM of your own.'; a2NoRom(); render(); return; }
-  if (!ap.hasChargen) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The text ROM (A5) is missing: the machine runs, but the text screen shows nothing. Load the 341-0036 ROM.'; }
-  resetCPU(true); $('speed').value = 'real'; runRate = 'real'; startRun(); ascr.focus();
-  // with the Disk II card and its PROM, the Autostart ROM boots slot 6 at power on and waits there for a disk
-  if (ap.diskOn && ap.disk.rom && !ap.disk.drives[0].disk) { const m = $('a2Msg'); m.textContent = (m.textContent ? m.textContent + ' ' : '') + 'The Disk II card is fitted, so the Apple tries to boot drive 1, as the real one does at power on: insert a disk and it boots, or press CTRL-RESET for BASIC.'; if (!m.className.includes('err')) m.className = 'msg'; }
+  for (const k of [...syHeld.keys()]) syKeyUp(k);
+  syRecording = false; ap.rec = null; ap.stopTape();
+  ap.setRam(+$('syRam').value); syJumpers();
+  if (!syFit()) { ap.reset(true); resetCPU(true); syNoRom(); render(); return; }
+  ap.reset(true); resetCPU(true); $('speed').value = 'real'; runRate = 'real'; startRun();
+  try { localStorage.setItem(SY_LS + 'ram', $('syRam').value); } catch (e) {}
 }
-function a2NoRom() { setStatus('Load the Apple II Plus ROMs to switch on'); }
+// a free socket for a ROM: the one it is known for, else the first empty one (not P0 unless it is SUPERMON)
+function syFreeSocket(pl) {
+  if (pl.socket) return pl.socket;
+  for (const s of ['P1', 'P2', 'P3']) if (!syRoms[s] || syRoms[s].addr === pl.addr) return s;
+  return null;
+}
 // Picking a folder: Chrome, Edge, Firefox and Safari on a computer. iPhones and iPads report webkitdirectory but cannot
 // pick a folder, so there (and wherever it is missing) the main button picks files; ROM files… always picks files.
-const a2Ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const a2DirOk = 'webkitdirectory' in HTMLInputElement.prototype && !a2Ios;
-if (!a2DirOk) { $('a2LoadRom').textContent = 'Load ROM files…'; $('a2LoadFiles').hidden = true; }
-$('a2LoadFiles').onclick = () => $('a2RomFile').click();
-$('a2LoadRom').onclick = () => $(a2DirOk ? 'a2RomDir' : 'a2RomFile').click();
-function a2TakeFiles(input) { const all = [...input.files]; input.value = ''; a2TakeList(all); }
-function a2TakeList(all) {
+const syIos = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const syDirOk = 'webkitdirectory' in HTMLInputElement.prototype && !syIos;
+if (!syDirOk) { $('syLoadRom').textContent = 'Load ROM files…'; $('syLoadFiles').hidden = true; }
+$('syLoadFiles').onclick = () => $('syRomFile').click();
+$('syLoadRom').onclick = () => $(syDirOk ? 'syRomDir' : 'syRomFile').click();
+function syTakeFiles(input) { const all = [...input.files]; input.value = ''; syTakeList(all); }
+function syTakeList(all) {
   if (!all.length) return;
-  const fs = all.filter(f => [256, 2048, 12288, 16384, 20480].includes(f.size)), other = all.length - fs.length;
+  const fs = all.filter(f => f.size === 2048 || f.size === 4096), other = all.length - fs.length;
   Promise.all(fs.map(f => f.arrayBuffer().then(b => [f.name, new Uint8Array(b)]))).then(list => {
-    const used = [], skipped = []; let rawP5 = false;
+    const used = [], skipped = [];
+    // SUPERMON first, then the known ROMs, then the ones placed by their names
+    list.sort((a, b) => (SY_KNOWN[syCrc(b[1])] ? 1 : 0) - (SY_KNOWN[syCrc(a[1])] ? 1 : 0));
     for (const [name, bytes] of list) {
-      const id = a2Identify(name, bytes); if (!id.list.length) { skipped.push(name); continue; }
-      if (id.raw) rawP5 = true;
-      for (const [r, b] of id.list) { a2Roms[r] = b; a2Names[r] = name; try { localStorage.setItem(A2_LS + 'rom.' + r, a2B64(b)); localStorage.setItem(A2_LS + 'name.' + r, name); } catch (e) {} }
-      used.push(name);
+      const pl = syPlaceOf(name, bytes); if (pl.addr < 0) { skipped.push(name); continue; }
+      const s = syFreeSocket(pl); if (!s) { skipped.push(name + ' (no free socket)'); continue; }
+      syRoms[s] = { name, label: pl.label, addr: pl.addr, bytes }; syStore(s); used.push(`${name} in ${s} at ${h4(pl.addr)}h`);
     }
-    const msg = $('a2Msg'), complete = A2_BOARD.every(r => a2Roms[r]);
-    msg.className = used.length ? 'msg ok' : 'msg err';
-    msg.textContent = (used.length ? `Loaded ${used.length} ROM file${used.length === 1 ? '' : 's'}. ` + (complete ? 'All seven Apple II Plus ROMs are in' + (a2Roms.P5 ? ', and the Disk II boot PROM.' : '.') : 'Some sockets are still empty: the row below shows which.') : `No Apple II Plus ROM was found among ${all.length} file${all.length === 1 ? '' : 's'}: the ROMs are recognised by their contents (2K files, or one 12K file of D000h–FFFFh).`)
-      + (rawP5 ? ' The boot PROM file holds the chip as it is wired on the card (address lines A5 and A7 swapped, data bits 4–7 reversed): it was rearranged into the order the 6502 reads.' : '')
-      + (used.length && skipped.length ? ` Not recognised: ${skipped.join(', ')}.` : '') + (used.length && other ? ` ${other} other file${other === 1 ? '' : 's'} ignored.` : '');
-    if (used.length) a2PowerOn(); else { a2RomShow(); render(); }
+    if (used.length) syMsg(`Fitted ${used.join(', ')}.` + (skipped.length ? ` Not placed: ${skipped.join(', ')} (click a socket to fit one; its file name needs the address, …_C000.BIN).` : '') + (other ? ` ${other} other file${other === 1 ? '' : 's'} ignored.` : '') + (syRoms.P0 ? '' : ' SUPERMON (P0) is still missing.'), syRoms.P0 ? 'ok' : 'err');
+    else syMsg(`No SYM-1 ROM was found among ${all.length} file${all.length === 1 ? '' : 's'}: SUPERMON 1.1 and the RAE ROMs are recognised by their contents; other 2K and 4K ROMs need their address in the file name (…_C000.BIN).`, 'err');
+    if (used.length) syPowerOn(); else { sySockShow(); render(); }
   });
 }
-$('a2RomDir').onchange = () => a2TakeFiles($('a2RomDir'));
-$('a2RomFile').onchange = () => a2TakeFiles($('a2RomFile'));
-// ROM files dropped on the screen panel are taken too (disk images and tapes have their own buttons)
-{ const pan = $('a2LoadRom').closest('section');
+$('syRomDir').onchange = () => syTakeFiles($('syRomDir'));
+$('syRomFile').onchange = () => syTakeFiles($('syRomFile'));
+{ const pan = $('syLoadRom').closest('section');
   pan.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
-  pan.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); a2TakeList([...e.dataTransfer.files]); }); }
-// a ROM of the user's own in one socket
-let a2SockTarget = null;
-$('a2Sockets').addEventListener('click', e => {
+  pan.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); syTakeList([...e.dataTransfer.files]); }); }
+let sySockTarget = null;
+$('sySockets').addEventListener('click', e => {
   const u = e.target.closest('[data-u]'), b = e.target.closest('[data-s]');
-  if (u) { const s = u.dataset.u; delete a2Custom[s]; try { localStorage.removeItem(A2_LS + 'custom.' + s); } catch (err) {} $('a2Msg').className = 'msg'; $('a2Msg').textContent = `Your ROM was taken out of ${s}.`; a2PowerOn(); }
-  else if (b) { a2SockTarget = b.dataset.s; $('a2SockFile').click(); }
+  if (u) { const s = u.dataset.u; delete syRoms[s]; syStore(s); syMsg(`The ROM was taken out of ${s}.`); syPowerOn(); }
+  else if (b) { sySockTarget = b.dataset.s; $('sySockFile').click(); }
 });
-$('a2SockFile').onchange = () => {
-  const f = $('a2SockFile').files[0], s = a2SockTarget; $('a2SockFile').value = ''; if (!f || !s) return;
+$('sySockFile').onchange = () => {
+  const f = $('sySockFile').files[0], s = sySockTarget; $('sySockFile').value = ''; if (!f || !s) return;
   f.arrayBuffer().then(buf => {
-    const src = new Uint8Array(buf), msg = $('a2Msg');
-    const size = A2_ROLES[s].size || 2048;
-    if (!src.length || src.length > size) { msg.className = 'msg err'; msg.textContent = `${f.name} is ${src.length.toLocaleString('en-AU')} bytes: socket ${s} takes ${size === 256 ? 'a 256-byte PROM' : 'a 2K ROM (a 2316B or a 2716 EPROM)'}.`; return; }
-    let bytes = new Uint8Array(size); for (let i = 0; i < size; i++) bytes[i] = src[i % src.length];
-    const p5 = s === 'P5' && src.length === 256 ? a2dBootProm(src) : null, rawNote = p5 && p5.raw ? ' It holds the chip as wired on the card, so it was rearranged into the order the 6502 reads (A5 and A7 swapped, data bits 4–7 reversed).' : '';
-    if (p5) bytes = p5.bytes;
-    a2Custom[s] = { name: f.name, bytes };
-    try { localStorage.setItem(A2_LS + 'custom.' + s, JSON.stringify({ name: f.name, data: a2B64(bytes) })); } catch (e) {}
-    msg.className = 'msg ok'; msg.textContent = `${f.name} fitted in ${s} (CRC ${a2Crc(src)})${src.length < size ? ', repeated to fill the socket' : ''}. It stays there until you remove it.${rawNote}`;
-    a2PowerOn();
+    const bytes = new Uint8Array(buf);
+    if (bytes.length !== 2048 && bytes.length !== 4096) { syMsg(`${f.name} is ${bytes.length.toLocaleString('en-AU')} bytes: a socket takes a 2K ROM (2316B or 2716) or a 4K one (2332).`, 'err'); return; }
+    const pl = syPlaceOf(f.name, bytes), sock = ap.sockets.find(x => x.name === s);
+    let addr = pl.addr >= 0 ? pl.addr : sock.addr;
+    if (s === 'P0' && pl.addr < 0) addr = 0x8000;
+    if (!syAddrOk(addr, bytes.length)) { syMsg(`${f.name} cannot go at ${h4(addr)}h: name it with the address it belongs at (…_C000.BIN), a 2K block from 8000h to F7FFh outside A000h–AFFFh.`, 'err'); return; }
+    syRoms[s] = { name: f.name, label: pl.label, addr, bytes }; syStore(s);
+    syMsg(`${f.name} fitted in ${s} at ${h4(addr)}h–${h4(addr + bytes.length - 1)}h (CRC ${pl.crc}).`, 'ok');
+    syPowerOn();
   });
 };
-$('a2Restart').onclick = a2PowerOn;
-$('a2Reset').onclick = () => { if (apOn()) a2Reset(); };
-$('a2Ram').onchange = a2PowerOn;
-$('a2Mon').onchange = () => { try { localStorage.setItem(A2_LS + 'mon', $('a2Mon').value); } catch (e) {} render(); };
-// ---- game I/O ----
-for (const n of [0, 1]) $('a2Pdl' + n).oninput = () => { ap.paddle[n] = +$('a2Pdl' + n).value / 255; render(); };
-for (const n of [0, 1, 2]) $('a2Pb' + n).onchange = () => { ap.button[n] = $('a2Pb' + n).checked ? 1 : 0; render(); };
+$('syRestart').onclick = syPowerOn;
+$('syRam').onchange = syPowerOn;
+function syJumpers() {
+  ap.jumpers.MM = $('syJMM').checked; ap.jumpers.W24 = ap.jumpers.X25 = $('syJWX').checked; ap.jumpers.JJ = ap.jumpers.KK = ap.jumpers.LL = $('syJWP').checked; ap.via2Fitted = $('syVia2').checked;
+  try { localStorage.setItem(SY_LS + 'jumpers', JSON.stringify({ MM: $('syJMM').checked, WX: $('syJWX').checked, WP: $('syJWP').checked, via2: $('syVia2').checked })); } catch (e) {}
+}
+for (const id of ['syJMM', 'syJWX', 'syJWP', 'syVia2']) $(id).onchange = () => { syJumpers(); disDirty = true; render(); };
 // ---- programs ----
-$('a2Type').onclick = () => {
-  const t = $('a2Paste').value; if (!t) return; if (!apOn()) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'Load the ROMs first.'; return; }
-  ap.type(t.replace(/\r\n?/g, '\n') + (t.endsWith('\n') ? '' : '\n'));
-  $('a2Msg').className = 'msg ok'; $('a2Msg').textContent = `Typing ${t.length.toLocaleString('en-AU')} characters: each key goes in once the program has read the one before.`;
-  if (!running) startRun(); ascr.focus();
-};
-$('a2BinIn').onclick = () => $('a2BinFile').click();
-$('a2BinFile').onchange = () => {
-  const f = $('a2BinFile').files[0]; $('a2BinFile').value = ''; if (!f) return;
+$('syBinIn').onclick = () => $('syBinFile').click();
+$('syBinFile').onchange = () => {
+  const f = $('syBinFile').files[0]; $('syBinFile').value = ''; if (!f) return;
   f.arrayBuffer().then(buf => {
-    const bytes = new Uint8Array(buf), msg = $('a2Msg'), addr = parseInt($('a2BinAddr').value, 16);
-    if (!(addr >= 0 && addr < 0xC000)) { msg.className = 'msg err'; msg.textContent = 'The load address must be a hexadecimal address in RAM (0000–BFFF).'; return; }
+    const bytes = new Uint8Array(buf), addr = parseInt($('syBinAddr').value, 16);
+    if (!(addr >= 0 && addr < 0x1000)) { syMsg('The load address must be a hexadecimal address in the on-board RAM (0000–0FFF).', 'err'); return; }
     const r = ap.loadBin(bytes, addr); disDirty = true;
-    if (!r.ok) { msg.className = 'msg err'; msg.textContent = `${f.name} would end at ${h4(r.end - 1)}h, beyond the ${ap.ramSize / 1024}K of RAM.`; return; }
-    msg.className = 'msg ok'; msg.textContent = `${f.name} loaded at ${h4(r.addr)}h–${h4(r.end - 1)}h (${bytes.length.toLocaleString('en-AU')} bytes). Start it with CALL ${r.addr} from BASIC, or ${h4(r.addr)}G from the Monitor, if that is its entry point.`;
-    ascr.focus(); render();
+    if (!r.ok) { syMsg(`${f.name} would end at ${h4(r.end - 1)}h, beyond the ${ap.ramKB}K of RAM.`, 'err'); return; }
+    syMsg(`${f.name} loaded at ${h4(r.addr)}h–${h4(r.end - 1)}h (${bytes.length.toLocaleString('en-AU')} bytes). Start it with GO ${h4(r.addr).replace(/^0+(?=.)/, '')} CR on the keypad, or G${h4(r.addr)} in the terminal, if that is its entry point.`, 'ok');
+    render();
   });
 };
+$('syListing').onclick = () => sySaved(benchDownload(`sym1-listing-${benchStamp()}.txt`, ap.report(), 'text/plain;charset=utf-8'), f => `Listing saved as ${f}: registers, the display, the ROM sockets, System RAM and a hex dump of RAM.`);
+function sySaved(p, text) {
+  p.then(n => { if (n) syMsg(text(n) + ' Look in your downloads.', 'ok'); else syMsg('Not saved: the download was declined.'); })
+   .catch(e => syMsg('Could not save the file' + (e && e.message ? ': ' + e.message : '.'), 'err'));
+}
+// ---- the hardware panel ----
+let sySig = '';
+const syBits = (v, n) => v.toString(2).padStart(n || 8, '0');
+function renderSymState() {
+  const r = ap.riot, v1 = ap.via1, v3 = ap.via3, sr = a => r.ram[a & 0x7F], d = ap.u37;
+  const u37 = d < 6 ? `digit <b>${d + 1}</b> lit` : d === 6 ? '<b>speaker</b> on' : d === 7 ? '<b>cassette out</b> high' : 'off (PB3 high)';
+  const keys = [...ap.keysDown].join(' ') || 'none';
+  const html = `<div class="blk"><div class="hd">6532 RIOT (U27) · keypad, display, serial</div><div class="kv">Port A <b>${syBits(r.pa())}</b> (DDR ${syBits(r.ddra)}) · port B <b>${syBits(r.pb())}</b> (DDR ${syBits(r.ddrb)})<br>U37 (74145): PB0–PB3 = <b>${d}</b>: ${u37} · keys down: <b>${esc(keys)}</b><br>Timer <b>${h2(r.timer)}</b> ÷${r.div}${r.tFlag ? ' · <b>ran out</b>' : ''}</div></div>
+    <div class="blk"><div class="hd">Serial (CRT port)</div><div class="kv">CRT out (PB4) <b>${r.pb() >> 4 & 1}</b> · CRT in (PB7) <b>${ap.crtIn()}</b> (inverted RS-232: idle low) · terminal <b>${ap.baud}</b> baud${ap.txQ.length ? ` · <b>${ap.txQ.length}</b> to send` : ''}<br>SDBYT (A651h) <b>${h2(sr(0x51))}</b> · TOUTFL (A654h) <b>${h2(sr(0x54))}</b> · TECHO (A653h) <b>${h2(sr(0x53))}</b></div></div>
+    <div class="blk"><div class="hd">VIA 1 (U25) · power-on reset, cassette</div><div class="kv">PCR <b>${h2(v1.pcr)}</b> · CA2 <b>${v1.ca2()}</b> (POR' ${v1.ca2() ? '<b>active</b>: P0 answers everywhere' : 'off'}) · tape remote (CB2) <b>${v1.cb2()}</b> · cassette in (PB6) <b>${ap.tapeIn}</b> · cassette out <b>${ap.tapeOutLv}</b></div></div>
+    <div class="blk"><div class="hd">VIA 3 (U29) · protection, debug</div><div class="kv">Port A <b>${syBits(v3.pa())}</b>: System RAM <b>${v3.pa() & 1 || !ap.jumpers.MM ? 'writable' : 'protected'}</b> · DEBUG flip-flop <b>${ap.debug ? 'ON' : 'off'}</b>${ap.jumpers.W24 ? ' (PA4/PA5 can switch it)' : ''}</div></div>
+    <div class="blk"><div class="hd">Machine</div><div class="kv">SYM-1 · <b>${ap.ramKB}K</b> RAM · ROMs: <b>${ap.sockets.filter(s => s.fitted).map(s => s.name + ' ' + h4(s.addr) + 'h').join(', ') || 'none'}</b>${ap.via2Fitted ? ' · VIA 2 fitted' : ''} · NMIs (trace) <b>${(ap.nmis || 0).toLocaleString('en-AU')}</b></div></div>`;
+  if (html !== sySig) { sySig = html; $('syState').innerHTML = html; }
+}
+function renderPt() { syDrawDisp(); syDrawTerm(); syTermInfo(); renderSymState(); syTapeShow(); }
 // ---------- memory bitmap: every bit as a pixel, tinted by region ----------
 // Each byte is a row of 8 pixels (bit 7 on the left); each strip is one 256-byte page, top to bottom; a band holds
 // up to 32 pages (8K). The background of every byte is tinted by the region it belongs to (MM.regions, by address,
@@ -2094,205 +2196,132 @@ function mmDraw(force) {
   const info = `${total.toLocaleString('en-AU')} bytes in ${mmBands.length} band${mmBands.length === 1 ? '' : 's'}`; if ($('mmInfo').textContent !== info) $('mmInfo').textContent = info;
 }
 
-// ---- cards and scanning: changing them switches the Apple off and on, as fitting a card would ----
-function a2CardsFromUi() {
-  ap.lc = $('a2Lc').checked; ap.diskOn = $('a2Dsk').checked; ap.setEuro($('a2Hz').value === '50');
-  $('a2Drives').hidden = !ap.diskOn;
-}
-for (const id of ['a2Lc', 'a2Dsk', 'a2Hz']) $(id).onchange = () => {
-  try { localStorage.setItem(A2_LS + 'cards', JSON.stringify({ lc: $('a2Lc').checked, disk: $('a2Dsk').checked, hz: $('a2Hz').value })); } catch (e) {}
-  if (id === 'a2Dsk' && $('a2Dsk').checked && !ap.disk.rom) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'The Disk II card is fitted, but without its boot PROM (P5, 341-0027) it cannot boot a disk: load your P5 file with the ROM folder, or click the P5 socket.'; }
-  else { $('a2Msg').className = 'msg'; $('a2Msg').textContent = ''; }
-  a2PowerOn();
-};
-// ---- the Disk II's two drives ----
-let a2DiskTarget = 0;
-function a2DrivesBuild() {
-  $('a2Drives').innerHTML = [0, 1].map(n => `<div class="a2drive" data-d="${n}"><b class="lbl">Drive ${n + 1}</b><span class="led" title="IN USE: the drive is selected and its motor runs"></span>
-    <button type="button" class="ins">Insert disk…</button><button type="button" class="ej">Eject</button><button type="button" class="sv" title="Writes the disk as an image file, with what programs wrote to it">Save image</button>
-    <label class="inline"><input type="checkbox" class="wp"> Write-protect</label><span class="info"></span></div>`).join('') + '<input type="file" id="a2DiskFile" accept=".dsk,.do,.po,.nib" hidden>';
-  for (const row of document.querySelectorAll('#a2Drives .a2drive')) {
-    const n = +row.dataset.d, d = ap.disk.drives[n];
-    row.querySelector('.ins').onclick = () => { a2DiskTarget = n; $('a2DiskFile').click(); };
-    row.querySelector('.ej').onclick = () => { if (d.dirty && !a2EjectOk[n]) { a2EjectOk[n] = true; $('a2Msg').className = 'msg err'; $('a2Msg').textContent = `The disk in drive ${n + 1} has been written to: Save image first to keep the changes, or click Eject again to throw them away.`; return; } a2EjectOk[n] = false; ap.disk.eject(n); a2DriveShow(); };
-    row.querySelector('.sv').onclick = () => {
-      if (!d.disk) return; const kind = /\.po$/i.test(d.name) || d.disk.kind === 'po' ? 'po' : 'dsk', out = a2dSave(d.disk, kind), base = (d.name || 'disk').replace(/\.\w+$/, '');
-      a2Saved(benchDownload(`${base}.${kind}`, out.bytes, 'application/octet-stream'), f => { d.dirty = false; return `Disk saved as ${f}` + (out.bad.length ? ` (${out.bad.length} sector${out.bad.length === 1 ? '' : 's'} could not be read back and are zeros: ${out.bad.slice(0, 3).join(', ')}${out.bad.length > 3 ? '…' : ''}).` : '.'); });
-    };
-    row.querySelector('.wp').onchange = e => { d.wp = e.target.checked; a2DriveShow(); };
-  }
-  $('a2DiskFile').onchange = () => {
-    const f = $('a2DiskFile').files[0], n = a2DiskTarget; $('a2DiskFile').value = ''; if (!f) return;
-    f.arrayBuffer().then(buf => {
-      const msg = $('a2Msg');
-      try { const d = ap.disk.insert(n, f.name, new Uint8Array(buf)); a2EjectOk[n] = false; msg.className = 'msg ok'; msg.textContent = `${f.name} is in drive ${n + 1} (${d.kind === 'nib' ? 'nibbles' : d.kind === 'po' ? 'ProDOS order' : 'DOS 3.3 order'}).` + (ap.disk.rom ? ' Boot it with PR#6, or C600G in the Monitor.' : ' To boot it, the card needs its boot PROM (P5).'); }
-      catch (e) { msg.className = 'msg err'; msg.textContent = `${f.name} is not a disk image this drive can take: ${e.message}.`; }
-      a2DriveShow(); ascr.focus();
-    });
-  };
-}
-const a2EjectOk = [false, false];
-let a2DrvSig = '';
-function a2DriveShow() {
-  if (!ap.diskOn) return;
-  const k = ap.disk, sig = [0, 1].map(n => { const d = k.drives[n]; return [d.name, d.wp, d.ht, d.dirty, k.drive === n && k.spinning()].join('|'); }).join(';');
-  if (sig === a2DrvSig) return; a2DrvSig = sig;
-  for (const row of document.querySelectorAll('#a2Drives .a2drive')) {
-    const n = +row.dataset.d, d = k.drives[n];
-    row.querySelector('.led').classList.toggle('on', k.drive === n && k.spinning());
-    row.querySelector('.wp').checked = d.wp;
-    row.querySelector('.ej').disabled = row.querySelector('.sv').disabled = !d.disk;
-    row.querySelector('.info').textContent = d.disk ? `${d.name} · track ${d.ht >> 1}${d.ht & 1 ? '.5' : ''}${d.dirty ? ' · written to' : ''}` : 'empty';
-  }
-}
-a2DrivesBuild();
 // ---- the cassette deck ----
-let a2Tape = null, a2TapeName = '', a2Recording = false;
-function a2TapeShow() {
-  const t = ap.tape, secs = c => (c / A2.CPU_HZ).toFixed(1) + ' s';
-  if (t && ap.tapeDone()) { ap.stopTape(); a2TapeMsg = a2TapeName + ' played to the end'; }
+let syTape = null, syTapeName = '', syRecording = false, syTapeMsg = '';
+function syTapeShow() {
+  const t = ap.tape, secs = c => (c / SYM.CPU_HZ).toFixed(1) + ' s';
+  if (t && ap.tapeDone()) { ap.stopTape(); syTapeMsg = syTapeName + ' played to the end'; }
   const playing = !!ap.tape;
-  $('a2Play').textContent = playing ? 'Stop' : 'Play'; $('a2Play').disabled = !a2Tape || a2Recording;
-  $('a2Rec').textContent = a2Recording ? 'Stop recording' : 'Record'; $('a2Rec').disabled = playing;
-  $('a2TapeInfo').textContent = a2Recording ? `recording · ${secs(ap.ct - ap.recAt)} · ${ap.rec.length.toLocaleString('en-AU')} changes` : playing ? `playing ${a2TapeName} · ${secs(ap.ct - t.at)} of ${secs(t.len)}` : a2Tape ? `${a2TapeMsg || a2TapeName + ' in the deck'} · ${secs(a2Tape[a2Tape.length - 1] || 0)}` : 'no tape';
+  $('syPlay').textContent = playing ? 'Stop' : 'Play'; $('syPlay').disabled = !syTape || syRecording;
+  $('syRec').textContent = syRecording ? 'Stop recording' : 'Record'; $('syRec').disabled = playing;
+  $('syTapeInfo').textContent = syRecording ? `recording · ${secs(ap.ct - ap.recAt)} · ${ap.rec.length.toLocaleString('en-AU')} changes` : playing ? `playing ${syTapeName} · ${secs(ap.ct - t.at)} of ${secs(t.len)}` : syTape ? `${syTapeMsg || syTapeName + ' in the deck'} · ${secs(syTape[syTape.length - 1] || 0)}` : 'no tape';
 }
-let a2TapeMsg = '';
-function a2Insert(edges, name, how) { a2Tape = edges; a2TapeName = name; a2TapeMsg = ''; if (ap.tape) ap.stopTape(); $('a2Msg').className = 'msg ok'; $('a2Msg').textContent = how; a2TapeShow(); }
-$('a2TapeIn').onclick = () => $('a2TapeFile').click();
-$('a2TapeFile').onchange = () => {
-  const f = $('a2TapeFile').files[0]; $('a2TapeFile').value = ''; if (!f) return;
+function syInsert(edges, name, how) { syTape = edges; syTapeName = name; syTapeMsg = ''; if (ap.tape) ap.stopTape(); syMsg(how, 'ok'); syTapeShow(); }
+$('syTapeIn').onclick = () => $('syTapeFile').click();
+$('syTapeFile').onchange = () => {
+  const f = $('syTapeFile').files[0]; $('syTapeFile').value = ''; if (!f) return;
   f.arrayBuffer().then(buf => {
     const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!AC) throw new Error('this browser cannot decode audio');
     return new AC(1, 1, 44100).decodeAudioData(buf);
   }).then(ab => {
-    const edges = a2TapeFromSamples(ab.getChannelData(0), ab.sampleRate);
+    const edges = symTapeFromSamples(ab.getChannelData(0), ab.sampleRate);
     if (edges.length < 100) throw new Error('there is no signal in it');
-    a2Insert(edges, f.name, `${f.name} is in the deck (${ab.duration.toFixed(1)} s). Type LOAD in BASIC, or the address range and R in the Monitor (CALL -151), then press Play.`);
-  }).catch(e => { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = `${f.name} could not be played: ${e && e.message ? e.message : 'not an audio file this browser can decode'}.`; });
+    syInsert(edges, f.name, `${f.name} is in the deck (${ab.duration.toFixed(1)} s). Type L1 or L2 and the record's ID (keypad: LD 2, the ID, CR; terminal: L2 01), then press Play.`);
+  }).catch(e => syMsg(`${f.name} could not be played: ${e && e.message ? e.message : 'not an audio file this browser can decode'}.`, 'err'));
 };
-$('a2TapeBin').onclick = () => $('a2TapeBinFile').click();
-$('a2TapeBinFile').onchange = () => {
-  const f = $('a2TapeBinFile').files[0]; $('a2TapeBinFile').value = ''; if (!f) return;
+$('syTapeBin').onclick = () => $('syTapeBinFile').click();
+$('syTapeBinFile').onchange = () => {
+  const f = $('syTapeBinFile').files[0]; $('syTapeBinFile').value = ''; if (!f) return;
   f.arrayBuffer().then(buf => {
-    const bytes = new Uint8Array(buf), addr = parseInt($('a2BinAddr').value, 16), msg = $('a2Msg');
-    if (!(addr >= 0 && addr < 0xC000) || !bytes.length || addr + bytes.length > 0xC000) { msg.className = 'msg err'; msg.textContent = 'Set the address it loads at (the "at" box: hexadecimal, in RAM) and keep the file within RAM.'; return; }
-    const end = addr + bytes.length - 1;
-    a2Insert(a2TapeFromBytes(bytes, 10), f.name, `A tape of ${f.name} is in the deck (${bytes.length.toLocaleString('en-AU')} bytes). In the Monitor (CALL -151) type ${h4(addr)}.${h4(end)}R, press RETURN, then Play.`);
+    const bytes = new Uint8Array(buf), addr = parseInt($('syBinAddr').value, 16);
+    if (!(addr >= 0 && addr < 0x10000) || !bytes.length || addr + bytes.length > 0x10000) { syMsg('Set the address it loads at (the "at" box, in hexadecimal).', 'err'); return; }
+    syInsert(symTapeHS(bytes, addr, 1, 6), f.name, `A high-speed tape of ${f.name} is in the deck (${bytes.length.toLocaleString('en-AU')} bytes for ${h4(addr)}h–${h4(addr + bytes.length - 1)}h, ID 01). Type L2 01 (keypad: LD 2, 0, 1, CR), then Play.`);
   });
 };
-$('a2Play').onclick = () => {
-  if (ap.tape) { ap.stopTape(); a2TapeMsg = a2TapeName + ' stopped'; }
-  else if (a2Tape) { ap.playTape(a2Tape, a2TapeName); a2TapeMsg = ''; if (!running) startRun(); ascr.focus(); }
-  a2TapeShow();
+$('syPlay').onclick = () => {
+  if (ap.tape) { ap.stopTape(); syTapeMsg = syTapeName + ' stopped'; }
+  else if (syTape) { ap.playTape(syTape, syTapeName); syTapeMsg = ''; if (!running) startRun(); }
+  syTapeShow();
 };
-$('a2Rec').onclick = () => {
-  if (!a2Recording) { ap.startRec(); a2Recording = true; if (!running) startRun(); ascr.focus(); $('a2Msg').className = 'msg'; $('a2Msg').textContent = 'Recording the cassette output: type SAVE in BASIC, or the address range and W in the Monitor, then Stop recording when it has finished.'; a2TapeShow(); return; }
-  const edges = a2Recording ? ap.stopRec() : null; a2Recording = false;
-  if (!edges || edges.length < 100) { $('a2Msg').className = 'msg err'; $('a2Msg').textContent = 'Nothing was recorded: the cassette output did not change.'; a2TapeShow(); return; }
-  const fe = Float64Array.from(edges.map(c => c - edges[0])), name = `apple2-tape-${benchStamp()}.wav`;
-  a2Insert(fe, name, '');
-  a2Saved(benchDownload(name, a2WavFromTape(fe), 'audio/wav'), n => `Recording saved as ${n} (${(fe[fe.length - 1] / A2.CPU_HZ).toFixed(1)} s); it is also in the deck, ready to play back.`);
+$('syRec').onclick = () => {
+  if (!syRecording) { ap.startRec(); syRecording = true; if (!running) startRun(); syMsg('Recording the cassette output: save with S1 or S2 (terminal: S2 01,200,2FF for ID 01, 0200h to 02FFh), then Stop recording when SUPERMON shows its prompt again.'); syTapeShow(); return; }
+  const edges = ap.stopRec(); syRecording = false;
+  if (!edges || edges.length < 100) { syMsg('Nothing was recorded: the cassette output did not change.', 'err'); syTapeShow(); return; }
+  const fe = Float64Array.from(edges.map(c => c - edges[0])), name = `sym1-tape-${benchStamp()}.wav`;
+  syInsert(fe, name, '');
+  sySaved(benchDownload(name, symWavFromTape(fe), 'audio/wav'), n => `Recording saved as ${n} (${(fe[fe.length - 1] / SYM.CPU_HZ).toFixed(1)} s); it is also in the deck, ready to play back.`);
 };
-a2TapeShow();
-// what the Apple memory bitmap shows: RAM, each ROM that is fitted and the text ROM, tinted by use
+syTapeShow();
+// what the SYM-1 memory bitmap shows: the RAM, System RAM and each ROM that is fitted
 const MM = {
-  legend: {
-    zp: ['zero page', '#8e6bbf'], stack: ['stack', '#d0483f'], sys: ['input buffer and vectors (pages 2 and 3)', '#1fa3a3'], text1: ['text/LORES page 1', '#2e9e5b'], text2: ['text/LORES page 2', '#6cbf3a'],
-    hgr1: ['HIRES page 1', '#d0a020'], hgr2: ['HIRES page 2', '#b98a1a'], prog: ['BASIC program', '#3f7fd0'], vars: ['variables and arrays', '#e07b39'], str: ['strings', '#c7559a'], ram: ['RAM', '#8a8f98'], cg: ['text ROM: 8 bytes per character', '#e6c229'], lc: ['language card RAM', '#5aa0a8']
-  },
+  legend: { zp: ['zero page', '#8e6bbf'], mon: ['SUPERMON\'s zero page (00F8h–00FFh)', '#d0483f'], stack: ['stack', '#e07b39'], ram: ['RAM', '#8a8f98'], sys: ['System RAM: vectors and SUPERMON\'s variables', '#1fa3a3'], scope: ['System RAM: scope buffer', '#2e9e5b'] },
   bands() {
-    const out = [];
-    for (let a = 0; a < ap.ramSize; a += 0x2000) out.push({ label: `RAM ${h4(a)}h-${h4(a + 0x1FFF)}h`, base: a, bytes: 0x2000, read: x => ap.ram[x], cpu: true });
-    for (const [name, a] of A2_SOCKETS) if (ap.fitted[name]) out.push({ label: `${name} ROM ${h4(a)}h-${h4(a + 0x7FF)}h`, base: a, bytes: 0x800, read: x => ap.rom[x], cpu: true });
-    if (ap.diskOn && ap.disk.rom) out.push({ label: 'P5 Disk II boot PROM C600h-C6FFh', base: 0xC600, bytes: 0x100, read: x => ap.disk.rom[x - 0xC600], cpu: true });
-    if (ap.lc) out.push({ label: 'language card RAM: D000h bank 1, bank 2, E000h-FFFFh', base: 0, bytes: 0x4000, read: x => ap.lcRam[x], cpu: false, space: 'l', key: 'lc' });
-    if (ap.hasChargen) out.push({ label: 'A5 text ROM (not on the CPU bus)', base: 0, bytes: 0x800, read: x => ap.chargen[x], cpu: false, space: 'c', key: 'cg' });
+    const out = [{ label: `RAM 0000h-${h4(ap.ramKB * 1024 - 1)}h`, base: 0, bytes: ap.ramKB * 1024, read: x => ap.ram[x], cpu: true },
+      { label: 'System RAM A600h-A67Fh (the 6532\'s)', base: 0xA600, bytes: 0x80, read: x => ap.riot.ram[x & 0x7F], cpu: true }];
+    for (const s of ap.sockets) if (s.fitted) out.push({ label: `${s.name} ROM ${h4(s.addr)}h-${h4(s.addr + s.size - 1)}h`, base: s.addr, bytes: s.size, read: x => ap.rom[x], cpu: true });
     return out;
   },
-  regions() {
-    const R = [[0, 0x100, 'zp'], [0x100, 0x200, 'stack'], [0x200, 0x400, 'sys'], [0x400, 0x800, 'text1'], [0x800, 0xC00, 'text2'], [0x2000, 0x4000, 'hgr1'], [0x4000, 0x6000, 'hgr2']];
-    const w = a => ap.ram[a] | ap.ram[a + 1] << 8, seq = [[w(0x67), 'prog'], [w(0x69), 'vars'], [w(0x6D), 'free'], [w(0x6F), 'str'], [w(0x73), 'ram']];
-    let ok = apOn() && seq[0][0] >= 0x800 && seq[4][0] <= ap.ramSize; for (let i = 1; i < seq.length; i++) if (seq[i][0] < seq[i - 1][0]) ok = false;
-    if (ok) seq.forEach(([a, k], i) => { const e = i + 1 < seq.length ? seq[i + 1][0] : ap.ramSize; if (e > a && k !== 'free' && k !== 'ram') R.push([a, e, k]); });
-    return R;
-  },
+  regions() { return [[0, 0xF8, 'zp'], [0xF8, 0x100, 'mon'], [0x100, 0x200, 'stack'], [0xA600, 0xA620, 'scope'], [0xA620, 0xA680, 'sys']]; },
   markers() { const cs = getComputedStyle(document.documentElement); return [[0x100 + cpu.s, cs.getPropertyValue('--sel').trim() || '#2a6fb0'], [cpu.pc, '#e0322d']]; }
 };
-$('a2Listing').onclick = () => a2Saved(benchDownload(`apple2-listing-${benchStamp()}.txt`, ap.report(), 'text/plain;charset=utf-8'), f => `Listing saved as ${f}: registers, the soft switches, the BASIC pointers, the BASIC program as text, the text screen and a hex dump of RAM.`);
-function a2Saved(p, text) {
-  const m = $('a2Msg');
-  p.then(n => { if (n) { m.className = 'msg ok'; m.textContent = text(n) + ' Look in your downloads.'; } else { m.className = 'msg'; m.textContent = 'Not saved: the download was declined.'; } })
-   .catch(e => { m.className = 'msg err'; m.textContent = 'Could not save the file' + (e && e.message ? ': ' + e.message : '.'); });
-}
-// ---------- sound: the speaker flip-flop, sampled as the machine runs ----------
-let a2Audio = null, a2Ar = 0, a2Last = 0, a2Hp = 0;
-const a2SoundOn = () => $('a2Sound').checked;
-function a2AudioStart() {
-  if (!a2SoundOn()) return;
-  if (a2Audio) { if (a2Audio.state === 'suspended') a2Audio.resume().catch(() => {}); return; }
+// ---------- sound: the speaker on output 6 of U37, sampled as the machine runs ----------
+let syAudio = null, syAr = 0, syLast = 0, syHp = 0;
+const sySoundOn = () => $('sySound').checked;
+function syAudioStart() {
+  if (!sySoundOn()) return;
+  if (syAudio) { if (syAudio.state === 'suspended') syAudio.resume().catch(() => {}); return; }
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-    a2Audio = new AC(); const node = a2Audio.createScriptProcessor(1024, 0, 1);
+    syAudio = new AC(); const node = syAudio.createScriptProcessor(1024, 0, 1);
     node.onaudioprocess = e => {
-      const out = e.outputBuffer.getChannelData(0), live = running && runRate === 'real' && a2SoundOn(), rate = ap.audioRate;
-      if (ap.aw - a2Ar > rate * 0.2 || ap.aw < a2Ar) a2Ar = Math.max(0, ap.aw - Math.round(rate * 0.06));
+      const out = e.outputBuffer.getChannelData(0), live = running && runRate === 'real' && sySoundOn(), rate = ap.audioRate;
+      if (ap.aw - syAr > rate * 0.2 || ap.aw < syAr) syAr = Math.max(0, ap.aw - Math.round(rate * 0.06));
       for (let i = 0; i < out.length; i++) {
-        if (live && a2Ar < ap.aw) a2Last = ap.abuf[a2Ar++ & 32767]; else if (!live) { a2Last = 0; a2Ar = ap.aw; }
-        a2Hp += (a2Last - a2Hp) * 0.002; out[i] = a2Last - a2Hp;      // the speaker's coupling: no DC
+        if (live && syAr < ap.aw) syLast = ap.abuf[syAr++ & 32767]; else if (!live) { syLast = 0; syAr = ap.aw; }
+        syHp += (syLast - syHp) * 0.002; out[i] = syLast - syHp;
       }
     };
-    node.connect(a2Audio.destination); ap.audioRate = a2Audio.sampleRate; a2Ar = ap.aw;
-  } catch (e) { a2Audio = null; }
+    node.connect(syAudio.destination); ap.audioRate = syAudio.sampleRate; syAr = ap.aw;
+  } catch (e) { syAudio = null; }
 }
-for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, a2AudioStart, { passive: true });
-$('a2Sound').onchange = () => { try { localStorage.setItem(A2_LS + 'sound', a2SoundOn() ? '1' : '0'); } catch (e) {} if (a2SoundOn()) a2AudioStart(); else if (a2Audio) a2Audio.suspend().catch(() => {}); };
-try { if (localStorage.getItem(A2_LS + 'sound') === '0') $('a2Sound').checked = false; } catch (e) {}
+// the bell from a real SYM-1 on the serial port: a short beep
+function syAudioBeep() {
+  if (!syReal || !sySoundOn()) return; syAudioStart(); if (!syAudio) return;
+  try { const o = syAudio.createOscillator(), g = syAudio.createGain(); o.frequency.value = 880; g.gain.value = 0.08; o.connect(g); g.connect(syAudio.destination); o.start(); o.stop(syAudio.currentTime + 0.12); } catch (e) {}
+}
+for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, syAudioStart, { passive: true });
+$('sySound').onchange = () => { try { localStorage.setItem(SY_LS + 'sound', sySoundOn() ? '1' : '0'); } catch (e) {} if (sySoundOn()) syAudioStart(); else if (syAudio) syAudio.suspend().catch(() => {}); };
+try { if (localStorage.getItem(SY_LS + 'sound') === '0') $('sySound').checked = false; } catch (e) {}
 // ---------- memory chips: what this machine has, and what each pin's board net is doing ----------
 const MC = {
   m: ap,
   groups() {
-    const g = [['RAM row C · 0000h–3FFFh · one 4116 per data bit', [7, 6, 5, 4, 3, 2, 1, 0]]];
-    if (ap.ramSize > 0x4000) g.push(['RAM row D · 4000h–7FFFh', [15, 14, 13, 12, 11, 10, 9, 8]]);
-    if (ap.ramSize > 0x8000) g.push(['RAM row E · 8000h–BFFFh', [23, 22, 21, 20, 19, 18, 17, 16]]);
-    g.push(['ROMs and the text ROM' + (A2_SOCKETS.some(x => !ap.fitted[x[0]]) ? ' · fitted: ' + (A2_SOCKETS.filter(x => ap.fitted[x[0]]).map(x => x[0]).join(' ') || 'none') : ''), [24, 25, 26, 27, 28, 29, 30]]);
-    return g;
+    const n = ap.ramKB * 2;
+    return [['RAM · two 2114s per 1K (bits 0–3 and 4–7)', [...Array(n).keys()]], ['ROM sockets P0–P3 (U20–U23)', [8, 9, 10, 11]]];
   },
-  tile(c, i) { return i < 24 ? [c.id, '4116 · D' + c.bit] : i === 30 ? [c.id, '2316B · text'] : [c.id, ap.fitted[c.id] ? '2316B · ' + h4(c.base) + 'h' : 'empty']; },
-  acc(i) { return i < 24 ? (i >> 3) : i < 30 ? 3 + (i - 24) : 9; },
+  tile(c, i) {
+    if (i < 8) return [c.id, '2114 · ' + h4(c.block * 0x400) + 'h · D' + c.nib + '–' + (c.nib + 3)];
+    const s = ap.sockets[i - 8]; return [c.id + ' ' + s.name, s.fitted ? c.part + ' · ' + h4(s.addr) + 'h' : 'empty'];
+  },
+  acc(i) { return i < 8 ? i >> 1 : i < 12 ? 4 + (i - 8) : -1; },
   bus() {
     const T = curT, A = T.a === null || T.a === 'z' || T.a === undefined ? null : ap.busA(T.a), D = T.d === null || T.d === undefined || T.d === 'z' ? null : T.d;
-    const c = ap.frameCycle() % ap.FT, sa = ap.scanAddr(c, ap.sw);
-    return { A, D, rd: A !== null && T.rw === 1, wr: A !== null && T.rw === 0, sa, row: (c / 65 | 0) & 7 };
+    return { A, D, rd: A !== null && T.rw === 1, wr: A !== null && T.rw === 0 };
   },
   net(c, i, name, B) {
     const A = B.A, db = n => B.D === null ? 'z' : (B.D >> n) & 1;
     let m = /^A(\d+)$/.exec(name), d;
-    if (i < 24) {                       // 4116s: during φ0 the 6502's row then column (shown: the column, as CAS falls last)
-      const sel = A !== null && A < 0xC000 && (A >> 14) === c.row && A < ap.ramSize;
-      if (m) { if (A === null) return 'z'; const bits = c.amap[+m[1]], col = bits & (bits - 1) ? bits & ~(bits & -bits) : bits; return A & col ? 1 : 0; }
-      switch (name) { case 'RAS': return A === null ? 1 : 0; case 'CAS': return sel ? 0 : 1; case 'WE': return sel && B.wr ? 0 : 1; case 'DIN': return db(c.bit); case 'DOUT': return sel && B.rd ? db(c.bit) : 'z'; }
-      return 'z';
-    }
-    if (i === 30) {                     // the text ROM: DL7, DL6 on A10, A9; DL0-DL5 on A3-A8; VA-VC on A0-A2
-      const b = ap.vByte(B.sa), addr = (b & 0xC0) << 3 | (b & 0x3F) << 3 | B.row;
-      if (m) return (addr >> +m[1]) & 1; if ((d = /^D(\d)$/.exec(name))) return ap.hasChargen ? (ap.chargen[addr] >> +d[1]) & 1 : 'z';
-      return name === 'CS' ? 0 : 1;
-    }
-    {                                   // the six ROMs: CS1' is the ROM ENABLE' from F12, CS2 is INHIBIT'
-      const sel = A !== null && A >= c.base && A <= c.base + c.mask;
+    if (i < 8) {                         // 2114: A0-A9, CS' from U1, WE' (WRITE'), I/O1-I/O4 on the data bus
+      const sel = A !== null && A < ap.ramKB * 1024 && (A >> 10) === c.block;
       if (m) return A === null ? 'z' : (A >> +m[1]) & 1;
-      if ((d = /^D(\d)$/.exec(name))) return sel && B.rd && ap.fitted[c.id] ? db(+d[1]) : 'z';
-      return name === 'CS' ? (sel ? 0 : 1) : 1;
+      if ((d = /^I\/O(\d)$/.exec(name))) return sel ? db(c.nib + +d[1] - 1) : 'z';
+      return name === 'CS' ? (sel ? 0 : 1) : name === 'WE' ? (sel && B.wr ? 0 : 1) : 1;
+    }
+    {                                    // a ROM socket: CS' from U24 (POR' or its 2K blocks)
+      const s = ap.sockets[i - 8], sel = s.fitted && A !== null && (ap.por(A) && A >= 0x8000 ? i === 8 : A >= s.addr && A < s.addr + s.size);
+      if (m) return A === null ? 'z' : (A >> +m[1]) & 1;
+      if ((d = /^D(\d)$/.exec(name))) return sel && B.rd ? db(+d[1]) : 'z';
+      return name === 'CS' ? (sel ? 0 : 1) : name === 'CS2' ? 0 : 1;
     }
   }
 };
-// what some pins are wired to (the RFI schematic)
-const A2_PIN_TIPS = {};
-for (const c of ap.romChips) { A2_PIN_TIPS[c.id + '.CS'] = 'CS1\': ROM ENABLE\' from the 74LS138 at F12'; A2_PIN_TIPS[c.id + '.CS2'] = 'CS2: INHIBIT\' from pin 32 of the slots (pulled up)'; A2_PIN_TIPS[c.id + '.CS3'] = 'CS3\': grounded'; }
-for (const r of ap.ramRows) for (const c of r) { A2_PIN_TIPS[c.id + '.DOUT'] = 'to the RAM data latch (B5, B8)'; A2_PIN_TIPS[c.id + '.CAS'] = 'CAS\' row ' + c.id[0] + ', from the RAM select logic'; }
+// what some pins are wired to (Peck's IC interconnect listing)
+const SY_PIN_TIPS = {};
+for (const p of ap.ramPairs) for (const c of p) { SY_PIN_TIPS[c.id + '.CS'] = `CS': output ${c.block} of the 74LS138 at U1`; SY_PIN_TIPS[c.id + '.WE'] = c.block ? `WE': WRITE' through U4 (write protect from VIA 3 PA${c.block}, with its jumper)` : 'WE\': WRITE\' (this pair cannot be write protected: the stack is here)'; }
+for (const c of ap.romChips) { SY_PIN_TIPS[c.id + '.CS'] = 'CS: from U24 (7408), which ANDs the 2K block decoders U10/U11 with POR\''; SY_PIN_TIPS[c.id + '.CS2'] = 'CS2: grounded'; }
 // ---------- the processor's pins take faults too ----------
-const CPU_FAULT_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'RW', 'SYNC', 'RDY', 'IRQ', 'NMI', 'SO', 'RES'], MCCPU = ap.chips.indexOf(ap.chipById['H7']);
+const CPU_FAULT_PINS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15', 'D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'RW', 'SYNC', 'RDY', 'IRQ', 'NMI', 'SO', 'RES'], MCCPU = ap.chips.indexOf(ap.chipById['U5']);
 let cpuFaultsDone = false;
 function cpuFaultPins() {
   cpuFaultsDone = true; const fig = $('cpuFig');
@@ -2304,7 +2333,7 @@ function cpuFaultPins() {
       g.insertBefore(ring, g.firstChild); g.insertBefore(hit, g.firstChild);
       g.classList.add('input'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
     }
-    g.querySelector('title').textContent = `${ap.chipName('H7')} pin ${name}: click for its fault menu`;
+    g.querySelector('title').textContent = `${ap.chipName('U5')} pin ${name}: click for its fault menu`;
     g.addEventListener('click', ev => { ev.stopPropagation(); mcMenu(name, ev, MCCPU, fig); });
     g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const r = g.getBoundingClientRect(); mcMenu(name, { clientX: r.left, clientY: r.top }, MCCPU, fig); } });
   }
@@ -2313,8 +2342,8 @@ function cpuFaultPins() {
 }
 function cpuFaultRender() {
   if (!cpuFaultsDone && pinEls['PHI0']) cpuFaultPins();
-  const zf = ap.chipById['H7'].f; for (const name of CPU_FAULT_PINS.concat(['PHI0'])) { const g = pinEls[name].g, f = name in zf; g.classList.toggle('forced', f); g.classList.toggle('fz', f && zf[name] === 'z'); }
-  $('cpuFaults').textContent = ap.chipFaults('H7').join(' · ');
+  const zf = ap.chipById['U5'].f; for (const name of CPU_FAULT_PINS.concat(['PHI0'])) { const g = pinEls[name].g, f = name in zf; g.classList.toggle('forced', f); g.classList.toggle('fz', f && zf[name] === 'z'); }
+  $('cpuFaults').textContent = ap.chipFaults('U5').join(' · ');
 }
 // ---------- memory chips: tiles, a live pinout of the selected chip, and pin faults ----------
 // The page supplies MC: { m (the machine: chips, acc, faulty), groups(), tile(c, i), acc(i), bus(), net(c, i, name, B) }.
@@ -2347,7 +2376,7 @@ function mcDraw() {
     const nm = svg('text', { class: 'nm', x: left ? sx - 8 : sx + 34, y, 'text-anchor': left ? 'end' : 'start' }, g);
     const label = name === 'PHI2' ? 'φ2' : name;
     if (MEM_ACTIVE_LOW.has(name)) { const ov = svg('tspan', { class: 'ov' }, nm); ov.textContent = label; } else nm.textContent = label;
-    const title = svg('title', {}, g); title.textContent = (kind === 'i' ? `${ap.chipName(c.id)} pin ${n}, ${label}: click for its fault menu` : `${ap.chipName(c.id)} pin ${n}, ${label}`) + (A2_PIN_TIPS[c.id + '.' + name] ? '. ' + A2_PIN_TIPS[c.id + '.' + name] : '');
+    const title = svg('title', {}, g); title.textContent = (kind === 'i' ? `${ap.chipName(c.id)} pin ${n}, ${label}: click for its fault menu` : `${ap.chipName(c.id)} pin ${n}, ${label}`) + (SY_PIN_TIPS[c.id + '.' + name] ? '. ' + SY_PIN_TIPS[c.id + '.' + name] : '');
     if (kind === 'i') {
       g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
       g.addEventListener('click', ev => mcMenu(name, ev));
@@ -2450,16 +2479,14 @@ try { savedHex = localStorage.getItem(LS + 'hex'); savedAsm = localStorage.getIt
 $('hexIn').value = savedHex || SAMPLE;
 $('asmIn').value = savedAsm || SAMPLE_ASM;
 setMode(savedMode === 'hex' ? 'hex' : 'asm');
-{ const ls = k => { try { return localStorage.getItem(A2_LS + k); } catch (e) { return null; } };
-  for (const r of Object.keys(A2_ROLES)) { const d = ls('rom.' + r); if (!d) continue; try { const b = a2Un64(d); if (b.length === (A2_ROLES[r].size || 2048)) { a2Roms[r] = b; const n = ls('name.' + r); if (n) a2Names[r] = n; } } catch (e) {} }
-  for (const [s] of A2_SOCK) { const d = ls('custom.' + s); if (!d) continue; try { const o = JSON.parse(d), b = a2Un64(o.data); if (b.length === (A2_ROLES[s].size || 2048)) a2Custom[s] = { name: String(o.name), bytes: b }; } catch (e) {} }
-  { try { const c = JSON.parse(ls('cards') || '{}'); $('a2Lc').checked = !!c.lc; $('a2Dsk').checked = !!c.disk; if (c.hz === '50') $('a2Hz').value = '50'; } catch (e) {} }
-  a2CardsFromUi();
-  { const k = ls('ram'), mo = ls('mon'); if (['16', '32', '48'].includes(k)) $('a2Ram').value = k; if (['colour', 'white', 'green', 'amber'].includes(mo)) $('a2Mon').value = mo; }
-  window.a2Bench = { ap };      // for testing from the browser console
-  a2RomShow();
-  if (a2Fit()) { $('a2Msg').textContent = 'Apple II Plus ROMs loaded from this browser.'; a2PowerOn(); }
-  else { resetCPU(true); a2NoRom(); render(); } }
+{ const ls = k => { try { return localStorage.getItem(SY_LS + k); } catch (e) { return null; } };
+  for (const s of ['P0', 'P1', 'P2', 'P3']) { const d = ls('rom.' + s); if (!d) continue; try { const o = JSON.parse(d), b = syUn64(o.data); if ((b.length === 2048 || b.length === 4096) && syAddrOk(o.addr, b.length)) syRoms[s] = { name: String(o.name), label: String(o.label || o.name), addr: o.addr, bytes: b }; } catch (e) {} }
+  { const k = ls('ram'), b = ls('baud'); if (['1', '2', '3', '4'].includes(k)) $('syRam').value = k; if (SYM_BAUDS.map(String).includes(b)) { $('syBaud').value = b; ap.baud = +b; } }
+  { try { const j = JSON.parse(ls('jumpers') || '{}'); if ('MM' in j) $('syJMM').checked = !!j.MM; $('syJWX').checked = !!j.WX; $('syJWP').checked = !!j.WP; $('syVia2').checked = !!j.via2; } catch (e) {} }
+  syJumpers();
+  window.symBench = { ap };      // for testing from the browser console
+  if (syFit()) { syMsg('SYM-1 ROMs loaded from this browser. Press a key on the keypad, or type Q in the terminal to log on.'); syPowerOn(); }
+  else { resetCPU(true); syNoRom(); render(); } }
 })();
 </script>
 </html>

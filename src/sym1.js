@@ -42,7 +42,10 @@ const SYM_KEYS = [
   ['2', '6', 'A', 'E', '→', 'MEM', null],
   ['3', '7', 'B', 'F', 'SHIFT', null, null]
 ];
-const SYM_SHIFTED = { 0: 'U0', 1: 'U1', 2: 'U2', 3: 'U3', 4: 'U4', 5: 'U5', 6: 'U6', 7: 'U7', 8: 'JUMP', 9: 'VER', A: 'ASCII', B: 'B MOV', C: 'CALC', D: 'DEP', E: 'EXEC', F: 'FILL', CR: 'SD', '-': '+', '→': '←', GO: 'LP', REG: 'SP', MEM: 'WP', L2: 'L1', S2: 'S1' };
+const SYM_SHIFTED = { 0: 'USR 0', 1: 'USR 1', 2: 'USR 2', 3: 'USR 3', 4: 'USR 4', 5: 'USR 5', 6: 'USR 6', 7: 'USR 7', 8: 'JUMP', 9: 'VER', A: 'ASCII', B: 'B MOV', C: 'CALC', D: 'DEP', E: 'EXEC', F: 'FILL', CR: 'S DBL', '-': '+', '→': '←', GO: 'LD P', REG: 'SAV P', MEM: 'WP', L2: 'LD 1', S2: 'SAV 1' };
+// the keypad as it is laid out on the board (figure 5-1): four columns, seven rows; [key, lower legend]
+const SYM_LAYOUT = [[['L2', 'LD 2'], ['S2', 'SAV 2'], ['RST', 'RST'], ['DEBUG ON', 'ON']], [['GO', 'GO'], ['REG', 'REG'], ['MEM', 'MEM'], ['DEBUG OFF', 'OFF']],
+  [['CR', 'CR'], ['-', '−'], ['→', '→'], ['SHIFT', 'SHIFT']], ...['CDEF', '89AB', '4567', '0123'].map(r => r.split('').map(k => [k, k]))];
 const SYM_KEYPOS = {}; SYM_KEYS.forEach((row, r) => row.forEach((k, c) => { if (k) SYM_KEYPOS[k] = [r, c]; }));
 // the seven segments: bit 0 a (top) ... bit 6 g (middle), bit 7 the decimal point
 const SYM_BAUDS = [110, 300, 600, 1200, 2400, 4800];
@@ -180,6 +183,7 @@ class SymMachine {
     this.soLow = z.SO === 0;
   }
   held() { return this.heldWhy; }
+  busA(a) { return this.fx ? this.cpuC.busA(a) : a; }
   // RST: RES goes to the 6502, the three VIAs and the RIOT, and clears the DEBUG flip-flop. reset(true) is power on.
   reset(cold) {
     if (cold === true) { this.ram.fill(0); this.riot.ram.fill(0); this.keysDown.clear(); this.segT.fill(0); this.segFrom = this.ct; this.tapeOutLv = 0; }
@@ -374,22 +378,22 @@ class SymMachine {
   stopRec() { const r = this.rec; this.rec = null; return (r || []).map(c => c - this.recAt); }
   audioEdge() { }
   // ---- per instruction ----
-  syncIrq() { const i = this.cpuC.lv.IRQ; this.cpu.irqLine = i !== undefined ? i === 0 : (this.via1.irq() || this.via3.irq() || (this.via2Fitted && this.via2.irq())); }
+  // IRQ: the three VIAs' outputs, wired together (the 6532's is not connected, Peck page 26)
+  irqLevel() { return this.via1.irq() || this.via3.irq() || (this.via2Fitted && this.via2.irq()); }
+  syncIrq() { const i = this.cpuC.lv.IRQ; this.cpu.irqLine = i !== undefined ? i === 0 : this.irqLevel(); }
   afterStep(cyc) {
     const n = cyc.length; this.t += n; if (this.ct < this.t) this.ct = this.t; else if (this.ct > this.t) this.t = this.ct;
     this.via1.tick(n); this.via2.tick(n); this.via3.tick(n); this.riot.tick(n);
     if (this.cpu.lastEvent === 'IRQ') this.irqs = (this.irqs || 0) + 1;
+    if (this.cpu.lastEvent === 'NMI') this.nmis = (this.nmis || 0) + 1;
+    // DEBUG on: an opcode fetched from outside P0 pulls NMI low (U7: DEBUG ON, SYNC and not P0); the 6502 takes the
+    // interrupt once the instruction is done
+    if (this.debug && !this.cpu.lastEvent && n && cyc[0].sync && !cyc[0].held && !this.inMonitor(cyc[0].a)) this.cpu.nmiPending = true;
     if (this.audioRate) { this.audioT += n * this.audioRate; while (this.audioT >= SYM.CPU_HZ) { this.audioT -= SYM.CPU_HZ; this.abuf[this.aw++ & 32767] = this.spk ? 0.25 : -0.25; } }
     this.txPump(); if (this.rx.edges.length) this.rxPump();
     return n;
   }
-  step() {
-    this.syncIrq();
-    const pc = this.cpu.pc, cyc = this.cpu.step();
-    // DEBUG on: an opcode fetched from outside P0 pulls NMI low; the 6502 takes it after the instruction
-    if (this.debug && !this.cpu.lastEvent && !this.heldWhy && !this.inMonitor(pc)) this.cpu.nmiPending = true;
-    return this.afterStep(cyc);
-  }
+  step() { this.syncIrq(); return this.afterStep(this.cpu.step()); }
   run(cycles) { let t = 0; while (t < cycles) t += this.step(); return t; }
   // ---- listing ----
   report() {
@@ -413,4 +417,4 @@ class SymMachine {
   }
 }
 Object.assign(SymMachine.prototype, BOARD_FAULTS);
-if (typeof module !== 'undefined') module.exports = { SymMachine, SYM, SYM_SOCKETS, SYM_KEYS, SYM_SHIFTED, SYM_KEYPOS, SYM_BAUDS, symTapeHS, symTapeFromSamples, symWavFromTape };
+if (typeof module !== 'undefined') module.exports = { SymMachine, SYM, SYM_SOCKETS, SYM_KEYS, SYM_SHIFTED, SYM_LAYOUT, SYM_KEYPOS, SYM_BAUDS, symTapeHS, symTapeFromSamples, symWavFromTape };
